@@ -7,12 +7,12 @@ export class SupabaseService {
 
   constructor() {
     const supabaseUrl = process.env.SUPABASE_URL || 'https://your-project.supabase.co';
-    const supabaseKey = process.env.SUPABASE_KEY || 'your-anon-key';
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'your-service-role-key';
     
     console.log('Supabase URL:', supabaseUrl);
-    console.log('Supabase Key:', supabaseKey ? 'Present' : 'Missing');
+    console.log('Supabase Service Role Key:', supabaseServiceRoleKey ? 'Present' : 'Missing');
     
-    this.supabase = createClient(supabaseUrl, supabaseKey);
+    this.supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
   }
 
   getClient(): SupabaseClient {
