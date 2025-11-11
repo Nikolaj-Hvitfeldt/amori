@@ -21,9 +21,12 @@ export default function HomeScreen() {
   const loadEntries = async () => {
     try {
       const data = await journalService.getAll();
-      setEntries(data);
+      // Ensure data is an array, fallback to empty array if not
+      setEntries(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error loading entries:', error);
+      // Set empty array on error to prevent crashes
+      setEntries([]);
     } finally {
       setLoading(false);
     }
@@ -179,10 +182,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 3,
   },
   entryDate: {
