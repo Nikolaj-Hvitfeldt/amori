@@ -26,6 +26,13 @@ export const journalService = {
       },
       body: JSON.stringify(entry),
     });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API Error:', response.status, errorText);
+      throw new Error(`Failed to create entry: ${response.status} - ${errorText}`);
+    }
+    
     return response.json();
   },
 
