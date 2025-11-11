@@ -1,6 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { SupabaseService } from '../supabase/supabase.service';
-import { CreateJournalEntryDto, UpdateJournalEntryDto, JournalEntry } from './journal.dto';
+import { Injectable } from "@nestjs/common";
+import { SupabaseService } from "../supabase/supabase.service";
+import {
+  CreateJournalEntryDto,
+  UpdateJournalEntryDto,
+  JournalEntry,
+} from "./journal.dto";
 
 @Injectable()
 export class JournalService {
@@ -9,9 +13,9 @@ export class JournalService {
   async findAll(): Promise<JournalEntry[]> {
     const { data, error } = await this.supabaseService
       .getClient()
-      .from('journal_entries')
-      .select('*')
-      .order('entry_date', { ascending: false });
+      .from("journal_entries")
+      .select("*")
+      .order("entry_date", { ascending: false });
 
     if (error) throw error;
     return data;
@@ -20,9 +24,9 @@ export class JournalService {
   async findOne(id: string): Promise<JournalEntry> {
     const { data, error } = await this.supabaseService
       .getClient()
-      .from('journal_entries')
-      .select('*')
-      .eq('id', id)
+      .from("journal_entries")
+      .select("*")
+      .eq("id", id)
       .single();
 
     if (error) throw error;
@@ -32,7 +36,7 @@ export class JournalService {
   async create(createDto: CreateJournalEntryDto): Promise<JournalEntry> {
     const { data, error } = await this.supabaseService
       .getClient()
-      .from('journal_entries')
+      .from("journal_entries")
       .insert([createDto])
       .select()
       .single();
@@ -41,12 +45,15 @@ export class JournalService {
     return data;
   }
 
-  async update(id: string, updateDto: UpdateJournalEntryDto): Promise<JournalEntry> {
+  async update(
+    id: string,
+    updateDto: UpdateJournalEntryDto
+  ): Promise<JournalEntry> {
     const { data, error } = await this.supabaseService
       .getClient()
-      .from('journal_entries')
+      .from("journal_entries")
       .update(updateDto)
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
 
@@ -57,22 +64,32 @@ export class JournalService {
   async remove(id: string): Promise<void> {
     const { error } = await this.supabaseService
       .getClient()
-      .from('journal_entries')
+      .from("journal_entries")
       .delete()
-      .eq('id', id);
+      .eq("id", id);
 
     if (error) throw error;
   }
 
   async findByType(type: string): Promise<JournalEntry[]> {
-    const { data, error } = await this.supabaseService
-      .getClient()
-      .from('journal_entries')
-      .select('*')
-      .eq('entry_type', type)
-      .order('entry_date', { ascending: false });
+    try {
+      console.log("Attempting to query journal_entries for type:", type);
+      const { data, error } = await this.supabaseService
+        .getClient()
+        .from("journal_entries")
+        .select("*")
+        .eq("entry_type", type)
+        .order("entry_date", { ascending: false });
 
-    if (error) throw error;
-    return data;
+      if (error) {
+        console.error("Supabase query error:", error);
+        throw error;
+      }
+      console.log("Query successful, returned", data?.length || 0, "entries");
+      return data;
+    } catch (networkError) {
+      console.error("Network error in findByType:", networkError);
+      throw networkError;
+    }
   }
 }
