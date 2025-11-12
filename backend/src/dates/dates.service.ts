@@ -60,7 +60,7 @@ export class DatesService {
       .from("date_entries")
       .insert([
         {
-          title: createDateEntryDto.title,
+          title: createDateEntryDto.title || `${createDateEntryDto.location} - ${new Date(createDateEntryDto.date).toLocaleDateString()}`,
           date: createDateEntryDto.date,
           location: createDateEntryDto.location,
           description: createDateEntryDto.description,

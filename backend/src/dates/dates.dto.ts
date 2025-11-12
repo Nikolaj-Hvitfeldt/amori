@@ -16,9 +16,9 @@ export type DateMood =
   | "dreamy";
 
 export class CreateDateEntryDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  title: string;
+  title?: string;
 
   @IsDateString()
   date: string; // ISO date string

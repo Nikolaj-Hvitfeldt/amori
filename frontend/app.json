@@ -6,16 +6,38 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "splash": {
-      "backgroundColor": "#FFF5F7"
+      "backgroundColor": "#FFF5F7",
+      "image": "./assets/splash.png",
+      "resizeMode": "contain"
     },
+    "icon": "./assets/icon.png",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.amori.app"
     },
     "android": {
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#FFFFFF",
+      "package": "com.amori.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
     },
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png",
+      "name": "Amori - Your Love Story",
+      "shortName": "Amori",
+      "lang": "en",
+      "scope": "/",
+      "themeColor": "#FFF5F7",
+      "backgroundColor": "#FFF5F7",
+      "display": "standalone",
+      "orientation": "portrait",
+      "startUrl": "/",
+      "description": "A beautiful journal app for couples to capture and cherish their special moments together",
+      "dir": "ltr",
+      "preferRelatedApplications": false
     },
     "plugins": [],
     "experiments": {

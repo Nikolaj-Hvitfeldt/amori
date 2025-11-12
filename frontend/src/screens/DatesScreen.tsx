@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -10,10 +10,56 @@ import {
   Platform,
   Alert,
   Image,
+  Animated,
+  Dimensions,
+  StyleSheet,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system/legacy";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { DateEntry, CreateDateEntryDto, DateMood } from "../types/dates";
 import { datesService } from "../services/dates";
+import { API_BASE_URL } from "../services/api";
+import DateDetailView from "../components/DateDetailView";
+import RotatingPhotoBackground from "../components/RotatingPhotoBackground";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+type TimeOfDay = "morning" | "afternoon" | "evening" | "night";
+
+// Time-based color themes (matching DateDetailView)
+const TIME_THEMES: Record<TimeOfDay, { gradient: string[]; text: string; bg: string }> = {
+  morning: {
+    gradient: ["#FFE5B4", "#FFD89B", "#FFC65D"],
+    text: "#8B4513",
+    bg: "#FFF8E7",
+  },
+  afternoon: {
+    gradient: ["#87CEEB", "#B0E0E6", "#E0F6FF"],
+    text: "#1E3A5F",
+    bg: "#E8F4F8",
+  },
+  evening: {
+    gradient: ["#FFB6C1", "#FFA07A", "#FF8C69"],
+    text: "#8B0000",
+    bg: "#FFE8E0",
+  },
+  night: {
+    gradient: ["#1a1a2e", "#16213e", "#0f172a"],
+    text: "#e5d3ff",
+    bg: "#0f172a",
+  },
+};
+
+// Mood-based accent colors
+const MOOD_COLORS: Record<DateMood, string> = {
+  magical: "#DDA0DD",
+  romantic: "#FFB6C1",
+  adventurous: "#FFD700",
+  cozy: "#DEB887",
+  spontaneous: "#FF69B4",
+  dreamy: "#B0C4DE",
+};
 
 const MOOD_OPTIONS: { value: DateMood; label: string; icon: string }[] = [
   { value: "magical", label: "Magical", icon: "✨" },
@@ -27,18 +73,42 @@ const MOOD_OPTIONS: { value: DateMood; label: string; icon: string }[] = [
 export default function DatesScreen() {
   const [dates, setDates] = useState<DateEntry[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isDetailVisible, setIsDetailVisible] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<DateEntry | null>(null);
   const [editingDate, setEditingDate] = useState<DateEntry | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Form state
+  const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
+  const [datePickerValue, setDatePickerValue] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
   const [mood, setMood] = useState<DateMood>("romantic");
   const [highlights, setHighlights] = useState<string[]>([""]);
   const [weather, setWeather] = useState("");
   const [favoriteMoment, setFavoriteMoment] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Get time of day from date input
+  const getTimeOfDay = (dateString: string): TimeOfDay => {
+    if (!dateString) return "night";
+    try {
+      const hour = new Date(dateString).getHours();
+      if (hour >= 5 && hour < 12) return "morning";
+      if (hour >= 12 && hour < 17) return "afternoon";
+      if (hour >= 17 && hour < 21) return "evening";
+    } catch {
+      // If date parsing fails, default to night
+    }
+    return "night";
+  };
+
+  const timeOfDay = getTimeOfDay(date);
+  const theme = TIME_THEMES[timeOfDay];
+  const moodColor = MOOD_COLORS[mood];
 
   useEffect(() => {
     loadDates();
@@ -62,21 +132,37 @@ export default function DatesScreen() {
   };
 
   const resetForm = () => {
+    setTitle("");
     setDate("");
+    setDatePickerValue(new Date());
     setLocation("");
     setDescription("");
     setMood("romantic");
     setHighlights([""]);
     setWeather("");
     setFavoriteMoment("");
-    setImageUrl("");
+    setPhotos([]);
     setEditingDate(null);
+    setShowDatePicker(false);
+  };
+
+  // Helper function to filter out invalid/blob URLs
+  const filterValidPhotos = (photoUrls: string[]): string[] => {
+    return photoUrls.filter((url) => {
+      // Only keep URLs that start with http:// or https:// (valid web URLs)
+      // Filter out blob: URLs and other invalid formats
+      return url && typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://"));
+    });
   };
 
   const openModal = (dateEntry?: DateEntry) => {
     if (dateEntry) {
       setEditingDate(dateEntry);
+      setTitle(dateEntry.title || "");
       setDate(dateEntry.date);
+      // Parse the date string to Date object
+      const parsedDate = new Date(dateEntry.date);
+      setDatePickerValue(isNaN(parsedDate.getTime()) ? new Date() : parsedDate);
       setLocation(dateEntry.location);
       setDescription(dateEntry.description);
       setMood(dateEntry.mood);
@@ -85,11 +171,64 @@ export default function DatesScreen() {
       );
       setWeather(dateEntry.weather || "");
       setFavoriteMoment(dateEntry.favorite_moment || "");
-      setImageUrl(dateEntry.image_url || "");
+      // Support both photos array and legacy image_url
+      // Filter out blob URLs and invalid URLs
+      const allPhotos = dateEntry.photos && dateEntry.photos.length > 0
+        ? dateEntry.photos
+        : dateEntry.image_url
+        ? [dateEntry.image_url]
+        : [];
+      setPhotos(filterValidPhotos(allPhotos));
     } else {
       resetForm();
     }
     setIsModalVisible(true);
+    // Animate fade in
+    fadeAnim.setValue(0);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const formatDateForDisplay = (dateString: string | Date): string => {
+    const dateObj = typeof dateString === "string" ? new Date(dateString) : dateString;
+    if (isNaN(dateObj.getTime())) return "";
+    
+    // European format: dd-mm-yyyy
+    const day = String(dateObj.getDate()).padStart(2, "0");
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const year = dateObj.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  const formatDateForDatabase = (dateObj: Date): string => {
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const day = String(dateObj.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const handleDateChange = (event: any, pickedDate?: Date) => {
+    console.log("Date picker event:", event.type, "pickedDate:", pickedDate);
+    
+    // On Android, always close the picker after the event
+    if (Platform.OS === "android") {
+      setShowDatePicker(false);
+    }
+    
+    // Handle the date selection
+    if (event.type === "set" && pickedDate) {
+      setDatePickerValue(pickedDate);
+      const formattedDate = formatDateForDatabase(pickedDate);
+      setDate(formattedDate);
+      console.log("Date set to:", formattedDate);
+    } else if (event.type === "dismissed") {
+      // User cancelled on Android
+      setShowDatePicker(false);
+      console.log("Date picker dismissed");
+    }
   };
 
   const closeModal = () => {
@@ -108,8 +247,11 @@ export default function DatesScreen() {
 
     try {
       const filteredHighlights = highlights.filter((h) => h.trim() !== "");
+      // Filter out invalid/blob URLs before saving
+      const validPhotos = filterValidPhotos(photos);
 
       const dateData: CreateDateEntryDto = {
+        title: title.trim() || undefined,
         date,
         location,
         description,
@@ -117,7 +259,7 @@ export default function DatesScreen() {
         highlights: filteredHighlights,
         weather: weather || undefined,
         favorite_moment: favoriteMoment || undefined,
-        image_url: imageUrl || undefined,
+        photos: validPhotos.length > 0 ? validPhotos : undefined,
       };
 
       if (editingDate) {
@@ -174,26 +316,84 @@ export default function DatesScreen() {
     }
   };
 
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    });
+  const uploadImage = async (uri: string): Promise<string> => {
+    try {
+      // Read image as base64 using expo-file-system (legacy API)
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      
+      // Determine mime type from file extension
+      const extension = uri.split('.').pop()?.toLowerCase() || 'jpg';
+      const mimeTypes: Record<string, string> = {
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        gif: 'image/gif',
+        webp: 'image/webp',
+      };
+      const mimeType = mimeTypes[extension] || 'image/jpeg';
+      const base64data = `data:${mimeType};base64,${base64}`;
+      
+      // Upload to backend
+      const uploadResponse = await fetch(`${API_BASE_URL}/dates/upload-image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ image: base64data }),
+      });
 
-    if (!result.canceled) {
-      setImageUrl(result.assets[0].uri);
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(`Failed to upload image: ${errorText}`);
+      }
+
+      const { url } = await uploadResponse.json();
+      return url;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        allowsMultipleSelection: true,
+      });
+
+      if (!result.canceled && result.assets.length > 0) {
+        setLoading(true);
+        // Upload all selected images
+        const uploadPromises = result.assets.map((asset) => uploadImage(asset.uri));
+        const uploadedUrls = await Promise.all(uploadPromises);
+        setPhotos([...photos, ...uploadedUrls]);
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Error picking/uploading image:', error);
+      Alert.alert('Error', 'Failed to upload image. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    const newPhotos = photos.filter((_, i) => i !== index);
+    setPhotos(newPhotos);
+  };
+
+  const formatDate = (dateString: string): string => {
+    // European format: dd-mm-yyyy
+    const dateObj = new Date(dateString);
+    if (isNaN(dateObj.getTime())) return "";
+    
+    const day = String(dateObj.getDate()).padStart(2, "0");
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const year = dateObj.getFullYear();
+    return `${day}-${month}-${year}`;
   };
 
   const getMoodInfo = (moodValue: DateMood) => {
@@ -268,6 +468,16 @@ export default function DatesScreen() {
         ) : (
           dates.map((dateEntry) => {
             const moodInfo = getMoodInfo(dateEntry.mood);
+            // Get photos array (support both photos and legacy image_url)
+            // Filter out blob URLs and invalid URLs
+            const allDatePhotos =
+              dateEntry.photos && dateEntry.photos.length > 0
+                ? dateEntry.photos
+                : dateEntry.image_url
+                ? [dateEntry.image_url]
+                : [];
+            const datePhotos = filterValidPhotos(allDatePhotos);
+
             return (
               <TouchableOpacity
                 key={dateEntry.id}
@@ -283,158 +493,105 @@ export default function DatesScreen() {
                   shadowOpacity: 0.3,
                   shadowRadius: 8,
                   elevation: 5,
+                  overflow: "hidden",
+                  position: "relative",
                 }}
-                onPress={() => openModal(dateEntry)}
+                onPress={() => {
+                  setSelectedDate(dateEntry);
+                  setIsDetailVisible(true);
+                }}
                 onLongPress={() => handleDeleteDate(dateEntry.id)}
               >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    marginBottom: 12,
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 18,
-                        fontWeight: "600",
-                        color: "#e5d3ff",
-                        marginBottom: 4,
-                      }}
-                    >
-                      {formatDate(dateEntry.date)}
-                    </Text>
-                    <View
-                      style={{ flexDirection: "row", alignItems: "center" }}
-                    >
-                      <Text style={{ fontSize: 20, marginRight: 8 }}>
-                        {moodInfo.icon}
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          color: "#a78bfa",
-                          fontWeight: "500",
-                        }}
-                      >
-                        {moodInfo.label}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                <Text
-                  style={{
-                    fontSize: 16,
-                    color: "#d1d5db",
-                    marginBottom: 8,
-                    fontWeight: "500",
-                  }}
-                >
-                  📍 {dateEntry.location}
-                </Text>
-
-                <Text
-                  style={{
-                    fontSize: 15,
-                    color: "#9ca3af",
-                    lineHeight: 22,
-                    marginBottom: 12,
-                  }}
-                >
-                  {dateEntry.description}
-                </Text>
-
-                {dateEntry.highlights && dateEntry.highlights.length > 0 && (
-                  <View style={{ marginBottom: 12 }}>
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        color: "#a78bfa",
-                        marginBottom: 6,
-                        fontWeight: "500",
-                      }}
-                    >
-                      ✨ Highlights
-                    </Text>
-                    {dateEntry.highlights.map((highlight, index) => (
-                      <Text
-                        key={index}
-                        style={{
-                          fontSize: 14,
-                          color: "#d1d5db",
-                          marginLeft: 12,
-                          marginBottom: 2,
-                        }}
-                      >
-                        • {highlight}
-                      </Text>
-                    ))}
-                  </View>
+                {/* Rotating Photo Background */}
+                {datePhotos.length > 0 && (
+                  <RotatingPhotoBackground
+                    photos={datePhotos}
+                    interval={8000}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      zIndex: 0,
+                    }}
+                  />
                 )}
-
-                {dateEntry.favorite_moment && (
+                {/* Content with relative positioning to appear above background */}
+                <View style={{ position: "relative", zIndex: 1 }}>
                   <View
                     style={{
-                      backgroundColor: "#1e293b40",
-                      padding: 12,
-                      borderRadius: 12,
-                      borderLeftWidth: 3,
-                      borderLeftColor: "#a78bfa",
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
                       marginBottom: 8,
                     }}
                   >
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        color: "#a78bfa",
-                        marginBottom: 4,
-                        fontWeight: "500",
-                      }}
-                    >
-                      💫 Favorite Moment
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        color: "#e2e8f0",
-                        fontStyle: "italic",
-                        lineHeight: 20,
-                      }}
-                    >
-                      "{dateEntry.favorite_moment}"
-                    </Text>
+                    <View style={{ flex: 1 }}>
+                      {/* Title */}
+                      <Text
+                        style={{
+                          fontSize: 20,
+                          fontWeight: "600",
+                          color: datePhotos.length > 0 ? "#ffffff" : "#e5d3ff",
+                          marginBottom: 4,
+                          textShadowColor: "rgba(0, 0, 0, 0.75)",
+                          textShadowOffset: { width: 0, height: 1 },
+                          textShadowRadius: 3,
+                        }}
+                      >
+                        {dateEntry.title || "Our Special Date"}
+                      </Text>
+                      {/* Date below title - italic small font */}
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontStyle: "italic",
+                          color: datePhotos.length > 0 ? "#f3f4f6" : "#9ca3af",
+                          marginBottom: 8,
+                          textShadowColor: "rgba(0, 0, 0, 0.75)",
+                          textShadowOffset: { width: 0, height: 1 },
+                          textShadowRadius: 3,
+                        }}
+                      >
+                        {formatDate(dateEntry.date)}
+                      </Text>
+                      <View
+                        style={{ flexDirection: "row", alignItems: "center" }}
+                      >
+                        <Text style={{ fontSize: 20, marginRight: 8 }}>
+                          {moodInfo.icon}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            color: datePhotos.length > 0 ? "#ffffff" : "#a78bfa",
+                            fontWeight: "500",
+                            textShadowColor: "rgba(0, 0, 0, 0.75)",
+                            textShadowOffset: { width: 0, height: 1 },
+                            textShadowRadius: 3,
+                          }}
+                        >
+                          {moodInfo.label}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
-                )}
 
-                {dateEntry.weather && (
                   <Text
                     style={{
-                      fontSize: 14,
-                      color: "#94a3b8",
-                      marginTop: 4,
+                      fontSize: 16,
+                      color: datePhotos.length > 0 ? "#ffffff" : "#d1d5db",
+                      marginBottom: 8,
+                      fontWeight: "500",
+                      textShadowColor: "rgba(0, 0, 0, 0.75)",
+                      textShadowOffset: { width: 0, height: 1 },
+                      textShadowRadius: 3,
                     }}
                   >
-                    🌤️ {dateEntry.weather}
+                    📍 {dateEntry.location}
                   </Text>
-                )}
-
-                {dateEntry.image_url && (
-                  <View style={{ marginTop: 12, alignItems: "center" }}>
-                    <Image
-                      source={{ uri: dateEntry.image_url }}
-                      style={{
-                        width: 120,
-                        height: 90,
-                        borderRadius: 12,
-                        opacity: 0.8,
-                      }}
-                      resizeMode="cover"
-                    />
-                  </View>
-                )}
+                </View>
               </TouchableOpacity>
             );
           })
@@ -464,25 +621,32 @@ export default function DatesScreen() {
         <Text style={{ fontSize: 28, color: "white" }}>+</Text>
       </TouchableOpacity>
 
-      {/* Elegant Modal */}
+      {/* Immersive Modal */}
       <Modal
         visible={isModalVisible}
         animationType="slide"
-        presentationStyle="formSheet"
+        presentationStyle="fullScreen"
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ flex: 1 }}
         >
-          <View style={{ flex: 1, backgroundColor: "#0f172a" }}>
+          <Animated.View
+            style={{
+              flex: 1,
+              backgroundColor: theme.bg,
+              opacity: fadeAnim,
+            }}
+          >
+            {/* Header with Photo Preview */}
             <View
               style={{
-                paddingTop: 60,
+                paddingTop: Platform.OS === "ios" ? 60 : 40,
                 paddingBottom: 20,
                 paddingHorizontal: 20,
-                backgroundColor: "#16213e",
+                backgroundColor: timeOfDay === "night" ? "#16213e" : theme.gradient[0] + "40",
                 borderBottomWidth: 1,
-                borderBottomColor: "#374151",
+                borderBottomColor: timeOfDay === "night" ? "#374151" : theme.gradient[0] + "60",
               }}
             >
               <View
@@ -490,26 +654,46 @@ export default function DatesScreen() {
                   flexDirection: "row",
                   justifyContent: "space-between",
                   alignItems: "center",
+                  marginBottom: photos.length > 0 ? 16 : 0,
                 }}
               >
-                <TouchableOpacity onPress={closeModal}>
-                  <Text style={{ fontSize: 16, color: "#a78bfa" }}>Cancel</Text>
+                <TouchableOpacity
+                  onPress={closeModal}
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: timeOfDay === "night" ? "rgba(0, 0, 0, 0.5)" : "rgba(255, 255, 255, 0.3)",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ fontSize: 20, color: theme.text, fontWeight: "600" }}>✕</Text>
                 </TouchableOpacity>
                 <Text
                   style={{
-                    fontSize: 20,
-                    fontWeight: "500",
-                    color: "#e5d3ff",
+                    fontSize: 22,
+                    fontWeight: "300",
+                    color: theme.text,
                     letterSpacing: 1,
+                    fontFamily: Platform.select({ ios: "Georgia", android: "serif" }),
                   }}
                 >
                   {editingDate ? "Edit Date" : "New Date"}
                 </Text>
-                <TouchableOpacity onPress={handleSaveDate}>
+                <TouchableOpacity
+                  onPress={handleSaveDate}
+                  style={{
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    backgroundColor: moodColor,
+                  }}
+                >
                   <Text
                     style={{
                       fontSize: 16,
-                      color: "#7c3aed",
+                      color: timeOfDay === "night" ? "#fff" : "#1a1a2e",
                       fontWeight: "600",
                     }}
                   >
@@ -517,147 +701,414 @@ export default function DatesScreen() {
                   </Text>
                 </TouchableOpacity>
               </View>
+
+              {/* Photo Preview */}
+              {photos.length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={{ marginTop: 12 }}
+                  contentContainerStyle={{ paddingHorizontal: 10, gap: 12 }}
+                >
+                  {photos.map((photo, index) => (
+                    <View key={index} style={{ position: "relative" }}>
+                      <Image
+                        source={{ uri: photo }}
+                        style={{
+                          width: 120,
+                          height: 120,
+                          borderRadius: 12,
+                          borderWidth: 2,
+                          borderColor: moodColor + "60",
+                        }}
+                        resizeMode="cover"
+                        onError={(error) => {
+                          console.warn("Failed to load image:", photo, error);
+                          // Remove invalid image from the array
+                          removePhoto(index);
+                        }}
+                      />
+                      <TouchableOpacity
+                        onPress={() => removePhoto(index)}
+                        style={{
+                          position: "absolute",
+                          top: -8,
+                          right: -8,
+                          width: 28,
+                          height: 28,
+                          borderRadius: 14,
+                          backgroundColor: "#ef4444",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          borderWidth: 2,
+                          borderColor: "#fff",
+                          zIndex: 10,
+                        }}
+                      >
+                        <Text style={{ color: "#fff", fontSize: 16, fontWeight: "600" }}>
+                          ×
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
             </View>
 
-            <ScrollView style={{ flex: 1, padding: 20 }}>
-              {/* Date Input */}
-              <View style={{ marginBottom: 20 }}>
+            <ScrollView
+              style={{ flex: 1, padding: 20 }}
+              contentContainerStyle={{ paddingBottom: 40 }}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Mood Badge Preview */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  alignSelf: "flex-start",
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                  backgroundColor: moodColor + "40",
+                  marginBottom: 24,
+                }}
+              >
+                <Text style={{ fontSize: 20, marginRight: 8 }}>
+                  {MOOD_OPTIONS.find((m) => m.value === mood)?.icon}
+                </Text>
+                <Text style={{ fontSize: 16, fontWeight: "600", color: moodColor }}>
+                  {MOOD_OPTIONS.find((m) => m.value === mood)?.label}
+                </Text>
+              </View>
+
+              {/* Title Input */}
+              <View style={{ marginBottom: 24 }}>
                 <Text
                   style={{
-                    fontSize: 16,
-                    color: "#e5d3ff",
-                    marginBottom: 8,
-                    fontWeight: "500",
+                    fontSize: 18,
+                    color: theme.text,
+                    marginBottom: 12,
+                    fontWeight: "600",
+                    letterSpacing: 0.5,
                   }}
                 >
-                  Date *
+                  ✨ Title
                 </Text>
                 <TextInput
                   style={{
-                    borderWidth: 1,
-                    borderColor: "#374151",
-                    borderRadius: 12,
-                    padding: 16,
-                    fontSize: 16,
-                    backgroundColor: "#1e293b",
-                    color: "#e2e8f0",
+                    borderWidth: 2,
+                    borderColor: moodColor + "60",
+                    borderRadius: 16,
+                    padding: 18,
+                    fontSize: 17,
+                    backgroundColor: timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.9)",
+                    color: theme.text,
+                    fontWeight: "500",
                   }}
-                  value={date}
-                  onChangeText={setDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#6b7280"
+                  value={title}
+                  onChangeText={setTitle}
+                  placeholder="Give this date a memorable title..."
+                  placeholderTextColor={timeOfDay === "night" ? "#6b7280" : theme.text + "60"}
                 />
               </View>
 
-              {/* Location Input */}
-              <View style={{ marginBottom: 20 }}>
+              {/* Date Picker */}
+              <View style={{ marginBottom: 24 }}>
                 <Text
                   style={{
-                    fontSize: 16,
-                    color: "#e5d3ff",
-                    marginBottom: 8,
-                    fontWeight: "500",
+                    fontSize: 18,
+                    color: theme.text,
+                    marginBottom: 12,
+                    fontWeight: "600",
+                    letterSpacing: 0.5,
                   }}
                 >
-                  Location *
+                  📅 Date *
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    console.log("Date picker button pressed, showDatePicker:", showDatePicker);
+                    setShowDatePicker(!showDatePicker);
+                  }}
+                  style={{
+                    borderWidth: 2,
+                    borderColor: moodColor + "60",
+                    borderRadius: 16,
+                    padding: 18,
+                    backgroundColor: timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.9)",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 17,
+                      color: date ? theme.text : (timeOfDay === "night" ? "#6b7280" : theme.text + "60"),
+                      fontWeight: "500",
+                    }}
+                  >
+                    {date ? formatDateForDisplay(datePickerValue) : "Select a date"}
+                  </Text>
+                  <Text style={{ fontSize: 20, color: moodColor }}>📅</Text>
+                </TouchableOpacity>
+
+                {/* Date Picker - Inline for iOS */}
+                {showDatePicker && Platform.OS === "ios" && (
+                  <View
+                    style={{
+                      marginTop: 16,
+                      padding: 20,
+                      backgroundColor: timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.9)",
+                      borderRadius: 16,
+                      borderWidth: 2,
+                      borderColor: moodColor + "60",
+                      zIndex: 1000,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: 16,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 18,
+                          fontWeight: "600",
+                          color: theme.text,
+                        }}
+                      >
+                        Select Date
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          const formattedDate = formatDateForDatabase(datePickerValue);
+                          setDate(formattedDate);
+                          setShowDatePicker(false);
+                        }}
+                        style={{
+                          paddingHorizontal: 16,
+                          paddingVertical: 8,
+                          borderRadius: 20,
+                          backgroundColor: moodColor,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: timeOfDay === "night" ? "#fff" : "#1a1a2e",
+                            fontWeight: "600",
+                          }}
+                        >
+                          Done
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    <DateTimePicker
+                      value={datePickerValue}
+                      mode="date"
+                      display="spinner"
+                      onChange={handleDateChange}
+                      maximumDate={new Date()}
+                      textColor={theme.text}
+                    />
+                  </View>
+                )}
+
+                {/* Web Date Picker - Use TextInput with European date format */}
+                {showDatePicker && Platform.OS === "web" && (
+                  <View
+                    style={{
+                      marginTop: 16,
+                      padding: 20,
+                      backgroundColor: timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.9)",
+                      borderRadius: 16,
+                      borderWidth: 2,
+                      borderColor: moodColor + "60",
+                    }}
+                  >
+                    <TextInput
+                      value={date ? formatDateForDisplay(datePickerValue) : ""}
+                      onChangeText={(text) => {
+                        // Parse European format (dd-mm-yyyy) to Date object
+                        const parts = text.split("-");
+                        if (parts.length === 3) {
+                          const day = parseInt(parts[0], 10);
+                          const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+                          const year = parseInt(parts[2], 10);
+                          const parsedDate = new Date(year, month, day);
+                          if (!isNaN(parsedDate.getTime())) {
+                            setDatePickerValue(parsedDate);
+                            const formattedDate = formatDateForDatabase(parsedDate);
+                            setDate(formattedDate);
+                          }
+                        }
+                      }}
+                      placeholder="dd-mm-yyyy"
+                      style={{
+                        borderWidth: 2,
+                        borderColor: moodColor + "60",
+                        borderRadius: 12,
+                        padding: 12,
+                        fontSize: 16,
+                        backgroundColor: timeOfDay === "night" ? "#0f172a" : "#ffffff",
+                        color: theme.text,
+                      }}
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker(false)}
+                      style={{
+                        marginTop: 12,
+                        paddingHorizontal: 16,
+                        paddingVertical: 8,
+                        borderRadius: 20,
+                        backgroundColor: moodColor,
+                        alignSelf: "flex-end",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: timeOfDay === "night" ? "#fff" : "#1a1a2e",
+                          fontWeight: "600",
+                        }}
+                      >
+                        Done
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+              </View>
+
+              {/* Location Input */}
+              <View style={{ marginBottom: 24 }}>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    color: theme.text,
+                    marginBottom: 12,
+                    fontWeight: "600",
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  📍 Location *
                 </Text>
                 <TextInput
                   style={{
-                    borderWidth: 1,
-                    borderColor: "#374151",
-                    borderRadius: 12,
-                    padding: 16,
-                    fontSize: 16,
-                    backgroundColor: "#1e293b",
-                    color: "#e2e8f0",
+                    borderWidth: 2,
+                    borderColor: moodColor + "60",
+                    borderRadius: 16,
+                    padding: 18,
+                    fontSize: 17,
+                    backgroundColor: timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.9)",
+                    color: theme.text,
+                    fontWeight: "500",
                   }}
                   value={location}
                   onChangeText={setLocation}
                   placeholder="Where did this beautiful date take place?"
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={timeOfDay === "night" ? "#6b7280" : theme.text + "60"}
                 />
               </View>
 
               {/* Mood Selection */}
-              <View style={{ marginBottom: 20 }}>
+              <View style={{ marginBottom: 24 }}>
                 <Text
                   style={{
-                    fontSize: 16,
-                    color: "#e5d3ff",
+                    fontSize: 18,
+                    color: theme.text,
                     marginBottom: 12,
-                    fontWeight: "500",
+                    fontWeight: "600",
+                    letterSpacing: 0.5,
                   }}
                 >
-                  Mood
+                  ✨ Mood
                 </Text>
                 <View
-                  style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
+                  style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}
                 >
-                  {MOOD_OPTIONS.map((option) => (
-                    <TouchableOpacity
-                      key={option.value}
-                      style={{
-                        paddingHorizontal: 16,
-                        paddingVertical: 10,
-                        borderRadius: 20,
-                        backgroundColor:
-                          mood === option.value ? "#7c3aed" : "#374151",
-                        flexDirection: "row",
-                        alignItems: "center",
-                      }}
-                      onPress={() => setMood(option.value)}
-                    >
-                      <Text style={{ fontSize: 16, marginRight: 6 }}>
-                        {option.icon}
-                      </Text>
-                      <Text
+                  {MOOD_OPTIONS.map((option) => {
+                    const isSelected = mood === option.value;
+                    const optionColor = MOOD_COLORS[option.value];
+                    return (
+                      <TouchableOpacity
+                        key={option.value}
                         style={{
-                          color: mood === option.value ? "white" : "#d1d5db",
-                          fontSize: 14,
-                          fontWeight: mood === option.value ? "600" : "400",
+                          paddingHorizontal: 18,
+                          paddingVertical: 12,
+                          borderRadius: 24,
+                          backgroundColor: isSelected
+                            ? optionColor
+                            : timeOfDay === "night"
+                            ? "#374151"
+                            : "rgba(255, 255, 255, 0.6)",
+                          flexDirection: "row",
+                          alignItems: "center",
+                          borderWidth: isSelected ? 0 : 2,
+                          borderColor: isSelected ? "transparent" : optionColor + "40",
                         }}
+                        onPress={() => setMood(option.value)}
                       >
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Text style={{ fontSize: 18, marginRight: 8 }}>
+                          {option.icon}
+                        </Text>
+                        <Text
+                          style={{
+                            color: isSelected
+                              ? timeOfDay === "night"
+                                ? "#fff"
+                                : "#1a1a2e"
+                              : theme.text,
+                            fontSize: 15,
+                            fontWeight: isSelected ? "600" : "500",
+                          }}
+                        >
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
 
               {/* Description */}
-              <View style={{ marginBottom: 20 }}>
+              <View style={{ marginBottom: 24 }}>
                 <Text
                   style={{
-                    fontSize: 16,
-                    color: "#e5d3ff",
-                    marginBottom: 8,
-                    fontWeight: "500",
+                    fontSize: 18,
+                    color: theme.text,
+                    marginBottom: 12,
+                    fontWeight: "600",
+                    letterSpacing: 0.5,
                   }}
                 >
-                  Description *
+                  💭 Description *
                 </Text>
                 <TextInput
                   style={{
-                    borderWidth: 1,
-                    borderColor: "#374151",
-                    borderRadius: 12,
-                    padding: 16,
-                    fontSize: 16,
-                    backgroundColor: "#1e293b",
-                    color: "#e2e8f0",
-                    minHeight: 100,
+                    borderWidth: 2,
+                    borderColor: moodColor + "60",
+                    borderRadius: 16,
+                    padding: 18,
+                    fontSize: 17,
+                    backgroundColor: timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.9)",
+                    color: theme.text,
+                    minHeight: 120,
                     textAlignVertical: "top",
+                    lineHeight: 24,
                   }}
                   value={description}
                   onChangeText={setDescription}
                   placeholder="Describe this special date..."
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={timeOfDay === "night" ? "#6b7280" : theme.text + "60"}
                   multiline
                 />
               </View>
 
               {/* Highlights */}
-              <View style={{ marginBottom: 20 }}>
+              <View style={{ marginBottom: 24 }}>
                 <View
                   style={{
                     flexDirection: "row",
@@ -668,15 +1119,34 @@ export default function DatesScreen() {
                 >
                   <Text
                     style={{
-                      fontSize: 16,
-                      color: "#e5d3ff",
-                      fontWeight: "500",
+                      fontSize: 18,
+                      color: theme.text,
+                      fontWeight: "600",
+                      letterSpacing: 0.5,
                     }}
                   >
-                    Highlights
+                    ✨ Highlights
                   </Text>
-                  <TouchableOpacity onPress={addHighlight}>
-                    <Text style={{ fontSize: 24, color: "#7c3aed" }}>+</Text>
+                  <TouchableOpacity
+                    onPress={addHighlight}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      backgroundColor: moodColor,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 20,
+                        color: timeOfDay === "night" ? "#fff" : "#1a1a2e",
+                        fontWeight: "600",
+                      }}
+                    >
+                      +
+                    </Text>
                   </TouchableOpacity>
                 </View>
                 {highlights.map((highlight, index) => (
@@ -684,32 +1154,50 @@ export default function DatesScreen() {
                     key={index}
                     style={{
                       flexDirection: "row",
-                      marginBottom: 8,
+                      marginBottom: 10,
                       alignItems: "center",
                     }}
                   >
+                    <Text
+                      style={{
+                        fontSize: 18,
+                        color: moodColor,
+                        marginRight: 12,
+                        fontWeight: "600",
+                      }}
+                    >
+                      •
+                    </Text>
                     <TextInput
                       style={{
                         flex: 1,
-                        borderWidth: 1,
-                        borderColor: "#374151",
-                        borderRadius: 8,
-                        padding: 12,
-                        fontSize: 15,
-                        backgroundColor: "#1e293b",
-                        color: "#e2e8f0",
+                        borderWidth: 2,
+                        borderColor: moodColor + "40",
+                        borderRadius: 12,
+                        padding: 14,
+                        fontSize: 16,
+                        backgroundColor: timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.9)",
+                        color: theme.text,
                       }}
                       value={highlight}
                       onChangeText={(value) => updateHighlight(index, value)}
                       placeholder={`Highlight ${index + 1}`}
-                      placeholderTextColor="#6b7280"
+                      placeholderTextColor={timeOfDay === "night" ? "#6b7280" : theme.text + "60"}
                     />
                     {highlights.length > 1 && (
                       <TouchableOpacity
-                        style={{ marginLeft: 10, padding: 8 }}
+                        style={{
+                          marginLeft: 10,
+                          width: 32,
+                          height: 32,
+                          borderRadius: 16,
+                          backgroundColor: "#ef444440",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
                         onPress={() => removeHighlight(index)}
                       >
-                        <Text style={{ fontSize: 18, color: "#ef4444" }}>
+                        <Text style={{ fontSize: 18, color: "#ef4444", fontWeight: "600" }}>
                           ×
                         </Text>
                       </TouchableOpacity>
@@ -719,127 +1207,238 @@ export default function DatesScreen() {
               </View>
 
               {/* Weather */}
-              <View style={{ marginBottom: 20 }}>
+              <View style={{ marginBottom: 24 }}>
                 <Text
                   style={{
-                    fontSize: 16,
-                    color: "#e5d3ff",
-                    marginBottom: 8,
-                    fontWeight: "500",
+                    fontSize: 18,
+                    color: theme.text,
+                    marginBottom: 12,
+                    fontWeight: "600",
+                    letterSpacing: 0.5,
                   }}
                 >
-                  Weather
+                  🌤️ Weather
                 </Text>
                 <TextInput
                   style={{
-                    borderWidth: 1,
-                    borderColor: "#374151",
-                    borderRadius: 12,
-                    padding: 16,
-                    fontSize: 16,
-                    backgroundColor: "#1e293b",
-                    color: "#e2e8f0",
+                    borderWidth: 2,
+                    borderColor: moodColor + "60",
+                    borderRadius: 16,
+                    padding: 18,
+                    fontSize: 17,
+                    backgroundColor: timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.9)",
+                    color: theme.text,
+                    fontWeight: "500",
                   }}
                   value={weather}
                   onChangeText={setWeather}
                   placeholder="How was the weather that day?"
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={timeOfDay === "night" ? "#6b7280" : theme.text + "60"}
                 />
               </View>
 
               {/* Favorite Moment */}
-              <View style={{ marginBottom: 20 }}>
+              <View style={{ marginBottom: 24 }}>
                 <Text
                   style={{
-                    fontSize: 16,
-                    color: "#e5d3ff",
-                    marginBottom: 8,
-                    fontWeight: "500",
+                    fontSize: 18,
+                    color: theme.text,
+                    marginBottom: 12,
+                    fontWeight: "600",
+                    letterSpacing: 0.5,
                   }}
                 >
-                  Favorite Moment
+                  💫 Favorite Moment
                 </Text>
                 <TextInput
                   style={{
-                    borderWidth: 1,
-                    borderColor: "#374151",
-                    borderRadius: 12,
-                    padding: 16,
-                    fontSize: 16,
-                    backgroundColor: "#1e293b",
-                    color: "#e2e8f0",
-                    minHeight: 80,
+                    borderWidth: 2,
+                    borderColor: moodColor + "60",
+                    borderRadius: 16,
+                    padding: 18,
+                    fontSize: 17,
+                    backgroundColor: timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.9)",
+                    color: theme.text,
+                    minHeight: 100,
                     textAlignVertical: "top",
+                    lineHeight: 24,
+                    fontStyle: "italic",
                   }}
                   value={favoriteMoment}
                   onChangeText={setFavoriteMoment}
                   placeholder="What was your favorite moment from this date?"
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={timeOfDay === "night" ? "#6b7280" : theme.text + "60"}
                   multiline
                 />
               </View>
 
-              {/* Image */}
+              {/* Photos */}
               <View style={{ marginBottom: 30 }}>
-                <Text
+                <View
                   style={{
-                    fontSize: 16,
-                    color: "#e5d3ff",
-                    marginBottom: 8,
-                    fontWeight: "500",
-                  }}
-                >
-                  Photo
-                </Text>
-                <TouchableOpacity
-                  style={{
-                    borderWidth: 1,
-                    borderColor: "#374151",
-                    borderRadius: 12,
-                    padding: 20,
-                    backgroundColor: "#1e293b",
+                    flexDirection: "row",
+                    justifyContent: "space-between",
                     alignItems: "center",
+                    marginBottom: 12,
                   }}
-                  onPress={pickImage}
                 >
-                  {imageUrl ? (
-                    <View style={{ alignItems: "center" }}>
-                      <Image
-                        source={{ uri: imageUrl }}
-                        style={{
-                          width: 100,
-                          height: 100,
-                          borderRadius: 8,
-                          marginBottom: 8,
-                        }}
-                        resizeMode="cover"
-                      />
-                      <Text style={{ color: "#7c3aed", fontSize: 14 }}>
-                        Tap to change photo
-                      </Text>
-                    </View>
-                  ) : (
-                    <>
-                      <Text
-                        style={{
-                          fontSize: 24,
-                          color: "#6b7280",
-                          marginBottom: 8,
-                        }}
-                      >
-                        📷
-                      </Text>
-                      <Text style={{ color: "#a78bfa", fontSize: 16 }}>
-                        Add a photo
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+                  <Text
+                    style={{
+                      fontSize: 18,
+                      color: theme.text,
+                      fontWeight: "600",
+                      letterSpacing: 0.5,
+                    }}
+                  >
+                    📷 Photos ({photos.length})
+                  </Text>
+                  <TouchableOpacity
+                    onPress={pickImage}
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      borderRadius: 20,
+                      backgroundColor: moodColor,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: timeOfDay === "night" ? "#fff" : "#1a1a2e",
+                        fontSize: 15,
+                        fontWeight: "600",
+                      }}
+                    >
+                      + Add Photo
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {photos.length > 0 ? (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 12, paddingVertical: 8 }}
+                  >
+                    {photos.map((photo, index) => (
+                      <View key={index} style={{ position: "relative" }}>
+                        <Image
+                          source={{ uri: photo }}
+                          style={{
+                            width: 120,
+                            height: 120,
+                            borderRadius: 12,
+                            borderWidth: 2,
+                            borderColor: moodColor,
+                          }}
+                          resizeMode="cover"
+                          onError={(error) => {
+                            console.warn("Failed to load image:", photo, error);
+                            // Remove invalid image from the array
+                            removePhoto(index);
+                          }}
+                        />
+                        <TouchableOpacity
+                          onPress={() => removePhoto(index)}
+                          style={{
+                            position: "absolute",
+                            top: -8,
+                            right: -8,
+                            width: 28,
+                            height: 28,
+                            borderRadius: 14,
+                            backgroundColor: "#ef4444",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderWidth: 2,
+                            borderColor: "#fff",
+                            zIndex: 10,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: "#fff",
+                              fontSize: 16,
+                              fontWeight: "600",
+                            }}
+                          >
+                            ×
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </ScrollView>
+                ) : (
+                  <TouchableOpacity
+                    style={{
+                      borderWidth: 2,
+                      borderColor: moodColor + "60",
+                      borderStyle: "dashed",
+                      borderRadius: 16,
+                      padding: 24,
+                      backgroundColor:
+                        timeOfDay === "night"
+                          ? "#1e293b"
+                          : "rgba(255, 255, 255, 0.9)",
+                      alignItems: "center",
+                      minHeight: 120,
+                      justifyContent: "center",
+                    }}
+                    onPress={pickImage}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 32,
+                        color: moodColor + "80",
+                        marginBottom: 12,
+                      }}
+                    >
+                      📷
+                    </Text>
+                    <Text
+                      style={{
+                        color: theme.text,
+                        fontSize: 17,
+                        fontWeight: "500",
+                      }}
+                    >
+                      Tap to add photos
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </ScrollView>
-          </View>
+          </Animated.View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Immersive Detail View */}
+      <Modal
+        visible={isDetailVisible}
+        animationType="slide"
+        presentationStyle="fullScreen"
+      >
+        {selectedDate && (
+          <DateDetailView
+            dateEntry={selectedDate}
+            onClose={() => setIsDetailVisible(false)}
+            onEdit={() => {
+              setIsDetailVisible(false);
+              setTimeout(() => openModal(selectedDate), 300);
+            }}
+          />
+        )}
+      </Modal>
+
+      {/* Android Date Picker - Must be at root level for native dialog */}
+      {showDatePicker && Platform.OS === "android" && (
+        <DateTimePicker
+          value={datePickerValue}
+          mode="date"
+          display="default"
+          onChange={handleDateChange}
+          maximumDate={new Date()}
+        />
+      )}
     </View>
   );
 }
