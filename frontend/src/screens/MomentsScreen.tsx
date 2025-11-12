@@ -223,7 +223,15 @@ export default function MomentsScreen() {
           borderBottomColor: "#e0e0e0",
         }}
       >
-        <Text style={{ fontSize: 20, color: "#d498a3", fontStyle: "italic", marginBottom: 15, textAlign: "center" }}>
+        <Text
+          style={{
+            fontSize: 20,
+            color: "#d498a3",
+            fontStyle: "italic",
+            marginBottom: 15,
+            textAlign: "center",
+          }}
+        >
           💖 Our Little Love Notes 💖
         </Text>
       </View>
@@ -397,406 +405,444 @@ export default function MomentsScreen() {
                 keyboardShouldPersistTaps="handled"
                 bounces={false}
               >
-            <View style={{ alignItems: "center", marginBottom: 24 }}>
-              <Text style={{ fontSize: 16, color: "#d498a3", marginBottom: 4 }}>
-                💕✨💕
-              </Text>
-              <Text
-                style={{
-                  fontSize: 24,
-                  fontWeight: "bold",
-                  color: "#8b4a6b",
-                  textAlign: "center",
-                }}
-              >
+                <View style={{ alignItems: "center", marginBottom: 24 }}>
+                  <Text
+                    style={{ fontSize: 16, color: "#d498a3", marginBottom: 4 }}
+                  >
+                    💕✨💕
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 24,
+                      fontWeight: "bold",
+                      color: "#8b4a6b",
+                      textAlign: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 20,
+                        fontWeight: "bold",
+                        color: "#8b4a6b",
+                      }}
+                    >
+                      {editingMoment
+                        ? "Edit This Moment"
+                        : "Capture a Special Moment"}
+                    </Text>
+                  </Text>
+                  <Text
+                    style={{ fontSize: 16, color: "#d498a3", marginTop: 4 }}
+                  >
+                    💕✨💕
+                  </Text>
+                </View>
+
                 <Text
-                  style={{ fontSize: 20, fontWeight: "bold", color: "#8b4a6b" }}
-                >
-                  {editingMoment
-                    ? "Edit This Moment"
-                    : "Capture a Special Moment"}
-                </Text>
-              </Text>
-              <Text style={{ fontSize: 16, color: "#d498a3", marginTop: 4 }}>
-                💕✨💕
-              </Text>
-            </View>
-
-            <Text
-              style={{
-                fontSize: 16,
-                marginBottom: 8,
-                color: "#8b4a6b",
-                fontWeight: "600",
-              }}
-            >
-              💖 What Made This Moment Special?
-            </Text>
-            <TextInput
-              style={{
-                borderWidth: 2,
-                borderColor: "#f8d7da",
-                padding: 14,
-                borderRadius: 12,
-                marginBottom: 20,
-                fontSize: 16,
-                backgroundColor: "#fff",
-                shadowColor: "#f8a5c2",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
-              }}
-              placeholder="Give this moment a name... 💕"
-              placeholderTextColor="#d498a3"
-              value={newMoment.title}
-              onChangeText={(text) =>
-                setNewMoment({ ...newMoment, title: text })
-              }
-            />
-
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                marginBottom: 8,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 16,
-                  flex: 1,
-                  color: "#8b4a6b",
-                  fontWeight: "600",
-                }}
-              >
-                📅 When did this happen?
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  console.log("Calendar icon pressed");
-                  // Simple date selection with today's date as default
-                  const today = new Date();
-                  const currentDate =
-                    newMoment.story_date || today.toISOString().split("T")[0];
-
-                  Alert.alert(
-                    "💕 Select Date",
-                    "Choose when this beautiful moment happened:",
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "💖 Use Today",
-                        onPress: () => {
-                          const todayFormatted = new Date()
-                            .toISOString()
-                            .split("T")[0];
-                          setNewMoment({
-                            ...newMoment,
-                            story_date: todayFormatted,
-                          });
-                        },
-                      },
-                      {
-                        text: "✨ Custom Date",
-                        onPress: () => {
-                          // For now, just set to today - we can improve this later
-                          const todayFormatted = new Date()
-                            .toISOString()
-                            .split("T")[0];
-                          setNewMoment({
-                            ...newMoment,
-                            story_date: todayFormatted,
-                          });
-                          Alert.alert(
-                            "💕 Date Set",
-                            "Date set to today. We'll add a proper date picker in the next update!"
-                          );
-                        },
-                      },
-                    ]
-                  );
-                }}
-                style={{
-                  backgroundColor: "#f8a5c2",
-                  padding: 10,
-                  borderRadius: 20,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  shadowColor: "#f8a5c2",
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 6,
-                }}
-              >
-                <Text style={{ color: "#fff", fontSize: 12, marginRight: 6 }}>
-                  📅
-                </Text>
-                <Text
-                  style={{ color: "#fff", fontSize: 12, fontWeight: "bold" }}
-                >
-                  Select
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View
-              style={{
-                borderWidth: 2,
-                borderColor: "#f8d7da",
-                padding: 16,
-                borderRadius: 12,
-                marginBottom: 20,
-                backgroundColor: "#fff",
-                minHeight: 50,
-                justifyContent: "center",
-                shadowColor: "#f8a5c2",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 16,
-                  color: newMoment.story_date ? "#8b4a6b" : "#d498a3",
-                  fontStyle: newMoment.story_date ? "normal" : "italic",
-                }}
-              >
-                {newMoment.story_date
-                  ? `💕 ${formatDateForDisplay(newMoment.story_date)}`
-                  : "Tap 'Select' to choose your special date 💖"}
-              </Text>
-            </View>
-
-            <Text
-              style={{
-                fontSize: 16,
-                marginBottom: 8,
-                color: "#8b4a6b",
-                fontWeight: "600",
-              }}
-            >
-              💝 Describe This Moment
-            </Text>
-            <TextInput
-              style={{
-                borderWidth: 2,
-                borderColor: "#f8d7da",
-                padding: 16,
-                borderRadius: 12,
-                marginBottom: 24,
-                fontSize: 16,
-                height: 120,
-                textAlignVertical: "top",
-                backgroundColor: "#fff",
-                shadowColor: "#f8a5c2",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
-              }}
-              placeholder="What happened? How did it feel? What made it special? 💕✨"
-              placeholderTextColor="#d498a3"
-              value={newMoment.description}
-              onChangeText={(text) =>
-                setNewMoment({ ...newMoment, description: text })
-              }
-              multiline={true}
-            />
-
-            {/* Photos Section */}
-            <View style={{ marginBottom: 24 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 12,
-                }}
-              >
-                <Text
-                  style={{ fontSize: 16, color: "#8b4a6b", fontWeight: "600" }}
-                >
-                  📸 Capture the Memory
-                </Text>
-                <TouchableOpacity
-                  onPress={pickImages}
                   style={{
-                    backgroundColor: "#f8a5c2",
-                    paddingHorizontal: 10,
-                    paddingVertical: 6,
-                    borderRadius: 15,
+                    fontSize: 16,
+                    marginBottom: 8,
+                    color: "#8b4a6b",
+                    fontWeight: "600",
+                  }}
+                >
+                  💖 What Made This Moment Special?
+                </Text>
+                <TextInput
+                  style={{
+                    borderWidth: 2,
+                    borderColor: "#f8d7da",
+                    padding: 14,
+                    borderRadius: 12,
+                    marginBottom: 20,
+                    fontSize: 16,
+                    backgroundColor: "#fff",
                     shadowColor: "#f8a5c2",
                     shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.2,
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4,
+                  }}
+                  placeholder="Give this moment a name... 💕"
+                  placeholderTextColor="#d498a3"
+                  value={newMoment.title}
+                  onChangeText={(text) =>
+                    setNewMoment({ ...newMoment, title: text })
+                  }
+                />
+
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 8,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      flex: 1,
+                      color: "#8b4a6b",
+                      fontWeight: "600",
+                    }}
+                  >
+                    📅 When did this happen?
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      console.log("Calendar icon pressed");
+                      // Simple date selection with today's date as default
+                      const today = new Date();
+                      const currentDate =
+                        newMoment.story_date ||
+                        today.toISOString().split("T")[0];
+
+                      Alert.alert(
+                        "💕 Select Date",
+                        "Choose when this beautiful moment happened:",
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "💖 Use Today",
+                            onPress: () => {
+                              const todayFormatted = new Date()
+                                .toISOString()
+                                .split("T")[0];
+                              setNewMoment({
+                                ...newMoment,
+                                story_date: todayFormatted,
+                              });
+                            },
+                          },
+                          {
+                            text: "✨ Custom Date",
+                            onPress: () => {
+                              // For now, just set to today - we can improve this later
+                              const todayFormatted = new Date()
+                                .toISOString()
+                                .split("T")[0];
+                              setNewMoment({
+                                ...newMoment,
+                                story_date: todayFormatted,
+                              });
+                              Alert.alert(
+                                "💕 Date Set",
+                                "Date set to today. We'll add a proper date picker in the next update!"
+                              );
+                            },
+                          },
+                        ]
+                      );
+                    }}
+                    style={{
+                      backgroundColor: "#f8a5c2",
+                      padding: 10,
+                      borderRadius: 20,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      shadowColor: "#f8a5c2",
+                      shadowOffset: { width: 0, height: 3 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 6,
+                    }}
+                  >
+                    <Text
+                      style={{ color: "#fff", fontSize: 12, marginRight: 6 }}
+                    >
+                      📅
+                    </Text>
+                    <Text
+                      style={{
+                        color: "#fff",
+                        fontSize: 12,
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Select
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View
+                  style={{
+                    borderWidth: 2,
+                    borderColor: "#f8d7da",
+                    padding: 16,
+                    borderRadius: 12,
+                    marginBottom: 20,
+                    backgroundColor: "#fff",
+                    minHeight: 50,
+                    justifyContent: "center",
+                    shadowColor: "#f8a5c2",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
                     shadowRadius: 4,
                   }}
                 >
                   <Text
-                    style={{ color: "#fff", fontSize: 11, fontWeight: "bold" }}
-                  >
-                    ✨ Add
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {newMoment.photos && newMoment.photos.length > 0 ? (
-                <View style={{ maxHeight: 100 }}>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingRight: 10 }}
-                  >
-                    {newMoment.photos.map((photo, index) => (
-                      <View
-                        key={index}
-                        style={{
-                          marginRight: 8,
-                          position: "relative",
-                        }}
-                      >
-                        <Image
-                          source={{ uri: photo }}
-                          style={{
-                            width: 60,
-                            height: 60,
-                            borderRadius: 6,
-                            backgroundColor: "#f0f0f0",
-                          }}
-                          resizeMode="cover"
-                        />
-                        <TouchableOpacity
-                          onPress={() => removePhoto(index)}
-                          style={{
-                            position: "absolute",
-                            top: -4,
-                            right: -4,
-                            backgroundColor: "#ff6b9d",
-                            borderRadius: 8,
-                            width: 16,
-                            height: 16,
-                            justifyContent: "center",
-                            alignItems: "center",
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: "#fff",
-                              fontSize: 10,
-                              fontWeight: "bold",
-                            }}
-                          >
-                            ×
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </ScrollView>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  onPress={pickImages}
-                  style={{
-                    borderWidth: 2,
-                    borderColor: "#f8a5c2",
-                    borderStyle: "dashed",
-                    borderRadius: 12,
-                    padding: 16,
-                    alignItems: "center",
-                    backgroundColor: "#fdf6f8",
-                    maxHeight: 80,
-                    justifyContent: "center",
-                  }}
-                >
-                  <Text style={{ fontSize: 24, marginBottom: 4 }}>✨</Text>
-                  <Text
                     style={{
-                      fontSize: 14,
-                      color: "#8b4a6b",
-                      textAlign: "center",
-                      fontWeight: "600",
+                      fontSize: 16,
+                      color: newMoment.story_date ? "#8b4a6b" : "#d498a3",
+                      fontStyle: newMoment.story_date ? "normal" : "italic",
                     }}
                   >
-                    Add photos from camera roll
+                    {newMoment.story_date
+                      ? `💕 ${formatDateForDisplay(newMoment.story_date)}`
+                      : "Tap 'Select' to choose your special date 💖"}
                   </Text>
-                </TouchableOpacity>
-              )}
-            </View>
+                </View>
 
-            <View
-              style={{ flexDirection: "row", justifyContent: "space-between" }}
-            >
-              <TouchableOpacity
-                onPress={() => {
-                  setModalVisible(false);
-                  setEditingMoment(null);
-                  setNewMoment({ title: "", story_date: "", description: "" });
-                }}
-                style={{
-                  backgroundColor: "#f0f0f0",
-                  padding: 14,
-                  borderRadius: 25,
-                  flex: 1,
-                  marginRight: 12,
-                  alignItems: "center",
-                  borderWidth: 1,
-                  borderColor: "#e0e0e0",
-                }}
-              >
                 <Text
-                  style={{ fontSize: 16, color: "#666", fontWeight: "600" }}
-                >
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-
-              {editingMoment && (
-                <TouchableOpacity
-                  onPress={() =>
-                    editingMoment.id &&
-                    handleDeleteStory(editingMoment.id, editingMoment.title)
-                  }
                   style={{
-                    backgroundColor: "#ff6b9d",
-                    padding: 14,
-                    borderRadius: 25,
-                    flex: 1,
-                    marginRight: 12,
-                    alignItems: "center",
-                    shadowColor: "#ff6b9d",
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 8,
+                    fontSize: 16,
+                    marginBottom: 8,
+                    color: "#8b4a6b",
+                    fontWeight: "600",
                   }}
                 >
-                  <Text
-                    style={{ color: "#fff", fontSize: 16, fontWeight: "bold" }}
-                  >
-                    💔 Delete
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                onPress={handleSaveMoment}
-                style={{
-                  backgroundColor: "#f8a5c2",
-                  padding: 14,
-                  borderRadius: 25,
-                  flex: 1,
-                  alignItems: "center",
-                  shadowColor: "#f8a5c2",
-                  shadowOffset: { width: 0, height: 6 },
-                  shadowOpacity: 0.4,
-                  shadowRadius: 12,
-                }}
-              >
-                <Text
-                  style={{ color: "#fff", fontSize: 16, fontWeight: "bold" }}
-                >
-                  {editingMoment ? "💕 Update Story" : "💖 Save Story"}
+                  💝 Describe This Moment
                 </Text>
-              </TouchableOpacity>
-            </View>
+                <TextInput
+                  style={{
+                    borderWidth: 2,
+                    borderColor: "#f8d7da",
+                    padding: 16,
+                    borderRadius: 12,
+                    marginBottom: 24,
+                    fontSize: 16,
+                    height: 120,
+                    textAlignVertical: "top",
+                    backgroundColor: "#fff",
+                    shadowColor: "#f8a5c2",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4,
+                  }}
+                  placeholder="What happened? How did it feel? What made it special? 💕✨"
+                  placeholderTextColor="#d498a3"
+                  value={newMoment.description}
+                  onChangeText={(text) =>
+                    setNewMoment({ ...newMoment, description: text })
+                  }
+                  multiline={true}
+                />
+
+                {/* Photos Section */}
+                <View style={{ marginBottom: 24 }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 12,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        color: "#8b4a6b",
+                        fontWeight: "600",
+                      }}
+                    >
+                      📸 Capture the Memory
+                    </Text>
+                    <TouchableOpacity
+                      onPress={pickImages}
+                      style={{
+                        backgroundColor: "#f8a5c2",
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: 15,
+                        shadowColor: "#f8a5c2",
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.2,
+                        shadowRadius: 4,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: "#fff",
+                          fontSize: 11,
+                          fontWeight: "bold",
+                        }}
+                      >
+                        ✨ Add
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {newMoment.photos && newMoment.photos.length > 0 ? (
+                    <View style={{ maxHeight: 100 }}>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{ paddingRight: 10 }}
+                      >
+                        {newMoment.photos.map((photo, index) => (
+                          <View
+                            key={index}
+                            style={{
+                              marginRight: 8,
+                              position: "relative",
+                            }}
+                          >
+                            <Image
+                              source={{ uri: photo }}
+                              style={{
+                                width: 60,
+                                height: 60,
+                                borderRadius: 6,
+                                backgroundColor: "#f0f0f0",
+                              }}
+                              resizeMode="cover"
+                            />
+                            <TouchableOpacity
+                              onPress={() => removePhoto(index)}
+                              style={{
+                                position: "absolute",
+                                top: -4,
+                                right: -4,
+                                backgroundColor: "#ff6b9d",
+                                borderRadius: 8,
+                                width: 16,
+                                height: 16,
+                                justifyContent: "center",
+                                alignItems: "center",
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  color: "#fff",
+                                  fontSize: 10,
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                ×
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      onPress={pickImages}
+                      style={{
+                        borderWidth: 2,
+                        borderColor: "#f8a5c2",
+                        borderStyle: "dashed",
+                        borderRadius: 12,
+                        padding: 16,
+                        alignItems: "center",
+                        backgroundColor: "#fdf6f8",
+                        maxHeight: 80,
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Text style={{ fontSize: 24, marginBottom: 4 }}>✨</Text>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: "#8b4a6b",
+                          textAlign: "center",
+                          fontWeight: "600",
+                        }}
+                      >
+                        Add photos from camera roll
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <TouchableOpacity
+                    onPress={() => {
+                      setModalVisible(false);
+                      setEditingMoment(null);
+                      setNewMoment({
+                        title: "",
+                        story_date: "",
+                        description: "",
+                      });
+                    }}
+                    style={{
+                      backgroundColor: "#f0f0f0",
+                      padding: 14,
+                      borderRadius: 25,
+                      flex: 1,
+                      marginRight: 12,
+                      alignItems: "center",
+                      borderWidth: 1,
+                      borderColor: "#e0e0e0",
+                    }}
+                  >
+                    <Text
+                      style={{ fontSize: 16, color: "#666", fontWeight: "600" }}
+                    >
+                      Cancel
+                    </Text>
+                  </TouchableOpacity>
+
+                  {editingMoment && (
+                    <TouchableOpacity
+                      onPress={() =>
+                        editingMoment.id &&
+                        handleDeleteStory(editingMoment.id, editingMoment.title)
+                      }
+                      style={{
+                        backgroundColor: "#ff6b9d",
+                        padding: 14,
+                        borderRadius: 25,
+                        flex: 1,
+                        marginRight: 12,
+                        alignItems: "center",
+                        shadowColor: "#ff6b9d",
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 8,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: "#fff",
+                          fontSize: 16,
+                          fontWeight: "bold",
+                        }}
+                      >
+                        💔 Delete
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity
+                    onPress={handleSaveMoment}
+                    style={{
+                      backgroundColor: "#f8a5c2",
+                      padding: 14,
+                      borderRadius: 25,
+                      flex: 1,
+                      alignItems: "center",
+                      shadowColor: "#f8a5c2",
+                      shadowOffset: { width: 0, height: 6 },
+                      shadowOpacity: 0.4,
+                      shadowRadius: 12,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: "#fff",
+                        fontSize: 16,
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {editingMoment ? "💕 Update Story" : "💖 Save Story"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </ScrollView>
             </View>
           </View>
@@ -850,7 +896,15 @@ export default function MomentsScreen() {
                       elevation: 2,
                     }}
                   >
-                    <Text style={{ fontSize: 16, color: "#8b4a6b", fontWeight: "bold" }}>✕</Text>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        color: "#8b4a6b",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      ✕
+                    </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -893,19 +947,21 @@ export default function MomentsScreen() {
                 >
                   💖 {selectedMoment.title}
                 </Text>
-                <Text style={{ 
-                  fontSize: 16, 
-                  color: "#d498a3", 
-                  textAlign: "center",
-                  fontWeight: "600",
-                  fontStyle: "italic"
-                }}>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    color: "#d498a3",
+                    textAlign: "center",
+                    fontWeight: "600",
+                    fontStyle: "italic",
+                  }}
+                >
                   ✨ {formatDate(selectedMoment.story_date)} ✨
                 </Text>
               </View>
 
               {/* Content */}
-              <ScrollView 
+              <ScrollView
                 style={{ flex: 1 }}
                 contentContainerStyle={{ paddingBottom: 20 }}
                 showsVerticalScrollIndicator={false}
@@ -913,13 +969,15 @@ export default function MomentsScreen() {
                 {/* Photos Section */}
                 {selectedMoment.photos && selectedMoment.photos.length > 0 && (
                   <View style={{ marginBottom: 30, marginTop: 10 }}>
-                    <Text style={{
-                      fontSize: 18,
-                      fontWeight: "600",
-                      color: "#8b4a6b",
-                      textAlign: "center",
-                      marginBottom: 15,
-                    }}>
+                    <Text
+                      style={{
+                        fontSize: 18,
+                        fontWeight: "600",
+                        color: "#8b4a6b",
+                        textAlign: "center",
+                        marginBottom: 15,
+                      }}
+                    >
                       📸 Our Photos 📸
                     </Text>
                     <FlatList
@@ -982,19 +1040,21 @@ export default function MomentsScreen() {
                 )}
 
                 {/* Description Section */}
-                <View style={{ 
-                  padding: 24,
-                  marginHorizontal: 16,
-                  backgroundColor: "#fff",
-                  borderRadius: 20,
-                  shadowColor: "#f8a5c2",
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.15,
-                  shadowRadius: 8,
-                  elevation: 4,
-                  borderWidth: 1,
-                  borderColor: "#f8d7da",
-                }}>
+                <View
+                  style={{
+                    padding: 24,
+                    marginHorizontal: 16,
+                    backgroundColor: "#fff",
+                    borderRadius: 20,
+                    shadowColor: "#f8a5c2",
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.15,
+                    shadowRadius: 8,
+                    elevation: 4,
+                    borderWidth: 1,
+                    borderColor: "#f8d7da",
+                  }}
+                >
                   <Text
                     style={{
                       fontSize: 20,
