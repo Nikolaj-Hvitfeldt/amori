@@ -18,7 +18,7 @@ React Native mobile application for the Amori relationship journal.
 src/
 ├── screens/          # Screen components
 │   ├── HomeScreen.tsx       # Timeline view
-│   ├── StoriesScreen.tsx    # Love stories
+│   ├── MomentsScreen.tsx    # Special moments
 │   ├── DatesScreen.tsx      # Special dates
 │   └── PicturesScreen.tsx   # Memory gallery
 ├── navigation/       # Navigation configuration
@@ -49,19 +49,24 @@ npm run web
 ## Screens
 
 ### Home (Timeline)
+
 - Displays all journal entries in chronological order
 - Timeline visualization with icons based on entry type
 - Click on any entry to view details
 
-### Love Stories
-- Filtered view showing only 'lovestory' type entries
-- Beautiful card layout for reading stories
+### Special Moments
+
+- Beautiful interface for capturing and viewing special moments
+- Photo integration with camera roll access
+- Romantic UI design for preserving intimate memories
 
 ### Special Dates
+
 - Shows 'date' type entries
 - Great for tracking anniversaries and memorable occasions
 
 ### Memories (Pictures)
+
 - Displays entries that have attached images
 - Gallery view of your visual memories
 
@@ -89,7 +94,7 @@ theme: {
 Update the backend URL in `src/services/api.ts`:
 
 ```typescript
-const API_URL = 'http://localhost:3000';
+const API_URL = "http://localhost:3000";
 ```
 
 For production, use your deployed backend URL.

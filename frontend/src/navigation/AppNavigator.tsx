@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity } from "react-native";
 import HomeScreen from "../screens/HomeScreen";
 import DatesScreen from "../screens/DatesScreen";
 import PicturesScreen from "../screens/PicturesScreen";
-import StoriesScreen from "../screens/StoriesScreen";
+import MomentsScreen from "../screens/MomentsScreen";
 
 type Screen = "Home" | "Stories" | "Dates" | "Pictures";
 
@@ -15,7 +15,7 @@ export default function AppNavigator() {
       case "Home":
         return <HomeScreen />;
       case "Stories":
-        return <StoriesScreen />;
+        return <MomentsScreen />;
       case "Dates":
         return <DatesScreen />;
       case "Pictures":
@@ -45,7 +45,7 @@ export default function AppNavigator() {
       case "Home":
         return "Timeline";
       case "Stories":
-        return "Stories";
+        return "Moments";
       case "Dates":
         return "Dates";
       case "Pictures":
@@ -118,7 +118,7 @@ export default function AppNavigator() {
       <View style={headerStyle}>
         <Text style={headerTitleStyle}>
           {activeScreen === "Home" && "Our Timeline"}
-          {activeScreen === "Stories" && "Love Stories"}
+          {activeScreen === "Stories" && "Moments"}
           {activeScreen === "Dates" && "Special Dates"}
           {activeScreen === "Pictures" && "Memories"}
         </Text>

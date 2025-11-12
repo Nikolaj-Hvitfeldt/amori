@@ -10,20 +10,22 @@ import {
   Image,
   Dimensions,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { momentsService, Moment, CreateMomentDto } from "../services/moments";
 
-export default function StoriesScreen() {
+export default function MomentsScreen() {
   const [moments, setMoments] = useState<Moment[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
-  const [selectedStory, setSelectedStory] = useState<Moment | null>(null);
-  const [editingStory, setEditingStory] = useState<Moment | null>(null);
+  const [selectedMoment, setSelectedMoment] = useState<Moment | null>(null);
+  const [editingMoment, setEditingMoment] = useState<Moment | null>(null);
 
-  const [newStory, setNewStory] = useState<CreateMomentDto>({
+  const [newMoment, setNewMoment] = useState<CreateMomentDto>({
     title: "",
     story_date: "",
     description: "",
@@ -46,50 +48,50 @@ export default function StoriesScreen() {
     }
   };
 
-  const handleSaveStory = async () => {
+  const handleSaveMoment = async () => {
     if (
-      !newStory.title.trim() ||
-      !newStory.story_date.trim() ||
-      !newStory.description.trim()
+      !newMoment.title.trim() ||
+      !newMoment.story_date.trim() ||
+      !newMoment.description.trim()
     ) {
       Alert.alert("Error", "Please fill in all fields");
       return;
     }
 
     try {
-      if (editingStory) {
-        // Update existing story
-        await momentsService.updateMoment(editingStory.id!, {
-          title: newStory.title,
-          story_date: newStory.story_date,
-          description: newStory.description,
-          photos: newStory.photos,
+      if (editingMoment) {
+        // Update existing moment
+        await momentsService.updateMoment(editingMoment.id!, {
+          title: newMoment.title,
+          story_date: newMoment.story_date,
+          description: newMoment.description,
+          photos: newMoment.photos,
         });
         Alert.alert("Success", "Love story updated successfully!");
       } else {
-        // Create new story
-        await momentsService.createMoment(newStory);
+        // Create new moment
+        await momentsService.createMoment(newMoment);
         Alert.alert("Success", "Love story added successfully!");
       }
 
-      setNewStory({ title: "", story_date: "", description: "" });
-      setEditingStory(null);
+      setNewMoment({ title: "", story_date: "", description: "" });
+      setEditingMoment(null);
       setModalVisible(false);
       loadMoments();
     } catch (error) {
       console.error("Error saving love story:", error);
       Alert.alert(
         "Error",
-        editingStory
+        editingMoment
           ? "Failed to update love story"
           : "Failed to create love story"
       );
     }
   };
 
-  const handleEditStory = (story: Moment) => {
-    setEditingStory(story);
-    setNewStory({
+  const handleEditMoment = (story: Moment) => {
+    setEditingMoment(story);
+    setNewMoment({
       title: story.title,
       story_date: story.story_date,
       description: story.description,
@@ -98,14 +100,14 @@ export default function StoriesScreen() {
     setModalVisible(true);
   };
 
-  const handleAddNewStory = () => {
-    setEditingStory(null);
-    setNewStory({ title: "", story_date: "", description: "" });
+  const handleAddnewMoment = () => {
+    setEditingMoment(null);
+    setNewMoment({ title: "", story_date: "", description: "" });
     setModalVisible(true);
   };
 
-  const handleViewStory = (story: Moment) => {
-    setSelectedStory(story);
+  const handleViewMoment = (story: Moment) => {
+    setSelectedMoment(story);
     setDetailsModalVisible(true);
   };
 
@@ -133,9 +135,9 @@ export default function StoriesScreen() {
 
       if (!result.canceled && result.assets) {
         const newPhotos = result.assets.map((asset) => asset.uri);
-        const currentPhotos = newStory.photos || [];
-        setNewStory({
-          ...newStory,
+        const currentPhotos = newMoment.photos || [];
+        setNewMoment({
+          ...newMoment,
           photos: [...currentPhotos, ...newPhotos],
         });
       }
@@ -146,10 +148,10 @@ export default function StoriesScreen() {
   };
 
   const removePhoto = (indexToRemove: number) => {
-    const updatedPhotos = (newStory.photos || []).filter(
+    const updatedPhotos = (newMoment.photos || []).filter(
       (_, index) => index !== indexToRemove
     );
-    setNewStory({ ...newStory, photos: updatedPhotos });
+    setNewMoment({ ...newMoment, photos: updatedPhotos });
   };
 
   const formatDateForDisplay = (dateString: string) => {
@@ -175,8 +177,8 @@ export default function StoriesScreen() {
           try {
             await momentsService.deleteMoment(id);
             setModalVisible(false);
-            setEditingStory(null);
-            setNewStory({ title: "", story_date: "", description: "" });
+            setEditingMoment(null);
+            setNewMoment({ title: "", story_date: "", description: "" });
             loadMoments();
             Alert.alert("Success", "Love story deleted successfully!");
           } catch (error) {
@@ -221,8 +223,8 @@ export default function StoriesScreen() {
           borderBottomColor: "#e0e0e0",
         }}
       >
-        <Text style={{ fontSize: 24, fontWeight: "bold", marginBottom: 10 }}>
-          Our Special Moments 💕
+        <Text style={{ fontSize: 20, color: "#d498a3", fontStyle: "italic", marginBottom: 15, textAlign: "center" }}>
+          💖 Our Little Love Notes 💖
         </Text>
       </View>
 
@@ -240,7 +242,7 @@ export default function StoriesScreen() {
           moments.map((story) => (
             <TouchableOpacity
               key={story.id}
-              onPress={() => handleViewStory(story)}
+              onPress={() => handleViewMoment(story)}
               style={{
                 backgroundColor: "#fff",
                 padding: 15,
@@ -273,7 +275,7 @@ export default function StoriesScreen() {
                 <TouchableOpacity
                   onPress={(e) => {
                     e.stopPropagation();
-                    handleEditStory(story);
+                    handleEditMoment(story);
                   }}
                   style={{
                     backgroundColor: "#d498a3",
@@ -328,7 +330,7 @@ export default function StoriesScreen() {
 
         {/* Add New Story Button - moved to bottom */}
         <TouchableOpacity
-          onPress={handleAddNewStory}
+          onPress={handleAddnewMoment}
           style={{
             backgroundColor: "#f8a5c2",
             padding: 16,
@@ -360,31 +362,41 @@ export default function StoriesScreen() {
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            backgroundColor: "rgba(0,0,0,0.5)",
-          }}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <View
             style={{
-              backgroundColor: "#fdf6f8",
-              padding: 24,
-              margin: 20,
-              borderRadius: 20,
-              width: "90%",
-              maxHeight: "80%",
-              shadowColor: "#f8a5c2",
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.3,
-              shadowRadius: 16,
-              elevation: 12,
-              borderWidth: 1,
-              borderColor: "#f8d7da",
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: "rgba(0,0,0,0.5)",
             }}
           >
+            <View
+              style={{
+                backgroundColor: "#fdf6f8",
+                padding: 24,
+                margin: 20,
+                borderRadius: 20,
+                width: "90%",
+                maxWidth: 400,
+                maxHeight: "85%",
+                shadowColor: "#f8a5c2",
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.3,
+                shadowRadius: 16,
+                elevation: 12,
+                borderWidth: 1,
+                borderColor: "#f8d7da",
+              }}
+            >
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                bounces={false}
+              >
             <View style={{ alignItems: "center", marginBottom: 24 }}>
               <Text style={{ fontSize: 16, color: "#d498a3", marginBottom: 4 }}>
                 💕✨💕
@@ -400,7 +412,7 @@ export default function StoriesScreen() {
                 <Text
                   style={{ fontSize: 20, fontWeight: "bold", color: "#8b4a6b" }}
                 >
-                  {editingStory
+                  {editingMoment
                     ? "Edit This Moment"
                     : "Capture a Special Moment"}
                 </Text>
@@ -436,8 +448,10 @@ export default function StoriesScreen() {
               }}
               placeholder="Give this moment a name... 💕"
               placeholderTextColor="#d498a3"
-              value={newStory.title}
-              onChangeText={(text) => setNewStory({ ...newStory, title: text })}
+              value={newMoment.title}
+              onChangeText={(text) =>
+                setNewMoment({ ...newMoment, title: text })
+              }
             />
 
             <View
@@ -463,7 +477,7 @@ export default function StoriesScreen() {
                   // Simple date selection with today's date as default
                   const today = new Date();
                   const currentDate =
-                    newStory.story_date || today.toISOString().split("T")[0];
+                    newMoment.story_date || today.toISOString().split("T")[0];
 
                   Alert.alert(
                     "💕 Select Date",
@@ -476,8 +490,8 @@ export default function StoriesScreen() {
                           const todayFormatted = new Date()
                             .toISOString()
                             .split("T")[0];
-                          setNewStory({
-                            ...newStory,
+                          setNewMoment({
+                            ...newMoment,
                             story_date: todayFormatted,
                           });
                         },
@@ -489,8 +503,8 @@ export default function StoriesScreen() {
                           const todayFormatted = new Date()
                             .toISOString()
                             .split("T")[0];
-                          setNewStory({
-                            ...newStory,
+                          setNewMoment({
+                            ...newMoment,
                             story_date: todayFormatted,
                           });
                           Alert.alert(
@@ -544,12 +558,12 @@ export default function StoriesScreen() {
               <Text
                 style={{
                   fontSize: 16,
-                  color: newStory.story_date ? "#8b4a6b" : "#d498a3",
-                  fontStyle: newStory.story_date ? "normal" : "italic",
+                  color: newMoment.story_date ? "#8b4a6b" : "#d498a3",
+                  fontStyle: newMoment.story_date ? "normal" : "italic",
                 }}
               >
-                {newStory.story_date
-                  ? `💕 ${formatDateForDisplay(newStory.story_date)}`
+                {newMoment.story_date
+                  ? `💕 ${formatDateForDisplay(newMoment.story_date)}`
                   : "Tap 'Select' to choose your special date 💖"}
               </Text>
             </View>
@@ -582,9 +596,9 @@ export default function StoriesScreen() {
               }}
               placeholder="What happened? How did it feel? What made it special? 💕✨"
               placeholderTextColor="#d498a3"
-              value={newStory.description}
+              value={newMoment.description}
               onChangeText={(text) =>
-                setNewStory({ ...newStory, description: text })
+                setNewMoment({ ...newMoment, description: text })
               }
               multiline={true}
             />
@@ -625,14 +639,14 @@ export default function StoriesScreen() {
                 </TouchableOpacity>
               </View>
 
-              {newStory.photos && newStory.photos.length > 0 ? (
+              {newMoment.photos && newMoment.photos.length > 0 ? (
                 <View style={{ maxHeight: 100 }}>
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={{ paddingRight: 10 }}
                   >
-                    {newStory.photos.map((photo, index) => (
+                    {newMoment.photos.map((photo, index) => (
                       <View
                         key={index}
                         style={{
@@ -714,8 +728,8 @@ export default function StoriesScreen() {
               <TouchableOpacity
                 onPress={() => {
                   setModalVisible(false);
-                  setEditingStory(null);
-                  setNewStory({ title: "", story_date: "", description: "" });
+                  setEditingMoment(null);
+                  setNewMoment({ title: "", story_date: "", description: "" });
                 }}
                 style={{
                   backgroundColor: "#f0f0f0",
@@ -735,11 +749,11 @@ export default function StoriesScreen() {
                 </Text>
               </TouchableOpacity>
 
-              {editingStory && (
+              {editingMoment && (
                 <TouchableOpacity
                   onPress={() =>
-                    editingStory.id &&
-                    handleDeleteStory(editingStory.id, editingStory.title)
+                    editingMoment.id &&
+                    handleDeleteStory(editingMoment.id, editingMoment.title)
                   }
                   style={{
                     backgroundColor: "#ff6b9d",
@@ -763,7 +777,7 @@ export default function StoriesScreen() {
               )}
 
               <TouchableOpacity
-                onPress={handleSaveStory}
+                onPress={handleSaveMoment}
                 style={{
                   backgroundColor: "#f8a5c2",
                   padding: 14,
@@ -779,12 +793,14 @@ export default function StoriesScreen() {
                 <Text
                   style={{ color: "#fff", fontSize: 16, fontWeight: "bold" }}
                 >
-                  {editingStory ? "💕 Update Story" : "💖 Save Story"}
+                  {editingMoment ? "💕 Update Story" : "💖 Save Story"}
                 </Text>
               </TouchableOpacity>
             </View>
+              </ScrollView>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Story Details Modal */}
@@ -794,18 +810,23 @@ export default function StoriesScreen() {
         visible={detailsModalVisible}
         onRequestClose={() => setDetailsModalVisible(false)}
       >
-        <View style={{ flex: 1, backgroundColor: "#f5f5f5" }}>
-          {selectedStory && (
+        <View style={{ flex: 1, backgroundColor: "#fdf6f8" }}>
+          {selectedMoment && (
             <>
               {/* Header */}
               <View
                 style={{
                   backgroundColor: "#fff",
                   paddingTop: 50,
-                  paddingBottom: 15,
+                  paddingBottom: 20,
                   paddingHorizontal: 20,
-                  borderBottomWidth: 1,
-                  borderBottomColor: "#e0e0e0",
+                  borderBottomWidth: 2,
+                  borderBottomColor: "#f8d7da",
+                  shadowColor: "#f8a5c2",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3,
                 }}
               >
                 <View
@@ -819,24 +840,34 @@ export default function StoriesScreen() {
                   <TouchableOpacity
                     onPress={() => setDetailsModalVisible(false)}
                     style={{
-                      padding: 8,
-                      borderRadius: 20,
-                      backgroundColor: "#f0f0f0",
+                      padding: 10,
+                      borderRadius: 25,
+                      backgroundColor: "#f8d7da",
+                      shadowColor: "#f8a5c2",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 4,
+                      elevation: 2,
                     }}
                   >
-                    <Text style={{ fontSize: 16, color: "#666" }}>✕</Text>
+                    <Text style={{ fontSize: 16, color: "#8b4a6b", fontWeight: "bold" }}>✕</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     onPress={() => {
                       setDetailsModalVisible(false);
-                      handleEditStory(selectedStory);
+                      handleEditMoment(selectedMoment);
                     }}
                     style={{
-                      backgroundColor: "#4834d4",
-                      paddingHorizontal: 15,
-                      paddingVertical: 8,
-                      borderRadius: 20,
+                      backgroundColor: "#f8a5c2",
+                      paddingHorizontal: 20,
+                      paddingVertical: 10,
+                      borderRadius: 25,
+                      shadowColor: "#f8a5c2",
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.4,
+                      shadowRadius: 8,
+                      elevation: 4,
                     }}
                   >
                     <Text
@@ -846,32 +877,53 @@ export default function StoriesScreen() {
                         fontWeight: "bold",
                       }}
                     >
-                      Edit
+                      💕 Edit
                     </Text>
                   </TouchableOpacity>
                 </View>
 
                 <Text
                   style={{
-                    fontSize: 24,
+                    fontSize: 26,
                     fontWeight: "bold",
-                    marginBottom: 5,
+                    marginBottom: 8,
+                    color: "#8b4a6b",
+                    textAlign: "center",
                   }}
                 >
-                  {selectedStory.title}
+                  💖 {selectedMoment.title}
                 </Text>
-                <Text style={{ fontSize: 16, color: "#666" }}>
-                  {formatDate(selectedStory.story_date)}
+                <Text style={{ 
+                  fontSize: 16, 
+                  color: "#d498a3", 
+                  textAlign: "center",
+                  fontWeight: "600",
+                  fontStyle: "italic"
+                }}>
+                  ✨ {formatDate(selectedMoment.story_date)} ✨
                 </Text>
               </View>
 
               {/* Content */}
-              <ScrollView style={{ flex: 1 }}>
+              <ScrollView 
+                style={{ flex: 1 }}
+                contentContainerStyle={{ paddingBottom: 20 }}
+                showsVerticalScrollIndicator={false}
+              >
                 {/* Photos Section */}
-                {selectedStory.photos && selectedStory.photos.length > 0 && (
-                  <View style={{ marginBottom: 20 }}>
+                {selectedMoment.photos && selectedMoment.photos.length > 0 && (
+                  <View style={{ marginBottom: 30, marginTop: 10 }}>
+                    <Text style={{
+                      fontSize: 18,
+                      fontWeight: "600",
+                      color: "#8b4a6b",
+                      textAlign: "center",
+                      marginBottom: 15,
+                    }}>
+                      📸 Our Photos 📸
+                    </Text>
                     <FlatList
-                      data={selectedStory.photos}
+                      data={selectedMoment.photos}
                       horizontal
                       pagingEnabled
                       showsHorizontalScrollIndicator={false}
@@ -881,7 +933,10 @@ export default function StoriesScreen() {
                           style={{
                             width: Dimensions.get("window").width,
                             height: 300,
-                            backgroundColor: "#000",
+                            backgroundColor: "#f8d7da",
+                            borderRadius: 12,
+                            overflow: "hidden",
+                            marginHorizontal: 5,
                           }}
                         >
                           <Image
@@ -896,23 +951,28 @@ export default function StoriesScreen() {
                       )}
                     />
 
-                    {selectedStory.photos.length > 1 && (
+                    {selectedMoment.photos.length > 1 && (
                       <View
                         style={{
                           flexDirection: "row",
                           justifyContent: "center",
-                          marginTop: 10,
+                          marginTop: 15,
                         }}
                       >
-                        {selectedStory.photos.map((_, index) => (
+                        {selectedMoment.photos.map((_, index) => (
                           <View
                             key={index}
                             style={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: 4,
-                              backgroundColor: "#ddd",
-                              marginHorizontal: 2,
+                              width: 10,
+                              height: 10,
+                              borderRadius: 5,
+                              backgroundColor: "#f8a5c2",
+                              marginHorizontal: 4,
+                              shadowColor: "#f8a5c2",
+                              shadowOffset: { width: 0, height: 2 },
+                              shadowOpacity: 0.3,
+                              shadowRadius: 3,
+                              elevation: 2,
                             }}
                           />
                         ))}
@@ -922,59 +982,76 @@ export default function StoriesScreen() {
                 )}
 
                 {/* Description Section */}
-                <View style={{ padding: 20 }}>
+                <View style={{ 
+                  padding: 24,
+                  marginHorizontal: 16,
+                  backgroundColor: "#fff",
+                  borderRadius: 20,
+                  shadowColor: "#f8a5c2",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 8,
+                  elevation: 4,
+                  borderWidth: 1,
+                  borderColor: "#f8d7da",
+                }}>
                   <Text
                     style={{
-                      fontSize: 18,
+                      fontSize: 20,
                       fontWeight: "bold",
-                      marginBottom: 10,
-                      color: "#333",
+                      marginBottom: 15,
+                      color: "#8b4a6b",
+                      textAlign: "center",
                     }}
                   >
-                    Our Story
+                    💝 Our Story 💝
                   </Text>
                   <Text
                     style={{
                       fontSize: 16,
-                      lineHeight: 24,
-                      color: "#555",
+                      lineHeight: 26,
+                      color: "#5d5d5d",
+                      textAlign: "center",
+                      fontStyle: "italic",
                     }}
                   >
-                    {selectedStory.description}
+                    "{selectedMoment.description}"
                   </Text>
                 </View>
 
                 {/* Metadata */}
                 <View
                   style={{
-                    backgroundColor: "#fff",
-                    margin: 20,
-                    padding: 15,
-                    borderRadius: 10,
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 2,
+                    backgroundColor: "#fdf6f8",
+                    margin: 16,
+                    marginTop: 20,
+                    padding: 20,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: "#f8d7da",
+                    alignItems: "center",
                   }}
                 >
                   <Text
                     style={{
                       fontSize: 14,
-                      color: "#666",
-                      marginBottom: 5,
+                      color: "#d498a3",
+                      marginBottom: 8,
+                      fontWeight: "600",
                     }}
                   >
-                    Created: {formatDate(selectedStory.created_at || "")}
+                    ✨ Captured: {formatDate(selectedMoment.created_at || "")}
                   </Text>
-                  {selectedStory.updated_at &&
-                    selectedStory.updated_at !== selectedStory.created_at && (
+                  {selectedMoment.updated_at &&
+                    selectedMoment.updated_at !== selectedMoment.created_at && (
                       <Text
                         style={{
-                          fontSize: 14,
-                          color: "#666",
+                          fontSize: 13,
+                          color: "#d498a3",
+                          fontStyle: "italic",
                         }}
                       >
-                        Last updated: {formatDate(selectedStory.updated_at)}
+                        💕 Last updated: {formatDate(selectedMoment.updated_at)}
                       </Text>
                     )}
                 </View>
