@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS journal_entries (
   entry_type TEXT NOT NULL CHECK (entry_type IN ('lovestory', 'date', 'milestone', 'general')),
   entry_date DATE NOT NULL,
   images TEXT[] DEFAULT '{}',
+  metadata JSONB DEFAULT '{}',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -15,6 +16,9 @@ CREATE INDEX IF NOT EXISTS idx_journal_entries_entry_date ON journal_entries(ent
 
 -- Create an index on entry_type for faster filtering
 CREATE INDEX IF NOT EXISTS idx_journal_entries_entry_type ON journal_entries(entry_type);
+
+-- Create a GIN index on metadata for JSON queries
+CREATE INDEX IF NOT EXISTS idx_journal_entries_metadata ON journal_entries USING GIN (metadata);
 
 -- Create a function to automatically update updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()

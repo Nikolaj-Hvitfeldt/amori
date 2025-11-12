@@ -1,80 +1,153 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text } from 'react-native';
-import HomeScreen from '../screens/HomeScreen';
-import DatesScreen from '../screens/DatesScreen';
-import PicturesScreen from '../screens/PicturesScreen';
-import StoriesScreen from '../screens/StoriesScreen';
+import React, { useState } from "react";
+import { View, Text, TouchableOpacity } from "react-native";
+import HomeScreen from "../screens/HomeScreen";
+import DatesScreen from "../screens/DatesScreen";
+import PicturesScreen from "../screens/PicturesScreen";
+import MomentsScreen from "../screens/MomentsScreen";
 
-export type RootTabParamList = {
-  Home: undefined;
-  Stories: undefined;
-  Dates: undefined;
-  Pictures: undefined;
-};
-
-const Tab = createBottomTabNavigator<RootTabParamList>();
-
-const TabBarIcon = ({ name, focused }: { name: string; focused: boolean }) => {
-  return (
-    <Text style={{ fontSize: 24, color: focused ? '#FF6B9D' : '#999' }}>
-      {name === 'Home' && '🏠'}
-      {name === 'Stories' && '💕'}
-      {name === 'Dates' && '📅'}
-      {name === 'Pictures' && '📸'}
-    </Text>
-  );
-};
+type Screen = "Home" | "Stories" | "Dates" | "Pictures";
 
 export default function AppNavigator() {
+  const [activeScreen, setActiveScreen] = useState<Screen>("Home");
+
+  const renderScreen = () => {
+    switch (activeScreen) {
+      case "Home":
+        return <HomeScreen />;
+      case "Stories":
+        return <MomentsScreen />;
+      case "Dates":
+        return <DatesScreen />;
+      case "Pictures":
+        return <PicturesScreen />;
+      default:
+        return <HomeScreen />;
+    }
+  };
+
+  const getTabIcon = (screen: Screen) => {
+    switch (screen) {
+      case "Home":
+        return "🏠";
+      case "Stories":
+        return "💕";
+      case "Dates":
+        return "📅";
+      case "Pictures":
+        return "📸";
+      default:
+        return "🏠";
+    }
+  };
+
+  const getTabTitle = (screen: Screen) => {
+    switch (screen) {
+      case "Home":
+        return "Timeline";
+      case "Stories":
+        return "Moments";
+      case "Dates":
+        return "Dates";
+      case "Pictures":
+        return "Pictures";
+      default:
+        return "Timeline";
+    }
+  };
+
+  const containerStyle = {
+    flex: 1,
+    backgroundColor: "#FFF5F7",
+    paddingTop: 50,
+  };
+
+  const headerStyle = {
+    backgroundColor: "#FF6B9D",
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#FEC7D7",
+  };
+
+  const headerTitleStyle = {
+    fontSize: 20,
+    fontWeight: "600" as const,
+    color: "#FFF",
+    textAlign: "center" as const,
+  };
+
+  const contentStyle = {
+    flex: 1,
+  };
+
+  const tabBarStyle = {
+    flexDirection: "row" as const,
+    backgroundColor: "#FFF",
+    borderTopColor: "#FEC7D7",
+    borderTopWidth: 1,
+    paddingBottom: 5,
+    paddingTop: 5,
+    height: 60,
+  };
+
+  const tabStyle = {
+    flex: 1,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+  };
+
+  const tabIconStyle = {
+    fontSize: 20,
+    marginBottom: 2,
+  };
+
+  const tabLabelStyle = {
+    fontSize: 12,
+    color: "#999",
+  };
+
+  const activeTabLabelStyle = {
+    fontSize: 12,
+    color: "#FF6B9D",
+    fontWeight: "600" as const,
+  };
+
   return (
-    <NavigationContainer>
-      <Tab.Navigator
-        screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused }) => (
-            <TabBarIcon name={route.name} focused={focused} />
-          ),
-          tabBarActiveTintColor: '#FF6B9D',
-          tabBarInactiveTintColor: '#999',
-          tabBarStyle: {
-            backgroundColor: '#FFF',
-            borderTopColor: '#FEC7D7',
-            borderTopWidth: 1,
-            paddingBottom: 5,
-            paddingTop: 5,
-            height: 60,
-          },
-          headerStyle: {
-            backgroundColor: '#FF6B9D',
-          },
-          headerTintColor: '#FFF',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
-        })}
-      >
-        <Tab.Screen 
-          name="Home" 
-          component={HomeScreen}
-          options={{ title: 'Our Timeline' }}
-        />
-        <Tab.Screen 
-          name="Stories" 
-          component={StoriesScreen}
-          options={{ title: 'Love Stories' }}
-        />
-        <Tab.Screen 
-          name="Dates" 
-          component={DatesScreen}
-          options={{ title: 'Special Dates' }}
-        />
-        <Tab.Screen 
-          name="Pictures" 
-          component={PicturesScreen}
-          options={{ title: 'Memories' }}
-        />
-      </Tab.Navigator>
-    </NavigationContainer>
+    <View style={containerStyle}>
+      {/* Header */}
+      <View style={headerStyle}>
+        <Text style={headerTitleStyle}>
+          {activeScreen === "Home" && "Our Timeline"}
+          {activeScreen === "Stories" && "Moments"}
+          {activeScreen === "Dates" && "Special Dates"}
+          {activeScreen === "Pictures" && "Memories"}
+        </Text>
+      </View>
+
+      {/* Content */}
+      <View style={contentStyle}>{renderScreen()}</View>
+
+      {/* Bottom Tab Bar */}
+      <View style={tabBarStyle}>
+        {(["Home", "Stories", "Dates", "Pictures"] as Screen[]).map(
+          (screen) => (
+            <TouchableOpacity
+              key={screen}
+              style={tabStyle}
+              onPress={() => setActiveScreen(screen)}
+            >
+              <Text style={tabIconStyle}>{getTabIcon(screen)}</Text>
+              <Text
+                style={
+                  activeScreen === screen ? activeTabLabelStyle : tabLabelStyle
+                }
+              >
+                {getTabTitle(screen)}
+              </Text>
+            </TouchableOpacity>
+          )
+        )}
+      </View>
+    </View>
   );
 }

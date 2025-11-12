@@ -5,6 +5,12 @@ export interface JournalEntry {
   entry_type: 'lovestory' | 'date' | 'milestone' | 'general';
   entry_date: string;
   images?: string[];
+  metadata?: {
+    location?: string;
+    rating?: number;
+    tags?: string[];
+    [key: string]: any;
+  };
   created_at?: string;
   updated_at?: string;
 }
@@ -15,6 +21,12 @@ export class CreateJournalEntryDto {
   entry_type: 'lovestory' | 'date' | 'milestone' | 'general';
   entry_date: string;
   images?: string[];
+  metadata?: {
+    location?: string;
+    rating?: number;
+    tags?: string[];
+    [key: string]: any;
+  };
 }
 
 export class UpdateJournalEntryDto {
@@ -23,4 +35,10 @@ export class UpdateJournalEntryDto {
   entry_type?: 'lovestory' | 'date' | 'milestone' | 'general';
   entry_date?: string;
   images?: string[];
+  metadata?: {
+    location?: string;
+    rating?: number;
+    tags?: string[];
+    [key: string]: any;
+  };
 }
