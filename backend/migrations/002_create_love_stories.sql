@@ -1,5 +1,5 @@
--- Create love_stories table
-CREATE TABLE love_stories (
+-- Create moments table (originally named love_stories, renamed in migration 003)
+CREATE TABLE moments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title VARCHAR(255) NOT NULL,
   story_date DATE NOT NULL,
@@ -10,7 +10,7 @@ CREATE TABLE love_stories (
 );
 
 -- Create an index for faster querying by date
-CREATE INDEX idx_love_stories_story_date ON love_stories(story_date DESC);
+CREATE INDEX idx_moments_story_date ON moments(story_date DESC);
 
 -- Add RLS (Row Level Security) policies if needed
--- ALTER TABLE love_stories ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE moments ENABLE ROW LEVEL SECURITY;

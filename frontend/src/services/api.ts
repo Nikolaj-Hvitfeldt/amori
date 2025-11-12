@@ -2,7 +2,7 @@ import { JournalEntry, CreateJournalEntry } from "../types/journal";
 
 // Use your computer's IP address for Expo to access the backend
 // Change this to your computer's IP or use localhost when using web/simulator
-const API_URL = "http://172.20.10.3:3000";
+const API_URL = "http://192.168.0.92:3000";
 export const API_BASE_URL = API_URL;
 
 export const journalService = {

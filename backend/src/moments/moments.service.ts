@@ -17,23 +17,32 @@ export class MomentsService {
   constructor(private readonly supabase: SupabaseService) {}
 
   async findAll(): Promise<Moment[]> {
-    const { data, error } = await this.supabase
-      .getClient()
-      .from("love_stories")
-      .select("*")
-      .order("story_date", { ascending: false });
+    try {
+      console.log("Fetching moments from moments table...");
+      const client = this.supabase.getClient();
+      
+      const { data, error } = await client
+        .from("moments")
+        .select("*")
+        .order("story_date", { ascending: false });
 
-    if (error) {
-      throw new Error(`Failed to fetch moments: ${error.message}`);
+      if (error) {
+        console.error("Supabase error:", error);
+        throw new Error(`Failed to fetch moments: ${error.message}`);
+      }
+
+      console.log(`Successfully fetched ${data?.length || 0} moments`);
+      return data || [];
+    } catch (error) {
+      console.error("Error in findAll:", error);
+      throw error;
     }
-
-    return data || [];
   }
 
   async findOne(id: string): Promise<Moment> {
     const { data, error } = await this.supabase
       .getClient()
-      .from("love_stories")
+      .from("moments")
       .select("*")
       .eq("id", id)
       .single();
@@ -52,7 +61,7 @@ export class MomentsService {
   async create(createMomentDto: CreateMomentDto): Promise<Moment> {
     const { data, error } = await this.supabase
       .getClient()
-      .from("love_stories")
+      .from("moments")
       .insert([
         {
           title: createMomentDto.title,
@@ -74,7 +83,7 @@ export class MomentsService {
   async update(id: string, updateMomentDto: UpdateMomentDto): Promise<Moment> {
     const { data, error } = await this.supabase
       .getClient()
-      .from("love_stories")
+      .from("moments")
       .update({
         ...updateMomentDto,
         updated_at: new Date().toISOString(),
@@ -97,7 +106,7 @@ export class MomentsService {
   async remove(id: string): Promise<void> {
     const { error } = await this.supabase
       .getClient()
-      .from("love_stories")
+      .from("moments")
       .delete()
       .eq("id", id);
 
