@@ -115,11 +115,35 @@ export default function AppNavigator() {
   return (
     <View style={containerStyle}>
       {/* Header */}
-      <View style={headerStyle}>
-        <Text style={headerTitleStyle}>
+      <View
+        style={
+          activeScreen === "Dates"
+            ? {
+                backgroundColor: "#16213e",
+                paddingVertical: 15,
+                paddingHorizontal: 20,
+                borderBottomWidth: 1,
+                borderBottomColor: "#374151",
+              }
+            : headerStyle
+        }
+      >
+        <Text
+          style={
+            activeScreen === "Dates"
+              ? {
+                  fontSize: 20,
+                  fontWeight: "300" as const,
+                  color: "#e5d3ff",
+                  textAlign: "center" as const,
+                  letterSpacing: 1,
+                }
+              : headerTitleStyle
+          }
+        >
           {activeScreen === "Home" && "Our Timeline"}
           {activeScreen === "Stories" && "Moments"}
-          {activeScreen === "Dates" && "Special Dates"}
+          {activeScreen === "Dates" && "Treasured Dates"}
           {activeScreen === "Pictures" && "Memories"}
         </Text>
       </View>
