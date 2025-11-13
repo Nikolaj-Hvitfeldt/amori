@@ -27,6 +27,53 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 type TimeOfDay = "morning" | "afternoon" | "evening" | "night";
 
+// Helper function to convert shadow props to web-compatible boxShadow
+const getBoxShadow = (
+  shadowColor: string,
+  shadowOffset: { width: number; height: number },
+  shadowOpacity: number,
+  shadowRadius: number
+) => {
+  if (Platform.OS === "web") {
+    const color = shadowColor.startsWith("#")
+      ? shadowColor + Math.round(shadowOpacity * 255).toString(16).padStart(2, "0")
+      : shadowColor.replace(/rgba?\(([^)]+)\)/, (_, values) => {
+          const parts = values.split(",").map((v: string) => v.trim());
+          if (parts.length === 3) {
+            return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, ${shadowOpacity})`;
+          }
+          return shadowColor;
+        });
+    return {
+      boxShadow: `${shadowOffset.width}px ${shadowOffset.height}px ${shadowRadius}px 0px ${color}`,
+    };
+  }
+  return {
+    shadowColor,
+    shadowOffset,
+    shadowOpacity,
+    shadowRadius,
+  };
+};
+
+// Helper function to convert textShadow props to web-compatible textShadow
+const getTextShadow = (
+  textShadowColor: string,
+  textShadowOffset: { width: number; height: number },
+  textShadowRadius: number
+) => {
+  if (Platform.OS === "web") {
+    return {
+      textShadow: `${textShadowOffset.width}px ${textShadowOffset.height}px ${textShadowRadius}px ${textShadowColor}`,
+    };
+  }
+  return {
+    textShadowColor,
+    textShadowOffset,
+    textShadowRadius,
+  };
+};
+
 // Time-based color themes (matching DateDetailView)
 const TIME_THEMES: Record<TimeOfDay, { gradient: string[]; text: string; bg: string }> = {
   morning: {
@@ -83,6 +130,7 @@ export default function DatesScreen() {
   const [date, setDate] = useState("");
   const [datePickerValue, setDatePickerValue] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [webDateInput, setWebDateInput] = useState("");
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
   const [mood, setMood] = useState<DateMood>("romantic");
@@ -144,6 +192,7 @@ export default function DatesScreen() {
     setPhotos([]);
     setEditingDate(null);
     setShowDatePicker(false);
+    setWebDateInput("");
   };
 
   // Helper function to filter out invalid/blob URLs
@@ -188,7 +237,7 @@ export default function DatesScreen() {
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 300,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== "web",
     }).start();
   };
 
@@ -318,21 +367,81 @@ export default function DatesScreen() {
 
   const uploadImage = async (uri: string): Promise<string> => {
     try {
-      // Read image as base64 using expo-file-system (legacy API)
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      let base64: string;
+      let mimeType: string;
+
+      if (Platform.OS === 'web') {
+        // For web, handle blob URLs and data URLs
+        if (uri.startsWith('blob:') || uri.startsWith('data:')) {
+          // If it's already a data URL, extract the base64
+          if (uri.startsWith('data:')) {
+            const matches = uri.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+            if (matches && matches.length === 3) {
+              mimeType = matches[1];
+              base64 = matches[2];
+            } else {
+              throw new Error('Invalid data URL format');
+            }
+          } else {
+            // For blob URLs, fetch and convert
+            const response = await fetch(uri);
+            const blob = await response.blob();
+            
+            // Get mime type from blob
+            mimeType = blob.type || 'image/jpeg';
+            
+            // Convert blob to base64
+            base64 = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const result = reader.result as string;
+                // Remove data URL prefix
+                const base64Data = result.split(',')[1];
+                resolve(base64Data);
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          }
+        } else {
+          // For file:// URLs or other, try to fetch
+          const response = await fetch(uri);
+          const blob = await response.blob();
+          
+          // Get mime type from blob
+          mimeType = blob.type || 'image/jpeg';
+          
+          // Convert blob to base64
+          base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const result = reader.result as string;
+              // Remove data URL prefix
+              const base64Data = result.split(',')[1];
+              resolve(base64Data);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        }
+      } else {
+        // For native platforms, use expo-file-system
+        base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        
+        // Determine mime type from file extension
+        const extension = uri.split('.').pop()?.toLowerCase() || 'jpg';
+        const mimeTypes: Record<string, string> = {
+          jpg: 'image/jpeg',
+          jpeg: 'image/jpeg',
+          png: 'image/png',
+          gif: 'image/gif',
+          webp: 'image/webp',
+        };
+        mimeType = mimeTypes[extension] || 'image/jpeg';
+      }
       
-      // Determine mime type from file extension
-      const extension = uri.split('.').pop()?.toLowerCase() || 'jpg';
-      const mimeTypes: Record<string, string> = {
-        jpg: 'image/jpeg',
-        jpeg: 'image/jpeg',
-        png: 'image/png',
-        gif: 'image/gif',
-        webp: 'image/webp',
-      };
-      const mimeType = mimeTypes[extension] || 'image/jpeg';
       const base64data = `data:${mimeType};base64,${base64}`;
       
       // Upload to backend
@@ -346,11 +455,14 @@ export default function DatesScreen() {
 
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
-        throw new Error(`Failed to upload image: ${errorText}`);
+        throw new Error(`Failed to upload image: ${uploadResponse.status} ${errorText}`);
       }
 
-      const { url } = await uploadResponse.json();
-      return url;
+      const result = await uploadResponse.json();
+      if (!result.url) {
+        throw new Error('No URL returned from upload');
+      }
+      return result.url;
     } catch (error) {
       console.error('Error uploading image:', error);
       throw error;
@@ -359,23 +471,46 @@ export default function DatesScreen() {
 
   const pickImage = async () => {
     try {
+      // Request permissions (skip on web as it's handled by browser)
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Required', 'Please grant permission to access your photos.');
+          return;
+        }
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         quality: 0.8,
         allowsMultipleSelection: true,
       });
 
-      if (!result.canceled && result.assets.length > 0) {
+      console.log('Image picker result:', result);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        console.log(`Uploading ${result.assets.length} images...`);
         setLoading(true);
-        // Upload all selected images
-        const uploadPromises = result.assets.map((asset) => uploadImage(asset.uri));
-        const uploadedUrls = await Promise.all(uploadPromises);
-        setPhotos([...photos, ...uploadedUrls]);
-        setLoading(false);
+        try {
+          // Upload all selected images
+          const uploadPromises = result.assets.map((asset, index) => {
+            console.log(`Uploading image ${index + 1}/${result.assets.length}:`, asset.uri);
+            return uploadImage(asset.uri);
+          });
+          const uploadedUrls = await Promise.all(uploadPromises);
+          console.log('Uploaded URLs:', uploadedUrls);
+          setPhotos([...photos, ...uploadedUrls]);
+        } catch (uploadError) {
+          console.error('Error uploading images:', uploadError);
+          Alert.alert('Upload Error', `Failed to upload images: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        console.log('Image picker was canceled or no assets selected');
       }
     } catch (error) {
-      console.error('Error picking/uploading image:', error);
-      Alert.alert('Error', 'Failed to upload image. Please try again.');
+      console.error('Error picking image:', error);
+      Alert.alert('Error', `Failed to pick image: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setLoading(false);
     }
   };
@@ -488,10 +623,7 @@ export default function DatesScreen() {
                   marginBottom: 16,
                   borderWidth: 1,
                   borderColor: "#374151",
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 8,
+                  ...getBoxShadow("#000", { width: 0, height: 4 }, 0.3, 8),
                   elevation: 5,
                   overflow: "hidden",
                   position: "relative",
@@ -535,9 +667,7 @@ export default function DatesScreen() {
                           fontWeight: "600",
                           color: datePhotos.length > 0 ? "#ffffff" : "#e5d3ff",
                           marginBottom: 4,
-                          textShadowColor: "rgba(0, 0, 0, 0.75)",
-                          textShadowOffset: { width: 0, height: 1 },
-                          textShadowRadius: 3,
+                          ...getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
                         }}
                       >
                         {dateEntry.title || "Our Special Date"}
@@ -549,9 +679,7 @@ export default function DatesScreen() {
                           fontStyle: "italic",
                           color: datePhotos.length > 0 ? "#f3f4f6" : "#9ca3af",
                           marginBottom: 8,
-                          textShadowColor: "rgba(0, 0, 0, 0.75)",
-                          textShadowOffset: { width: 0, height: 1 },
-                          textShadowRadius: 3,
+                          ...getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
                         }}
                       >
                         {formatDate(dateEntry.date)}
@@ -567,9 +695,7 @@ export default function DatesScreen() {
                             fontSize: 14,
                             color: datePhotos.length > 0 ? "#ffffff" : "#a78bfa",
                             fontWeight: "500",
-                            textShadowColor: "rgba(0, 0, 0, 0.75)",
-                            textShadowOffset: { width: 0, height: 1 },
-                            textShadowRadius: 3,
+                            ...getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
                           }}
                         >
                           {moodInfo.label}
@@ -584,9 +710,7 @@ export default function DatesScreen() {
                       color: datePhotos.length > 0 ? "#ffffff" : "#d1d5db",
                       marginBottom: 8,
                       fontWeight: "500",
-                      textShadowColor: "rgba(0, 0, 0, 0.75)",
-                      textShadowOffset: { width: 0, height: 1 },
-                      textShadowRadius: 3,
+                      ...getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
                     }}
                   >
                     📍 {dateEntry.location}
@@ -610,10 +734,7 @@ export default function DatesScreen() {
           backgroundColor: "#7c3aed",
           alignItems: "center",
           justifyContent: "center",
-          shadowColor: "#7c3aed",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.4,
-          shadowRadius: 12,
+          ...getBoxShadow("#7c3aed", { width: 0, height: 4 }, 0.4, 12),
           elevation: 8,
         }}
         onPress={() => openModal()}
@@ -827,7 +948,15 @@ export default function DatesScreen() {
                 </Text>
                 <TouchableOpacity
                   onPress={() => {
-                    console.log("Date picker button pressed, showDatePicker:", showDatePicker);
+                    console.log("Date picker button pressed, showDatePicker:", showDatePicker, "date:", date, "datePickerValue:", datePickerValue);
+                    if (Platform.OS === "web") {
+                      if (!showDatePicker) {
+                        // Initialize web date input with current date if available
+                        const initialValue = date && datePickerValue ? formatDateForDisplay(datePickerValue) : "";
+                        console.log("Initializing webDateInput with:", initialValue);
+                        setWebDateInput(initialValue);
+                      }
+                    }
                     setShowDatePicker(!showDatePicker);
                   }}
                   style={{
@@ -848,7 +977,7 @@ export default function DatesScreen() {
                       fontWeight: "500",
                     }}
                   >
-                    {date ? formatDateForDisplay(datePickerValue) : "Select a date"}
+                    {date && datePickerValue ? formatDateForDisplay(datePickerValue) : "Select a date"}
                   </Text>
                   <Text style={{ fontSize: 20, color: moodColor }}>📅</Text>
                 </TouchableOpacity>
@@ -930,23 +1059,53 @@ export default function DatesScreen() {
                     }}
                   >
                     <TextInput
-                      value={date ? formatDateForDisplay(datePickerValue) : ""}
+                      value={webDateInput}
                       onChangeText={(text) => {
-                        // Parse European format (dd-mm-yyyy) to Date object
-                        const parts = text.split("-");
-                        if (parts.length === 3) {
+                        // Allow user to type freely
+                        // Format as they type: dd-mm-yyyy
+                        let cleaned = text.replace(/[^\d-]/g, '');
+                        
+                        // Remove extra dashes
+                        cleaned = cleaned.replace(/-+/g, '-');
+                        if (cleaned.startsWith('-')) cleaned = cleaned.slice(1);
+                        
+                        // Auto-format with dashes
+                        let formatted = cleaned;
+                        if (cleaned.length > 2 && !cleaned.includes('-')) {
+                          formatted = cleaned.slice(0, 2) + '-' + cleaned.slice(2);
+                        }
+                        if (cleaned.length > 5 && cleaned.split('-').length === 2) {
+                          const parts = cleaned.split('-');
+                          formatted = parts[0] + '-' + parts[1].slice(0, 2) + '-' + parts[1].slice(2, 6);
+                        }
+                        
+                        setWebDateInput(formatted);
+                        
+                        // Try to parse when we have a complete date (dd-mm-yyyy)
+                        const parts = formatted.split('-');
+                        if (parts.length === 3 && parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
                           const day = parseInt(parts[0], 10);
                           const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
                           const year = parseInt(parts[2], 10);
-                          const parsedDate = new Date(year, month, day);
-                          if (!isNaN(parsedDate.getTime())) {
-                            setDatePickerValue(parsedDate);
-                            const formattedDate = formatDateForDatabase(parsedDate);
-                            setDate(formattedDate);
+                          
+                          // Validate date
+                          if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 1900 && year <= 2100) {
+                            const parsedDate = new Date(year, month, day);
+                            if (!isNaN(parsedDate.getTime()) && 
+                                parsedDate.getDate() === day && 
+                                parsedDate.getMonth() === month && 
+                                parsedDate.getFullYear() === year) {
+                              setDatePickerValue(parsedDate);
+                              const formattedDate = formatDateForDatabase(parsedDate);
+                              setDate(formattedDate);
+                            }
                           }
                         }
                       }}
                       placeholder="dd-mm-yyyy"
+                      keyboardType="numeric"
+                      maxLength={10}
+                      editable={true}
                       style={{
                         borderWidth: 2,
                         borderColor: moodColor + "60",
@@ -958,7 +1117,28 @@ export default function DatesScreen() {
                       }}
                     />
                     <TouchableOpacity
-                      onPress={() => setShowDatePicker(false)}
+                      onPress={() => {
+                        // Parse the input when closing if not already parsed
+                        if (webDateInput) {
+                          const parts = webDateInput.split('-');
+                          if (parts.length === 3) {
+                            const day = parseInt(parts[0], 10);
+                            const month = parseInt(parts[1], 10) - 1;
+                            const year = parseInt(parts[2], 10);
+                            const parsedDate = new Date(year, month, day);
+                            if (!isNaN(parsedDate.getTime())) {
+                              setDatePickerValue(parsedDate);
+                              const formattedDate = formatDateForDatabase(parsedDate);
+                              setDate(formattedDate);
+                            }
+                          }
+                        } else if (datePickerValue) {
+                          const formattedDate = formatDateForDatabase(datePickerValue);
+                          setDate(formattedDate);
+                        }
+                        setWebDateInput("");
+                        setShowDatePicker(false);
+                      }}
                       style={{
                         marginTop: 12,
                         paddingHorizontal: 16,

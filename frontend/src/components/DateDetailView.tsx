@@ -94,10 +94,12 @@ export default function DateDetailView({
       : [];
 
   React.useEffect(() => {
+    // On web, opacity animations work fine without native driver
+    // On native, we can use native driver for better performance
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 500,
-      useNativeDriver: true,
+      useNativeDriver: false, // Opacity can be animated without native driver on all platforms
     }).start();
   }, []);
 

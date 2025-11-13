@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Image, Animated, StyleSheet, Dimensions } from "react-native";
+import { View, Image, Animated, StyleSheet, Dimensions, Platform } from "react-native";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -30,7 +30,7 @@ export default function RotatingPhotoBackground({
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 1500,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== "web",
       }).start(() => {
         // Change photo
         setCurrentIndex((prev) => (prev + 1) % validPhotos.length);
@@ -38,7 +38,7 @@ export default function RotatingPhotoBackground({
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 1500,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== "web",
         }).start();
       });
     }, interval);
