@@ -100,10 +100,19 @@ export class MilestonesController {
 
       const mimeType = matches[1];
       const base64Data = matches[2];
-      const buffer = Buffer.from(base64Data, "base64");
+      let buffer = Buffer.from(base64Data, "base64");
 
-      // Determine file extension
-      const extension = mimeType.split("/")[1] || "jpg";
+      // Compress image before upload (max 1920x1920, quality 85)
+      try {
+        const { compressImage } = await import("../utils/image-compression");
+        buffer = await compressImage(buffer, 1920, 1920, 85);
+      } catch (compressionError) {
+        console.warn("Image compression failed, using original:", compressionError);
+        // Continue with original buffer if compression fails
+      }
+
+      // Determine file extension (always use jpg after compression)
+      const extension = "jpg";
       const fileName = `milestone-photos/${Date.now()}-${Math.random().toString(36).substring(7)}.${extension}`;
 
       // Upload to Supabase Storage
@@ -136,7 +145,7 @@ export class MilestonesController {
       const { data, error } = await supabase.storage
         .from("milestone-photos")
         .upload(fileName, buffer, {
-          contentType: mimeType,
+          contentType: "image/jpeg", // Always JPEG after compression
           upsert: false,
         });
 
