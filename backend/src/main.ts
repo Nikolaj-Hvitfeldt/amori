@@ -6,15 +6,26 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     bodyParser: false, // Disable default body parser so we can configure it ourselves
   });
-  
+
   // Increase body size limit to 20MB for image uploads
   // Default is 100KB which is too small for photos
   app.use(json({ limit: "20mb" }));
   app.use(urlencoded({ extended: true, limit: "20mb" }));
-  
+
   app.enableCors({
     origin: true, // Allow all origins for development
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Accept",
+      "Origin",
+      "X-Requested-With",
+    ],
+    exposedHeaders: ["Content-Length", "Content-Type"],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
 
   // Listen on all interfaces (0.0.0.0) so mobile devices can connect
