@@ -666,9 +666,13 @@ export default function MilestonesScreen() {
                       horizontal
                       showsHorizontalScrollIndicator={false}
                       style={{ marginTop: 8 }}
-                      contentContainerStyle={{ gap: 10 }}
+                      contentContainerStyle={{
+                        gap: 10,
+                        paddingRight: 20,
+                      }}
+                      nestedScrollEnabled={true}
                     >
-                      {milestonePhotos.slice(0, 3).map((photo, photoIndex) => (
+                      {milestonePhotos.map((photo, photoIndex) => (
                         <Image
                           key={photoIndex}
                           source={{ uri: photo }}
@@ -682,30 +686,6 @@ export default function MilestonesScreen() {
                           resizeMode="cover"
                         />
                       ))}
-                      {milestonePhotos.length > 3 && (
-                        <View
-                          style={{
-                            width: 100,
-                            height: 100,
-                            borderRadius: 16,
-                            backgroundColor: config.color + "20",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            borderWidth: 2,
-                            borderColor: config.color + "60",
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 24,
-                              color: config.color,
-                              fontWeight: "600",
-                            }}
-                          >
-                            +{milestonePhotos.length - 3}
-                          </Text>
-                        </View>
-                      )}
                     </ScrollView>
                   )}
                 </TouchableOpacity>
@@ -913,7 +893,7 @@ export default function MilestonesScreen() {
                     fontWeight: "600",
                   }}
                 >
-                  ⭐ Title *
+                  ✨ Title *
                 </Text>
                 <TextInput
                   style={{
@@ -943,7 +923,7 @@ export default function MilestonesScreen() {
                     fontWeight: "600",
                   }}
                 >
-                  ⭐ Date *
+                  📅 Date *
                 </Text>
                 <TouchableOpacity
                   onPress={() => {
@@ -1188,7 +1168,7 @@ export default function MilestonesScreen() {
                     fontWeight: "600",
                   }}
                 >
-                  ⭐ Description
+                  💭 Description
                 </Text>
                 <TextInput
                   style={{
@@ -1228,7 +1208,7 @@ export default function MilestonesScreen() {
                       fontWeight: "600",
                     }}
                   >
-                    ⭐ Photos ({photos.length})
+                    📷 Photos ({photos.length})
                   </Text>
                   <TouchableOpacity
                     onPress={pickImage}
