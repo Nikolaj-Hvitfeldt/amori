@@ -2,9 +2,10 @@ import { Platform } from "react-native";
 import { JournalEntry, CreateJournalEntry } from "../types/journal";
 
 // Use localhost for web, current hotspot IP for mobile
-const API_URL = Platform.OS === "web"
-  ? "http://localhost:3000" // Web browser
-  : "http://172.20.10.3:3000"; // Mobile: hotspot IP
+const API_URL =
+  Platform.OS === "web"
+    ? "http://localhost:3000" // Web browser
+    : "http://172.20.10.3:3000"; // Mobile: hotspot IP
 
 console.log("Platform:", Platform.OS, "API URL:", API_URL);
 export const API_BASE_URL = API_URL;
