@@ -36,7 +36,10 @@ const getBoxShadow = (
 ) => {
   if (Platform.OS === "web") {
     const color = shadowColor.startsWith("#")
-      ? shadowColor + Math.round(shadowOpacity * 255).toString(16).padStart(2, "0")
+      ? shadowColor +
+        Math.round(shadowOpacity * 255)
+          .toString(16)
+          .padStart(2, "0")
       : shadowColor.replace(/rgba?\(([^)]+)\)/, (_, values) => {
           const parts = values.split(",").map((v: string) => v.trim());
           if (parts.length === 3) {
@@ -75,7 +78,10 @@ const getTextShadow = (
 };
 
 // Time-based color themes (matching DateDetailView)
-const TIME_THEMES: Record<TimeOfDay, { gradient: string[]; text: string; bg: string }> = {
+const TIME_THEMES: Record<
+  TimeOfDay,
+  { gradient: string[]; text: string; bg: string }
+> = {
   morning: {
     gradient: ["#FFE5B4", "#FFD89B", "#FFC65D"],
     text: "#8B4513",
@@ -200,7 +206,11 @@ export default function DatesScreen() {
     return photoUrls.filter((url) => {
       // Only keep URLs that start with http:// or https:// (valid web URLs)
       // Filter out blob: URLs and other invalid formats
-      return url && typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://"));
+      return (
+        url &&
+        typeof url === "string" &&
+        (url.startsWith("http://") || url.startsWith("https://"))
+      );
     });
   };
 
@@ -222,11 +232,12 @@ export default function DatesScreen() {
       setFavoriteMoment(dateEntry.favorite_moment || "");
       // Support both photos array and legacy image_url
       // Filter out blob URLs and invalid URLs
-      const allPhotos = dateEntry.photos && dateEntry.photos.length > 0
-        ? dateEntry.photos
-        : dateEntry.image_url
-        ? [dateEntry.image_url]
-        : [];
+      const allPhotos =
+        dateEntry.photos && dateEntry.photos.length > 0
+          ? dateEntry.photos
+          : dateEntry.image_url
+          ? [dateEntry.image_url]
+          : [];
       setPhotos(filterValidPhotos(allPhotos));
     } else {
       resetForm();
@@ -242,9 +253,10 @@ export default function DatesScreen() {
   };
 
   const formatDateForDisplay = (dateString: string | Date): string => {
-    const dateObj = typeof dateString === "string" ? new Date(dateString) : dateString;
+    const dateObj =
+      typeof dateString === "string" ? new Date(dateString) : dateString;
     if (isNaN(dateObj.getTime())) return "";
-    
+
     // European format: dd-mm-yyyy
     const day = String(dateObj.getDate()).padStart(2, "0");
     const month = String(dateObj.getMonth() + 1).padStart(2, "0");
@@ -261,12 +273,12 @@ export default function DatesScreen() {
 
   const handleDateChange = (event: any, pickedDate?: Date) => {
     console.log("Date picker event:", event.type, "pickedDate:", pickedDate);
-    
+
     // On Android, always close the picker after the event
     if (Platform.OS === "android") {
       setShowDatePicker(false);
     }
-    
+
     // Handle the date selection
     if (event.type === "set" && pickedDate) {
       setDatePickerValue(pickedDate);
@@ -370,33 +382,33 @@ export default function DatesScreen() {
       let base64: string;
       let mimeType: string;
 
-      if (Platform.OS === 'web') {
+      if (Platform.OS === "web") {
         // For web, handle blob URLs and data URLs
-        if (uri.startsWith('blob:') || uri.startsWith('data:')) {
+        if (uri.startsWith("blob:") || uri.startsWith("data:")) {
           // If it's already a data URL, extract the base64
-          if (uri.startsWith('data:')) {
+          if (uri.startsWith("data:")) {
             const matches = uri.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
             if (matches && matches.length === 3) {
               mimeType = matches[1];
               base64 = matches[2];
             } else {
-              throw new Error('Invalid data URL format');
+              throw new Error("Invalid data URL format");
             }
           } else {
             // For blob URLs, fetch and convert
             const response = await fetch(uri);
             const blob = await response.blob();
-            
+
             // Get mime type from blob
-            mimeType = blob.type || 'image/jpeg';
-            
+            mimeType = blob.type || "image/jpeg";
+
             // Convert blob to base64
             base64 = await new Promise<string>((resolve, reject) => {
               const reader = new FileReader();
               reader.onloadend = () => {
                 const result = reader.result as string;
                 // Remove data URL prefix
-                const base64Data = result.split(',')[1];
+                const base64Data = result.split(",")[1];
                 resolve(base64Data);
               };
               reader.onerror = reject;
@@ -407,17 +419,17 @@ export default function DatesScreen() {
           // For file:// URLs or other, try to fetch
           const response = await fetch(uri);
           const blob = await response.blob();
-          
+
           // Get mime type from blob
-          mimeType = blob.type || 'image/jpeg';
-          
+          mimeType = blob.type || "image/jpeg";
+
           // Convert blob to base64
           base64 = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onloadend = () => {
               const result = reader.result as string;
               // Remove data URL prefix
-              const base64Data = result.split(',')[1];
+              const base64Data = result.split(",")[1];
               resolve(base64Data);
             };
             reader.onerror = reject;
@@ -429,42 +441,44 @@ export default function DatesScreen() {
         base64 = await FileSystem.readAsStringAsync(uri, {
           encoding: FileSystem.EncodingType.Base64,
         });
-        
+
         // Determine mime type from file extension
-        const extension = uri.split('.').pop()?.toLowerCase() || 'jpg';
+        const extension = uri.split(".").pop()?.toLowerCase() || "jpg";
         const mimeTypes: Record<string, string> = {
-          jpg: 'image/jpeg',
-          jpeg: 'image/jpeg',
-          png: 'image/png',
-          gif: 'image/gif',
-          webp: 'image/webp',
+          jpg: "image/jpeg",
+          jpeg: "image/jpeg",
+          png: "image/png",
+          gif: "image/gif",
+          webp: "image/webp",
         };
-        mimeType = mimeTypes[extension] || 'image/jpeg';
+        mimeType = mimeTypes[extension] || "image/jpeg";
       }
-      
+
       const base64data = `data:${mimeType};base64,${base64}`;
-      
+
       // Upload to backend
       const uploadResponse = await fetch(`${API_BASE_URL}/dates/upload-image`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ image: base64data }),
       });
 
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
-        throw new Error(`Failed to upload image: ${uploadResponse.status} ${errorText}`);
+        throw new Error(
+          `Failed to upload image: ${uploadResponse.status} ${errorText}`
+        );
       }
 
       const result = await uploadResponse.json();
       if (!result.url) {
-        throw new Error('No URL returned from upload');
+        throw new Error("No URL returned from upload");
       }
       return result.url;
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error("Error uploading image:", error);
       throw error;
     }
   };
@@ -472,45 +486,64 @@ export default function DatesScreen() {
   const pickImage = async () => {
     try {
       // Request permissions (skip on web as it's handled by browser)
-      if (Platform.OS !== 'web') {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Permission Required', 'Please grant permission to access your photos.');
+      if (Platform.OS !== "web") {
+        const { status } =
+          await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert(
+            "Permission Required",
+            "Please grant permission to access your photos."
+          );
           return;
         }
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ["images"],
         quality: 0.8,
         allowsMultipleSelection: true,
       });
 
-      console.log('Image picker result:', result);
+      console.log("Image picker result:", result);
       if (!result.canceled && result.assets && result.assets.length > 0) {
         console.log(`Uploading ${result.assets.length} images...`);
         setLoading(true);
         try {
           // Upload all selected images
           const uploadPromises = result.assets.map((asset, index) => {
-            console.log(`Uploading image ${index + 1}/${result.assets.length}:`, asset.uri);
+            console.log(
+              `Uploading image ${index + 1}/${result.assets.length}:`,
+              asset.uri
+            );
             return uploadImage(asset.uri);
           });
           const uploadedUrls = await Promise.all(uploadPromises);
-          console.log('Uploaded URLs:', uploadedUrls);
+          console.log("Uploaded URLs:", uploadedUrls);
           setPhotos([...photos, ...uploadedUrls]);
         } catch (uploadError) {
-          console.error('Error uploading images:', uploadError);
-          Alert.alert('Upload Error', `Failed to upload images: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
+          console.error("Error uploading images:", uploadError);
+          Alert.alert(
+            "Upload Error",
+            `Failed to upload images: ${
+              uploadError instanceof Error
+                ? uploadError.message
+                : "Unknown error"
+            }`
+          );
         } finally {
           setLoading(false);
         }
       } else {
-        console.log('Image picker was canceled or no assets selected');
+        console.log("Image picker was canceled or no assets selected");
       }
     } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', `Failed to pick image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error("Error picking image:", error);
+      Alert.alert(
+        "Error",
+        `Failed to pick image: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
       setLoading(false);
     }
   };
@@ -524,7 +557,7 @@ export default function DatesScreen() {
     // European format: dd-mm-yyyy
     const dateObj = new Date(dateString);
     if (isNaN(dateObj.getTime())) return "";
-    
+
     const day = String(dateObj.getDate()).padStart(2, "0");
     const month = String(dateObj.getMonth() + 1).padStart(2, "0");
     const year = dateObj.getFullYear();
@@ -603,6 +636,7 @@ export default function DatesScreen() {
         ) : (
           dates.map((dateEntry) => {
             const moodInfo = getMoodInfo(dateEntry.mood);
+            const dateMoodColor = MOOD_COLORS[dateEntry.mood];
             // Get photos array (support both photos and legacy image_url)
             // Filter out blob URLs and invalid URLs
             const allDatePhotos =
@@ -623,7 +657,12 @@ export default function DatesScreen() {
                   marginBottom: 16,
                   borderWidth: 1,
                   borderColor: "#374151",
-                  ...getBoxShadow("#000", { width: 0, height: 4 }, 0.3, 8),
+                  ...getBoxShadow(
+                    dateMoodColor,
+                    { width: 0, height: 4 },
+                    0.3,
+                    12
+                  ),
                   elevation: 5,
                   overflow: "hidden",
                   position: "relative",
@@ -634,6 +673,20 @@ export default function DatesScreen() {
                 }}
                 onLongPress={() => handleDeleteDate(dateEntry.id)}
               >
+                {/* Decorative calendar accent */}
+                <View
+                  style={{
+                    position: "absolute",
+                    top: -10,
+                    right: -10,
+                    width: 80,
+                    height: 80,
+                    borderRadius: 40,
+                    backgroundColor: dateMoodColor + "15",
+                    opacity: 0.5,
+                  }}
+                />
+
                 {/* Rotating Photo Background */}
                 {datePhotos.length > 0 && (
                   <RotatingPhotoBackground
@@ -667,7 +720,11 @@ export default function DatesScreen() {
                           fontWeight: "600",
                           color: datePhotos.length > 0 ? "#ffffff" : "#e5d3ff",
                           marginBottom: 4,
-                          ...getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
+                          ...getTextShadow(
+                            "rgba(0, 0, 0, 0.75)",
+                            { width: 0, height: 1 },
+                            3
+                          ),
                         }}
                       >
                         {dateEntry.title || "Our Special Date"}
@@ -679,7 +736,11 @@ export default function DatesScreen() {
                           fontStyle: "italic",
                           color: datePhotos.length > 0 ? "#f3f4f6" : "#9ca3af",
                           marginBottom: 8,
-                          ...getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
+                          ...getTextShadow(
+                            "rgba(0, 0, 0, 0.75)",
+                            { width: 0, height: 1 },
+                            3
+                          ),
                         }}
                       >
                         {formatDate(dateEntry.date)}
@@ -693,9 +754,14 @@ export default function DatesScreen() {
                         <Text
                           style={{
                             fontSize: 14,
-                            color: datePhotos.length > 0 ? "#ffffff" : "#a78bfa",
+                            color:
+                              datePhotos.length > 0 ? "#ffffff" : "#a78bfa",
                             fontWeight: "500",
-                            ...getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
+                            ...getTextShadow(
+                              "rgba(0, 0, 0, 0.75)",
+                              { width: 0, height: 1 },
+                              3
+                            ),
                           }}
                         >
                           {moodInfo.label}
@@ -710,7 +776,11 @@ export default function DatesScreen() {
                       color: datePhotos.length > 0 ? "#ffffff" : "#d1d5db",
                       marginBottom: 8,
                       fontWeight: "500",
-                      ...getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
+                      ...getTextShadow(
+                        "rgba(0, 0, 0, 0.75)",
+                        { width: 0, height: 1 },
+                        3
+                      ),
                     }}
                   >
                     📍 {dateEntry.location}
@@ -728,18 +798,22 @@ export default function DatesScreen() {
           position: "absolute",
           bottom: 30,
           right: 30,
-          width: 60,
-          height: 60,
-          borderRadius: 30,
+          width: 64,
+          height: 64,
+          borderRadius: 32,
           backgroundColor: "#7c3aed",
           alignItems: "center",
           justifyContent: "center",
-          ...getBoxShadow("#7c3aed", { width: 0, height: 4 }, 0.4, 12),
-          elevation: 8,
+          ...getBoxShadow("#7c3aed", { width: 0, height: 6 }, 0.5, 16),
+          elevation: 10,
+          borderWidth: 2,
+          borderColor: "#8b5cf6",
         }}
         onPress={() => openModal()}
       >
-        <Text style={{ fontSize: 28, color: "white" }}>+</Text>
+        <Text style={{ fontSize: 32, color: "#e5d3ff", fontWeight: "600" }}>
+          📅
+        </Text>
       </TouchableOpacity>
 
       {/* Immersive Modal */}
@@ -765,9 +839,11 @@ export default function DatesScreen() {
                 paddingTop: Platform.OS === "ios" ? 60 : 40,
                 paddingBottom: 20,
                 paddingHorizontal: 20,
-                backgroundColor: timeOfDay === "night" ? "#16213e" : theme.gradient[0] + "40",
+                backgroundColor:
+                  timeOfDay === "night" ? "#16213e" : theme.gradient[0] + "40",
                 borderBottomWidth: 1,
-                borderBottomColor: timeOfDay === "night" ? "#374151" : theme.gradient[0] + "60",
+                borderBottomColor:
+                  timeOfDay === "night" ? "#374151" : theme.gradient[0] + "60",
               }}
             >
               <View
@@ -784,12 +860,23 @@ export default function DatesScreen() {
                     width: 40,
                     height: 40,
                     borderRadius: 20,
-                    backgroundColor: timeOfDay === "night" ? "rgba(0, 0, 0, 0.5)" : "rgba(255, 255, 255, 0.3)",
+                    backgroundColor:
+                      timeOfDay === "night"
+                        ? "rgba(0, 0, 0, 0.5)"
+                        : "rgba(255, 255, 255, 0.3)",
                     alignItems: "center",
                     justifyContent: "center",
                   }}
                 >
-                  <Text style={{ fontSize: 20, color: theme.text, fontWeight: "600" }}>✕</Text>
+                  <Text
+                    style={{
+                      fontSize: 20,
+                      color: theme.text,
+                      fontWeight: "600",
+                    }}
+                  >
+                    ✕
+                  </Text>
                 </TouchableOpacity>
                 <Text
                   style={{
@@ -797,7 +884,10 @@ export default function DatesScreen() {
                     fontWeight: "300",
                     color: theme.text,
                     letterSpacing: 1,
-                    fontFamily: Platform.select({ ios: "Georgia", android: "serif" }),
+                    fontFamily: Platform.select({
+                      ios: "Georgia",
+                      android: "serif",
+                    }),
                   }}
                 >
                   {editingDate ? "Edit Date" : "New Date"}
@@ -866,7 +956,13 @@ export default function DatesScreen() {
                           zIndex: 10,
                         }}
                       >
-                        <Text style={{ color: "#fff", fontSize: 16, fontWeight: "600" }}>
+                        <Text
+                          style={{
+                            color: "#fff",
+                            fontSize: 16,
+                            fontWeight: "600",
+                          }}
+                        >
                           ×
                         </Text>
                       </TouchableOpacity>
@@ -897,7 +993,9 @@ export default function DatesScreen() {
                 <Text style={{ fontSize: 20, marginRight: 8 }}>
                   {MOOD_OPTIONS.find((m) => m.value === mood)?.icon}
                 </Text>
-                <Text style={{ fontSize: 16, fontWeight: "600", color: moodColor }}>
+                <Text
+                  style={{ fontSize: 16, fontWeight: "600", color: moodColor }}
+                >
                   {MOOD_OPTIONS.find((m) => m.value === mood)?.label}
                 </Text>
               </View>
@@ -922,14 +1020,19 @@ export default function DatesScreen() {
                     borderRadius: 16,
                     padding: 18,
                     fontSize: 17,
-                    backgroundColor: timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.9)",
+                    backgroundColor:
+                      timeOfDay === "night"
+                        ? "#1e293b"
+                        : "rgba(255, 255, 255, 0.9)",
                     color: theme.text,
                     fontWeight: "500",
                   }}
                   value={title}
                   onChangeText={setTitle}
                   placeholder="Give this date a memorable title..."
-                  placeholderTextColor={timeOfDay === "night" ? "#6b7280" : theme.text + "60"}
+                  placeholderTextColor={
+                    timeOfDay === "night" ? "#6b7280" : theme.text + "60"
+                  }
                 />
               </View>
 
@@ -948,12 +1051,25 @@ export default function DatesScreen() {
                 </Text>
                 <TouchableOpacity
                   onPress={() => {
-                    console.log("Date picker button pressed, showDatePicker:", showDatePicker, "date:", date, "datePickerValue:", datePickerValue);
+                    console.log(
+                      "Date picker button pressed, showDatePicker:",
+                      showDatePicker,
+                      "date:",
+                      date,
+                      "datePickerValue:",
+                      datePickerValue
+                    );
                     if (Platform.OS === "web") {
                       if (!showDatePicker) {
                         // Initialize web date input with current date if available
-                        const initialValue = date && datePickerValue ? formatDateForDisplay(datePickerValue) : "";
-                        console.log("Initializing webDateInput with:", initialValue);
+                        const initialValue =
+                          date && datePickerValue
+                            ? formatDateForDisplay(datePickerValue)
+                            : "";
+                        console.log(
+                          "Initializing webDateInput with:",
+                          initialValue
+                        );
                         setWebDateInput(initialValue);
                       }
                     }
@@ -964,7 +1080,10 @@ export default function DatesScreen() {
                     borderColor: moodColor + "60",
                     borderRadius: 16,
                     padding: 18,
-                    backgroundColor: timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.9)",
+                    backgroundColor:
+                      timeOfDay === "night"
+                        ? "#1e293b"
+                        : "rgba(255, 255, 255, 0.9)",
                     flexDirection: "row",
                     alignItems: "center",
                     justifyContent: "space-between",
@@ -973,11 +1092,17 @@ export default function DatesScreen() {
                   <Text
                     style={{
                       fontSize: 17,
-                      color: date ? theme.text : (timeOfDay === "night" ? "#6b7280" : theme.text + "60"),
+                      color: date
+                        ? theme.text
+                        : timeOfDay === "night"
+                        ? "#6b7280"
+                        : theme.text + "60",
                       fontWeight: "500",
                     }}
                   >
-                    {date && datePickerValue ? formatDateForDisplay(datePickerValue) : "Select a date"}
+                    {date && datePickerValue
+                      ? formatDateForDisplay(datePickerValue)
+                      : "Select a date"}
                   </Text>
                   <Text style={{ fontSize: 20, color: moodColor }}>📅</Text>
                 </TouchableOpacity>
@@ -988,7 +1113,10 @@ export default function DatesScreen() {
                     style={{
                       marginTop: 16,
                       padding: 20,
-                      backgroundColor: timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.9)",
+                      backgroundColor:
+                        timeOfDay === "night"
+                          ? "#1e293b"
+                          : "rgba(255, 255, 255, 0.9)",
                       borderRadius: 16,
                       borderWidth: 2,
                       borderColor: moodColor + "60",
@@ -1014,7 +1142,8 @@ export default function DatesScreen() {
                       </Text>
                       <TouchableOpacity
                         onPress={() => {
-                          const formattedDate = formatDateForDatabase(datePickerValue);
+                          const formattedDate =
+                            formatDateForDatabase(datePickerValue);
                           setDate(formattedDate);
                           setShowDatePicker(false);
                         }}
@@ -1052,7 +1181,10 @@ export default function DatesScreen() {
                     style={{
                       marginTop: 16,
                       padding: 20,
-                      backgroundColor: timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.9)",
+                      backgroundColor:
+                        timeOfDay === "night"
+                          ? "#1e293b"
+                          : "rgba(255, 255, 255, 0.9)",
                       borderRadius: 16,
                       borderWidth: 2,
                       borderColor: moodColor + "60",
@@ -1063,40 +1195,64 @@ export default function DatesScreen() {
                       onChangeText={(text) => {
                         // Allow user to type freely
                         // Format as they type: dd-mm-yyyy
-                        let cleaned = text.replace(/[^\d-]/g, '');
-                        
+                        let cleaned = text.replace(/[^\d-]/g, "");
+
                         // Remove extra dashes
-                        cleaned = cleaned.replace(/-+/g, '-');
-                        if (cleaned.startsWith('-')) cleaned = cleaned.slice(1);
-                        
+                        cleaned = cleaned.replace(/-+/g, "-");
+                        if (cleaned.startsWith("-")) cleaned = cleaned.slice(1);
+
                         // Auto-format with dashes
                         let formatted = cleaned;
-                        if (cleaned.length > 2 && !cleaned.includes('-')) {
-                          formatted = cleaned.slice(0, 2) + '-' + cleaned.slice(2);
+                        if (cleaned.length > 2 && !cleaned.includes("-")) {
+                          formatted =
+                            cleaned.slice(0, 2) + "-" + cleaned.slice(2);
                         }
-                        if (cleaned.length > 5 && cleaned.split('-').length === 2) {
-                          const parts = cleaned.split('-');
-                          formatted = parts[0] + '-' + parts[1].slice(0, 2) + '-' + parts[1].slice(2, 6);
+                        if (
+                          cleaned.length > 5 &&
+                          cleaned.split("-").length === 2
+                        ) {
+                          const parts = cleaned.split("-");
+                          formatted =
+                            parts[0] +
+                            "-" +
+                            parts[1].slice(0, 2) +
+                            "-" +
+                            parts[1].slice(2, 6);
                         }
-                        
+
                         setWebDateInput(formatted);
-                        
+
                         // Try to parse when we have a complete date (dd-mm-yyyy)
-                        const parts = formatted.split('-');
-                        if (parts.length === 3 && parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
+                        const parts = formatted.split("-");
+                        if (
+                          parts.length === 3 &&
+                          parts[0].length === 2 &&
+                          parts[1].length === 2 &&
+                          parts[2].length === 4
+                        ) {
                           const day = parseInt(parts[0], 10);
                           const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
                           const year = parseInt(parts[2], 10);
-                          
+
                           // Validate date
-                          if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 1900 && year <= 2100) {
+                          if (
+                            day >= 1 &&
+                            day <= 31 &&
+                            month >= 0 &&
+                            month <= 11 &&
+                            year >= 1900 &&
+                            year <= 2100
+                          ) {
                             const parsedDate = new Date(year, month, day);
-                            if (!isNaN(parsedDate.getTime()) && 
-                                parsedDate.getDate() === day && 
-                                parsedDate.getMonth() === month && 
-                                parsedDate.getFullYear() === year) {
+                            if (
+                              !isNaN(parsedDate.getTime()) &&
+                              parsedDate.getDate() === day &&
+                              parsedDate.getMonth() === month &&
+                              parsedDate.getFullYear() === year
+                            ) {
                               setDatePickerValue(parsedDate);
-                              const formattedDate = formatDateForDatabase(parsedDate);
+                              const formattedDate =
+                                formatDateForDatabase(parsedDate);
                               setDate(formattedDate);
                             }
                           }
@@ -1112,7 +1268,8 @@ export default function DatesScreen() {
                         borderRadius: 12,
                         padding: 12,
                         fontSize: 16,
-                        backgroundColor: timeOfDay === "night" ? "#0f172a" : "#ffffff",
+                        backgroundColor:
+                          timeOfDay === "night" ? "#0f172a" : "#ffffff",
                         color: theme.text,
                       }}
                     />
@@ -1120,7 +1277,7 @@ export default function DatesScreen() {
                       onPress={() => {
                         // Parse the input when closing if not already parsed
                         if (webDateInput) {
-                          const parts = webDateInput.split('-');
+                          const parts = webDateInput.split("-");
                           if (parts.length === 3) {
                             const day = parseInt(parts[0], 10);
                             const month = parseInt(parts[1], 10) - 1;
@@ -1128,12 +1285,14 @@ export default function DatesScreen() {
                             const parsedDate = new Date(year, month, day);
                             if (!isNaN(parsedDate.getTime())) {
                               setDatePickerValue(parsedDate);
-                              const formattedDate = formatDateForDatabase(parsedDate);
+                              const formattedDate =
+                                formatDateForDatabase(parsedDate);
                               setDate(formattedDate);
                             }
                           }
                         } else if (datePickerValue) {
-                          const formattedDate = formatDateForDatabase(datePickerValue);
+                          const formattedDate =
+                            formatDateForDatabase(datePickerValue);
                           setDate(formattedDate);
                         }
                         setWebDateInput("");
@@ -1159,7 +1318,6 @@ export default function DatesScreen() {
                     </TouchableOpacity>
                   </View>
                 )}
-
               </View>
 
               {/* Location Input */}
@@ -1182,14 +1340,19 @@ export default function DatesScreen() {
                     borderRadius: 16,
                     padding: 18,
                     fontSize: 17,
-                    backgroundColor: timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.9)",
+                    backgroundColor:
+                      timeOfDay === "night"
+                        ? "#1e293b"
+                        : "rgba(255, 255, 255, 0.9)",
                     color: theme.text,
                     fontWeight: "500",
                   }}
                   value={location}
                   onChangeText={setLocation}
                   placeholder="Where did this beautiful date take place?"
-                  placeholderTextColor={timeOfDay === "night" ? "#6b7280" : theme.text + "60"}
+                  placeholderTextColor={
+                    timeOfDay === "night" ? "#6b7280" : theme.text + "60"
+                  }
                 />
               </View>
 
@@ -1227,7 +1390,9 @@ export default function DatesScreen() {
                           flexDirection: "row",
                           alignItems: "center",
                           borderWidth: isSelected ? 0 : 2,
-                          borderColor: isSelected ? "transparent" : optionColor + "40",
+                          borderColor: isSelected
+                            ? "transparent"
+                            : optionColor + "40",
                         }}
                         onPress={() => setMood(option.value)}
                       >
@@ -1273,7 +1438,10 @@ export default function DatesScreen() {
                     borderRadius: 16,
                     padding: 18,
                     fontSize: 17,
-                    backgroundColor: timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.9)",
+                    backgroundColor:
+                      timeOfDay === "night"
+                        ? "#1e293b"
+                        : "rgba(255, 255, 255, 0.9)",
                     color: theme.text,
                     minHeight: 120,
                     textAlignVertical: "top",
@@ -1282,7 +1450,9 @@ export default function DatesScreen() {
                   value={description}
                   onChangeText={setDescription}
                   placeholder="Describe this special date..."
-                  placeholderTextColor={timeOfDay === "night" ? "#6b7280" : theme.text + "60"}
+                  placeholderTextColor={
+                    timeOfDay === "night" ? "#6b7280" : theme.text + "60"
+                  }
                   multiline
                 />
               </View>
@@ -1356,13 +1526,18 @@ export default function DatesScreen() {
                         borderRadius: 12,
                         padding: 14,
                         fontSize: 16,
-                        backgroundColor: timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.9)",
+                        backgroundColor:
+                          timeOfDay === "night"
+                            ? "#1e293b"
+                            : "rgba(255, 255, 255, 0.9)",
                         color: theme.text,
                       }}
                       value={highlight}
                       onChangeText={(value) => updateHighlight(index, value)}
                       placeholder={`Highlight ${index + 1}`}
-                      placeholderTextColor={timeOfDay === "night" ? "#6b7280" : theme.text + "60"}
+                      placeholderTextColor={
+                        timeOfDay === "night" ? "#6b7280" : theme.text + "60"
+                      }
                     />
                     {highlights.length > 1 && (
                       <TouchableOpacity
@@ -1377,7 +1552,13 @@ export default function DatesScreen() {
                         }}
                         onPress={() => removeHighlight(index)}
                       >
-                        <Text style={{ fontSize: 18, color: "#ef4444", fontWeight: "600" }}>
+                        <Text
+                          style={{
+                            fontSize: 18,
+                            color: "#ef4444",
+                            fontWeight: "600",
+                          }}
+                        >
                           ×
                         </Text>
                       </TouchableOpacity>
@@ -1406,14 +1587,19 @@ export default function DatesScreen() {
                     borderRadius: 16,
                     padding: 18,
                     fontSize: 17,
-                    backgroundColor: timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.9)",
+                    backgroundColor:
+                      timeOfDay === "night"
+                        ? "#1e293b"
+                        : "rgba(255, 255, 255, 0.9)",
                     color: theme.text,
                     fontWeight: "500",
                   }}
                   value={weather}
                   onChangeText={setWeather}
                   placeholder="How was the weather that day?"
-                  placeholderTextColor={timeOfDay === "night" ? "#6b7280" : theme.text + "60"}
+                  placeholderTextColor={
+                    timeOfDay === "night" ? "#6b7280" : theme.text + "60"
+                  }
                 />
               </View>
 
@@ -1437,7 +1623,10 @@ export default function DatesScreen() {
                     borderRadius: 16,
                     padding: 18,
                     fontSize: 17,
-                    backgroundColor: timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.9)",
+                    backgroundColor:
+                      timeOfDay === "night"
+                        ? "#1e293b"
+                        : "rgba(255, 255, 255, 0.9)",
                     color: theme.text,
                     minHeight: 100,
                     textAlignVertical: "top",
@@ -1447,7 +1636,9 @@ export default function DatesScreen() {
                   value={favoriteMoment}
                   onChangeText={setFavoriteMoment}
                   placeholder="What was your favorite moment from this date?"
-                  placeholderTextColor={timeOfDay === "night" ? "#6b7280" : theme.text + "60"}
+                  placeholderTextColor={
+                    timeOfDay === "night" ? "#6b7280" : theme.text + "60"
+                  }
                   multiline
                 />
               </View>
