@@ -4,8 +4,9 @@ import HomeScreen from "../screens/HomeScreen";
 import DatesScreen from "../screens/DatesScreen";
 import PicturesScreen from "../screens/PicturesScreen";
 import MomentsScreen from "../screens/MomentsScreen";
+import MilestonesScreen from "../screens/MilestonesScreen";
 
-type Screen = "Home" | "Stories" | "Dates" | "Pictures";
+type Screen = "Home" | "Stories" | "Dates" | "Pictures" | "Milestones";
 
 export default function AppNavigator() {
   const [activeScreen, setActiveScreen] = useState<Screen>("Home");
@@ -20,6 +21,8 @@ export default function AppNavigator() {
         return <DatesScreen />;
       case "Pictures":
         return <PicturesScreen />;
+      case "Milestones":
+        return <MilestonesScreen />;
       default:
         return <HomeScreen />;
     }
@@ -35,6 +38,8 @@ export default function AppNavigator() {
         return "📅";
       case "Pictures":
         return "📸";
+      case "Milestones":
+        return "⭐";
       default:
         return "🏠";
     }
@@ -50,6 +55,8 @@ export default function AppNavigator() {
         return "Dates";
       case "Pictures":
         return "Pictures";
+      case "Milestones":
+        return "Milestones";
       default:
         return "Timeline";
     }
@@ -125,6 +132,14 @@ export default function AppNavigator() {
                 borderBottomWidth: 1,
                 borderBottomColor: "#374151",
               }
+            : activeScreen === "Milestones"
+            ? {
+                backgroundColor: "#2d1810",
+                paddingVertical: 15,
+                paddingHorizontal: 20,
+                borderBottomWidth: 1,
+                borderBottomColor: "#ffd70030",
+              }
             : headerStyle
         }
       >
@@ -138,12 +153,21 @@ export default function AppNavigator() {
                   textAlign: "center" as const,
                   letterSpacing: 1,
                 }
+              : activeScreen === "Milestones"
+              ? {
+                  fontSize: 20,
+                  fontWeight: "300" as const,
+                  color: "#ffd700",
+                  textAlign: "center" as const,
+                  letterSpacing: 1,
+                }
               : headerTitleStyle
           }
         >
           {activeScreen === "Home" && "Our Timeline"}
           {activeScreen === "Stories" && "Moments"}
           {activeScreen === "Dates" && "Treasured Dates"}
+          {activeScreen === "Milestones" && "Milestones"}
           {activeScreen === "Pictures" && "Memories"}
         </Text>
       </View>
@@ -153,24 +177,24 @@ export default function AppNavigator() {
 
       {/* Bottom Tab Bar */}
       <View style={tabBarStyle}>
-        {(["Home", "Stories", "Dates", "Pictures"] as Screen[]).map(
-          (screen) => (
-            <TouchableOpacity
-              key={screen}
-              style={tabStyle}
-              onPress={() => setActiveScreen(screen)}
+        {(
+          ["Home", "Stories", "Dates", "Milestones", "Pictures"] as Screen[]
+        ).map((screen) => (
+          <TouchableOpacity
+            key={screen}
+            style={tabStyle}
+            onPress={() => setActiveScreen(screen)}
+          >
+            <Text style={tabIconStyle}>{getTabIcon(screen)}</Text>
+            <Text
+              style={
+                activeScreen === screen ? activeTabLabelStyle : tabLabelStyle
+              }
             >
-              <Text style={tabIconStyle}>{getTabIcon(screen)}</Text>
-              <Text
-                style={
-                  activeScreen === screen ? activeTabLabelStyle : tabLabelStyle
-                }
-              >
-                {getTabTitle(screen)}
-              </Text>
-            </TouchableOpacity>
-          )
-        )}
+              {getTabTitle(screen)}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
     </View>
   );

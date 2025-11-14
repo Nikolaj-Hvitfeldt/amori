@@ -4,6 +4,7 @@ import { JournalModule } from "./journal/journal.module";
 import { SupabaseModule } from "./supabase/supabase.module";
 import { MomentsModule } from "./moments/moments.module";
 import { DatesModule } from "./dates/dates.module";
+import { MilestonesModule } from "./milestones/milestones.module";
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { DatesModule } from "./dates/dates.module";
     JournalModule,
     MomentsModule,
     DatesModule,
+    MilestonesModule,
   ],
 })
 export class AppModule {}
