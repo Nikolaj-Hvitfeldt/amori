@@ -22,6 +22,7 @@ import { datesService } from "../services/dates";
 import { API_BASE_URL } from "../services/api";
 import DateDetailView from "../components/DateDetailView";
 import RotatingPhotoBackground from "../components/RotatingPhotoBackground";
+import { getThumbnailUrl } from "../utils/imageUtils";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -172,8 +173,33 @@ export default function DatesScreen() {
     try {
       setLoading(true);
       const fetchedDates = await datesService.getAll();
+      // Filter out invalid photos from all dates and clean up database
+      const cleanedDates = fetchedDates.map((dateEntry) => {
+        const allPhotos =
+          dateEntry.photos && dateEntry.photos.length > 0
+            ? dateEntry.photos
+            : dateEntry.image_url
+            ? [dateEntry.image_url]
+            : [];
+        const validPhotos = filterValidPhotos(allPhotos);
+        // If photos were filtered out, update the database
+        if (dateEntry.id && validPhotos.length !== allPhotos.length) {
+          // Silently clean up invalid photos in the background
+          datesService
+            .update(dateEntry.id, {
+              photos: validPhotos.length > 0 ? validPhotos : [],
+            })
+            .catch((err) => {
+              console.warn("Failed to clean up invalid photos:", err);
+            });
+        }
+        return {
+          ...dateEntry,
+          photos: validPhotos,
+        };
+      });
       setDates(
-        fetchedDates.sort(
+        cleanedDates.sort(
           (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
         )
       );
@@ -231,14 +257,15 @@ export default function DatesScreen() {
       setWeather(dateEntry.weather || "");
       setFavoriteMoment(dateEntry.favorite_moment || "");
       // Support both photos array and legacy image_url
-      // Filter out blob URLs and invalid URLs
+      // Don't filter photos when opening modal - use photos as-is from database
+      // Filtering will happen on save and on load, not when editing
       const allPhotos =
         dateEntry.photos && dateEntry.photos.length > 0
           ? dateEntry.photos
           : dateEntry.image_url
           ? [dateEntry.image_url]
           : [];
-      setPhotos(filterValidPhotos(allPhotos));
+      setPhotos(allPhotos);
     } else {
       resetForm();
     }
@@ -320,7 +347,8 @@ export default function DatesScreen() {
         highlights: filteredHighlights,
         weather: weather || undefined,
         favorite_moment: favoriteMoment || undefined,
-        photos: validPhotos.length > 0 ? validPhotos : undefined,
+        // Explicitly pass empty array to clear photos, not undefined
+        photos: validPhotos.length > 0 ? validPhotos : [],
       };
 
       if (editingDate) {
@@ -935,8 +963,8 @@ export default function DatesScreen() {
                         resizeMode="cover"
                         onError={(error) => {
                           console.warn("Failed to load image:", photo, error);
-                          // Remove invalid image from the array
-                          removePhoto(index);
+                          // Don't remove photo on error - just log it
+                          // Photo might be valid but temporarily unavailable
                         }}
                       />
                       <TouchableOpacity
@@ -1704,8 +1732,8 @@ export default function DatesScreen() {
                           resizeMode="cover"
                           onError={(error) => {
                             console.warn("Failed to load image:", photo, error);
-                            // Remove invalid image from the array
-                            removePhoto(index);
+                            // Don't remove photo on error - just log it
+                            // Photo might be valid but temporarily unavailable
                           }}
                         />
                         <TouchableOpacity

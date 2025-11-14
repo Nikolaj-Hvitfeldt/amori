@@ -58,6 +58,10 @@ export default function RotatingPhotoBackground({
         resizeMode="cover"
         onError={(error) => {
           console.warn("Failed to load rotating background image:", validPhotos[currentIndex], error);
+          // Try to skip to next photo if current one fails
+          if (validPhotos.length > 1) {
+            setCurrentIndex((prev) => (prev + 1) % validPhotos.length);
+          }
         }}
       />
       {/* Dark overlay for better text readability */}

@@ -133,6 +133,22 @@ export default function DateDetailView({
 
   return (
     <View style={styles.container}>
+      {/* Header Overlay - Always visible */}
+      <View style={styles.headerOverlay}>
+        <TouchableOpacity
+          onPress={onClose}
+          style={styles.closeButton}
+        >
+          <Text style={styles.closeButtonText}>✕</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={onEdit}
+          style={styles.editButton}
+        >
+          <Text style={styles.editButtonText}>Edit</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Photo Carousel */}
       {photos.length > 0 && (
         <View style={styles.photoContainer}>
@@ -176,22 +192,6 @@ export default function DateDetailView({
               ))}
             </View>
           )}
-
-          {/* Header Overlay */}
-          <View style={styles.headerOverlay}>
-            <TouchableOpacity
-              onPress={onClose}
-              style={styles.closeButton}
-            >
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={onEdit}
-              style={styles.editButton}
-            >
-              <Text style={styles.editButtonText}>Edit</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       )}
 
@@ -199,6 +199,7 @@ export default function DateDetailView({
       <Animated.View
         style={[
           styles.content,
+          photos.length === 0 && styles.contentNoPhotos,
           { opacity: fadeAnim },
         ]}
       >
@@ -371,6 +372,12 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 30,
     backgroundColor: "#0f172a",
     paddingTop: 30,
+  },
+  contentNoPhotos: {
+    marginTop: 0,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    paddingTop: Platform.OS === "ios" ? 70 : 60,
   },
   scrollView: {
     flex: 1,

@@ -23,6 +23,7 @@ import {
 } from "../types/milestones";
 import { milestonesService } from "../services/milestones";
 import { API_BASE_URL } from "../services/api";
+import { getThumbnailUrl } from "../utils/imageUtils";
 
 // Milestone type configurations
 const MILESTONE_CONFIG: Record<
@@ -132,6 +133,7 @@ export default function MilestonesScreen() {
     null
   );
   const [loading, setLoading] = useState(false);
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
   // Form state
   const [milestoneType, setMilestoneType] = useState<MilestoneType>("met");
@@ -148,12 +150,52 @@ export default function MilestonesScreen() {
     loadMilestones();
   }, []);
 
-  const loadMilestones = async () => {
+  const loadMilestones = async (skipCleanup: boolean = false) => {
     try {
       setLoading(true);
+      // Reset failed images state on reload
+      setFailedImages(new Set());
       const fetchedMilestones = await milestonesService.getAll();
+      // Filter out invalid photos from all milestones and clean up database
+      const cleanedMilestones = fetchedMilestones.map((milestone) => {
+        const originalPhotos = milestone.photos || [];
+        const validPhotos = filterValidPhotos(originalPhotos);
+
+        // Only run cleanup if we're not skipping it and we actually found invalid photos
+        if (
+          !skipCleanup &&
+          milestone.id &&
+          validPhotos.length !== originalPhotos.length
+        ) {
+          // Check if there are actually invalid URLs (not just empty array)
+          const hasInvalidUrls = originalPhotos.some(
+            (url) =>
+              !url ||
+              typeof url !== "string" ||
+              url.trim() === "" ||
+              (!url.startsWith("http://") && !url.startsWith("https://"))
+          );
+
+          // Only update if we found actual invalid URLs
+          if (hasInvalidUrls) {
+            // Silently clean up invalid photos in the background
+            milestonesService
+              .update(milestone.id, {
+                // Explicitly pass empty array to clear photos, not undefined
+                photos: validPhotos.length > 0 ? validPhotos : [],
+              })
+              .catch((err) => {
+                console.warn("Failed to clean up invalid photos:", err);
+              });
+          }
+        }
+        return {
+          ...milestone,
+          photos: validPhotos,
+        };
+      });
       setMilestones(
-        fetchedMilestones.sort(
+        cleanedMilestones.sort(
           (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
         )
       );
@@ -178,10 +220,12 @@ export default function MilestonesScreen() {
   };
 
   const filterValidPhotos = (photoUrls: string[]): string[] => {
+    if (!photoUrls || !Array.isArray(photoUrls)) return [];
     return photoUrls.filter(
       (url) =>
         url &&
         typeof url === "string" &&
+        url.trim() !== "" &&
         (url.startsWith("http://") || url.startsWith("https://"))
     );
   };
@@ -195,7 +239,9 @@ export default function MilestonesScreen() {
       const parsedDate = new Date(milestone.date);
       setDatePickerValue(isNaN(parsedDate.getTime()) ? new Date() : parsedDate);
       setDescription(milestone.description || "");
-      setPhotos(filterValidPhotos(milestone.photos || []));
+      // Don't filter photos when opening modal - use photos as-is from database
+      // Filtering will happen on save and on load, not when editing
+      setPhotos(milestone.photos || []);
     } else {
       resetForm();
     }
@@ -259,7 +305,8 @@ export default function MilestonesScreen() {
         title: title.trim(),
         date,
         description: description.trim() || undefined,
-        photos: validPhotos.length > 0 ? validPhotos : undefined,
+        // Explicitly pass empty array to clear photos, not undefined
+        photos: validPhotos.length > 0 ? validPhotos : [],
       };
 
       if (editingMilestone) {
@@ -269,7 +316,8 @@ export default function MilestonesScreen() {
       }
 
       closeModal();
-      loadMilestones();
+      // Skip cleanup when loading after save to prevent removing just-saved photos
+      loadMilestones(true);
     } catch (error) {
       console.error("Error saving milestone:", error);
       Alert.alert("Error", "Failed to save milestone");
@@ -661,33 +709,56 @@ export default function MilestonesScreen() {
                     </Text>
                   )}
 
-                  {milestonePhotos.length > 0 && (
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      style={{ marginTop: 8 }}
-                      contentContainerStyle={{
-                        gap: 10,
-                        paddingRight: 20,
-                      }}
-                      nestedScrollEnabled={true}
-                    >
-                      {milestonePhotos.map((photo, photoIndex) => (
-                        <Image
-                          key={photoIndex}
-                          source={{ uri: photo }}
-                          style={{
-                            width: 100,
-                            height: 100,
-                            borderRadius: 16,
-                            borderWidth: 2,
-                            borderColor: config.color + "60",
+                  {(() => {
+                    // Filter out images that failed to load
+                    const validDisplayPhotos = milestonePhotos.filter(
+                      (photo) => !failedImages.has(photo)
+                    );
+                    return validDisplayPhotos.length > 0 ? (
+                      <View
+                        onStartShouldSetResponder={() => true}
+                        onMoveShouldSetResponder={() => true}
+                      >
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          style={{ marginTop: 8 }}
+                          contentContainerStyle={{
+                            gap: 10,
+                            paddingRight: 20,
                           }}
-                          resizeMode="cover"
-                        />
-                      ))}
-                    </ScrollView>
-                  )}
+                          nestedScrollEnabled={true}
+                        >
+                          {validDisplayPhotos.map((photo, photoIndex) => (
+                            <Image
+                              key={photoIndex}
+                              source={{ uri: photo }}
+                              style={{
+                                width: 100,
+                                height: 100,
+                                borderRadius: 16,
+                                borderWidth: 2,
+                                borderColor: config.color + "60",
+                                backgroundColor: "#1a0f00", // Prevent white flash
+                              }}
+                              resizeMode="cover"
+                              onError={(error) => {
+                                console.warn(
+                                  "Failed to load image on card:",
+                                  photo,
+                                  error
+                                );
+                                // Only mark as failed if it's actually a bad URL
+                                setFailedImages((prev: Set<string>) =>
+                                  new Set(prev).add(photo)
+                                );
+                              }}
+                            />
+                          ))}
+                        </ScrollView>
+                      </View>
+                    ) : null;
+                  })()}
                 </TouchableOpacity>
               );
             })}
@@ -1249,7 +1320,11 @@ export default function MilestonesScreen() {
                             borderColor: milestoneColor,
                           }}
                           resizeMode="cover"
-                          onError={() => removePhoto(index)}
+                          onError={(error) => {
+                            console.warn("Failed to load image:", photo, error);
+                            // Don't remove photo on error - just log it
+                            // Photo might be valid but temporarily unavailable
+                          }}
                         />
                         <TouchableOpacity
                           onPress={() => removePhoto(index)}

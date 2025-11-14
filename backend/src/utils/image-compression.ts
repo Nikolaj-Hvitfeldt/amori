@@ -1,4 +1,4 @@
-import sharp from 'sharp';
+const sharp = require('sharp');
 
 /**
  * Compress and resize image on server-side
@@ -9,7 +9,7 @@ import sharp from 'sharp';
  * @returns Compressed image buffer
  */
 export async function compressImage(
-  buffer: Buffer,
+  buffer: Buffer | Uint8Array,
   maxWidth: number = 1920,
   maxHeight: number = 1920,
   quality: number = 85
@@ -57,7 +57,7 @@ export async function compressImage(
  * @returns Thumbnail buffer
  */
 export async function generateThumbnail(
-  buffer: Buffer,
+  buffer: Buffer | Uint8Array,
   size: number = 300,
   quality: number = 75
 ): Promise<Buffer> {
@@ -82,7 +82,7 @@ export async function generateThumbnail(
  * @param buffer - Image buffer
  * @returns Image metadata
  */
-export async function getImageMetadata(buffer: Buffer) {
+export async function getImageMetadata(buffer: Buffer | Uint8Array) {
   try {
     const metadata = await sharp(buffer).metadata();
     return {

@@ -81,13 +81,21 @@ export class MomentsService {
   }
 
   async update(id: string, updateMomentDto: UpdateMomentDto): Promise<Moment> {
+    // Explicitly handle photos array - if it's provided (even if empty), update it
+    const updateData: any = {
+      ...updateMomentDto,
+      updated_at: new Date().toISOString(),
+    };
+    
+    // If photos is explicitly provided (including empty array), ensure it's set
+    if ('photos' in updateMomentDto) {
+      updateData.photos = updateMomentDto.photos || [];
+    }
+
     const { data, error } = await this.supabase
       .getClient()
       .from("moments")
-      .update({
-        ...updateMomentDto,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq("id", id)
       .select()
       .single();

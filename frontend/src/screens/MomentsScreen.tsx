@@ -14,8 +14,11 @@ import {
   Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system/legacy";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { momentsService, Moment, CreateMomentDto } from "../services/moments";
+import { API_BASE_URL } from "../services/api";
+import { getThumbnailUrl } from "../utils/imageUtils";
 
 export default function MomentsScreen() {
   const [moments, setMoments] = useState<Moment[]>([]);
@@ -35,11 +38,49 @@ export default function MomentsScreen() {
     loadMoments();
   }, []);
 
-  const loadMoments = async () => {
+  const loadMoments = async (skipCleanup: boolean = false) => {
     try {
       setLoading(true);
       const stories = await momentsService.getAllMoments();
-      setMoments(stories);
+      // Filter out invalid photos from all moments
+      const cleanedMoments = stories.map((moment) => {
+        const originalPhotos = moment.photos || [];
+        const validPhotos = filterValidPhotos(originalPhotos);
+
+        // Only run cleanup if we're not skipping it and we actually found invalid photos
+        if (
+          !skipCleanup &&
+          moment.id &&
+          validPhotos.length !== originalPhotos.length
+        ) {
+          // Check if there are actually invalid URLs (not just empty array)
+          const hasInvalidUrls = originalPhotos.some(
+            (url) =>
+              !url ||
+              typeof url !== "string" ||
+              url.trim() === "" ||
+              (!url.startsWith("http://") && !url.startsWith("https://"))
+          );
+
+          // Only update if we found actual invalid URLs
+          if (hasInvalidUrls) {
+            // Silently clean up invalid photos in the background
+            momentsService
+              .updateMoment(moment.id, {
+                // Explicitly pass empty array to clear photos, not undefined
+                photos: validPhotos.length > 0 ? validPhotos : [],
+              })
+              .catch((err) => {
+                console.warn("Failed to clean up invalid photos:", err);
+              });
+          }
+        }
+        return {
+          ...moment,
+          photos: validPhotos,
+        };
+      });
+      setMoments(cleanedMoments);
     } catch (error) {
       console.error("Error loading moments:", error);
       Alert.alert("Error", "Failed to load your moments");
@@ -59,25 +100,34 @@ export default function MomentsScreen() {
     }
 
     try {
+      // Filter out invalid photos before saving
+      const validPhotos = filterValidPhotos(newMoment.photos || []);
+
       if (editingMoment) {
         // Update existing moment
         await momentsService.updateMoment(editingMoment.id!, {
           title: newMoment.title,
           story_date: newMoment.story_date,
           description: newMoment.description,
-          photos: newMoment.photos,
+          // Explicitly pass empty array to clear photos, not undefined
+          photos: validPhotos.length > 0 ? validPhotos : [],
         });
         Alert.alert("Success", "Love story updated successfully!");
       } else {
         // Create new moment
-        await momentsService.createMoment(newMoment);
+        await momentsService.createMoment({
+          ...newMoment,
+          // Explicitly pass empty array to clear photos, not undefined
+          photos: validPhotos.length > 0 ? validPhotos : [],
+        });
         Alert.alert("Success", "Love story added successfully!");
       }
 
       setNewMoment({ title: "", story_date: "", description: "" });
       setEditingMoment(null);
       setModalVisible(false);
-      loadMoments();
+      // Skip cleanup when loading after save to prevent removing just-saved photos
+      loadMoments(true);
     } catch (error) {
       console.error("Error saving love story:", error);
       Alert.alert(
@@ -95,7 +145,9 @@ export default function MomentsScreen() {
       title: story.title,
       story_date: story.story_date,
       description: story.description,
-      photos: story.photos,
+      // Don't filter photos when opening modal - use photos as-is from database
+      // Filtering will happen on save and on load, not when editing
+      photos: story.photos || [],
     });
     setModalVisible(true);
   };
@@ -107,8 +159,103 @@ export default function MomentsScreen() {
   };
 
   const handleViewMoment = (story: Moment) => {
-    setSelectedMoment(story);
+    // Filter invalid photos before viewing
+    setSelectedMoment({
+      ...story,
+      photos: filterValidPhotos(story.photos || []),
+    });
     setDetailsModalVisible(true);
+  };
+
+  const uploadImage = async (uri: string): Promise<string> => {
+    try {
+      let base64: string;
+      let mimeType: string;
+
+      if (Platform.OS === "web") {
+        if (uri.startsWith("blob:") || uri.startsWith("data:")) {
+          if (uri.startsWith("data:")) {
+            const matches = uri.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+            if (matches && matches.length === 3) {
+              mimeType = matches[1];
+              base64 = matches[2];
+            } else {
+              throw new Error("Invalid data URL format");
+            }
+          } else {
+            const response = await fetch(uri);
+            const blob = await response.blob();
+            mimeType = blob.type || "image/jpeg";
+            base64 = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const result = reader.result as string;
+                const base64Data = result.split(",")[1];
+                resolve(base64Data);
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          }
+        } else {
+          const response = await fetch(uri);
+          const blob = await response.blob();
+          mimeType = blob.type || "image/jpeg";
+          base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const result = reader.result as string;
+              const base64Data = result.split(",")[1];
+              resolve(base64Data);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        }
+      } else {
+        base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        const extension = uri.split(".").pop()?.toLowerCase() || "jpg";
+        const mimeTypes: Record<string, string> = {
+          jpg: "image/jpeg",
+          jpeg: "image/jpeg",
+          png: "image/png",
+          gif: "image/gif",
+          webp: "image/webp",
+        };
+        mimeType = mimeTypes[extension] || "image/jpeg";
+      }
+
+      const base64data = `data:${mimeType};base64,${base64}`;
+
+      const uploadResponse = await fetch(
+        `${API_BASE_URL}/moments/upload-image`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ image: base64data }),
+        }
+      );
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(
+          `Failed to upload image: ${uploadResponse.status} ${errorText}`
+        );
+      }
+
+      const result = await uploadResponse.json();
+      if (!result.url) {
+        throw new Error("No URL returned from upload");
+      }
+      return result.url;
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      throw error;
+    }
   };
 
   const pickImages = async () => {
@@ -133,18 +280,48 @@ export default function MomentsScreen() {
         aspect: [4, 3],
       });
 
-      if (!result.canceled && result.assets) {
-        const newPhotos = result.assets.map((asset) => asset.uri);
-        const currentPhotos = newMoment.photos || [];
-        setNewMoment({
-          ...newMoment,
-          photos: [...currentPhotos, ...newPhotos],
-        });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setLoading(true);
+        try {
+          const uploadPromises = result.assets.map((asset) =>
+            uploadImage(asset.uri)
+          );
+          const uploadedUrls = await Promise.all(uploadPromises);
+          const currentPhotos = newMoment.photos || [];
+          setNewMoment({
+            ...newMoment,
+            photos: [...currentPhotos, ...uploadedUrls],
+          });
+        } catch (uploadError) {
+          console.error("Error uploading images:", uploadError);
+          Alert.alert(
+            "Upload Error",
+            `Failed to upload images: ${
+              uploadError instanceof Error
+                ? uploadError.message
+                : "Unknown error"
+            }`
+          );
+        } finally {
+          setLoading(false);
+        }
       }
     } catch (error) {
       console.error("Error picking images:", error);
       Alert.alert("Error", "Failed to pick images");
+      setLoading(false);
     }
+  };
+
+  const filterValidPhotos = (photoUrls: string[]): string[] => {
+    if (!photoUrls || !Array.isArray(photoUrls)) return [];
+    return photoUrls.filter(
+      (url) =>
+        url &&
+        typeof url === "string" &&
+        url.trim() !== "" &&
+        (url.startsWith("http://") || url.startsWith("https://"))
+    );
   };
 
   const removePhoto = (indexToRemove: number) => {
@@ -315,23 +492,28 @@ export default function MomentsScreen() {
               >
                 {story.description}
               </Text>
-              {story.photos && story.photos.length > 0 && (
-                <View
-                  style={{
-                    flexDirection: "row",
-                    marginTop: 10,
-                    alignItems: "center",
-                  }}
-                >
-                  <Text style={{ fontSize: 14, color: "#666", marginRight: 5 }}>
-                    📸
-                  </Text>
-                  <Text style={{ fontSize: 14, color: "#666" }}>
-                    {story.photos.length} photo
-                    {story.photos.length > 1 ? "s" : ""}
-                  </Text>
-                </View>
-              )}
+              {(() => {
+                const validPhotos = filterValidPhotos(story.photos || []);
+                return validPhotos.length > 0 ? (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      marginTop: 10,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text
+                      style={{ fontSize: 14, color: "#666", marginRight: 5 }}
+                    >
+                      📸
+                    </Text>
+                    <Text style={{ fontSize: 14, color: "#666" }}>
+                      {validPhotos.length} photo
+                      {validPhotos.length > 1 ? "s" : ""}
+                    </Text>
+                  </View>
+                ) : null;
+              })()}
             </TouchableOpacity>
           ))
         )}
@@ -670,87 +852,100 @@ export default function MomentsScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  {newMoment.photos && newMoment.photos.length > 0 ? (
-                    <View style={{ maxHeight: 100 }}>
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={{ paddingRight: 10 }}
-                      >
-                        {newMoment.photos.map((photo, index) => (
-                          <View
-                            key={index}
-                            style={{
-                              marginRight: 8,
-                              position: "relative",
-                            }}
-                          >
-                            <Image
-                              source={{ uri: photo }}
+                  {(() => {
+                    // Don't filter photos in edit modal - show all photos as-is
+                    const displayPhotos = newMoment.photos || [];
+                    return displayPhotos.length > 0 ? (
+                      <View style={{ maxHeight: 100 }}>
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={{ paddingRight: 10 }}
+                        >
+                          {displayPhotos.map((photo, index) => (
+                            <View
+                              key={index}
                               style={{
-                                width: 60,
-                                height: 60,
-                                borderRadius: 6,
-                                backgroundColor: "#f0f0f0",
-                              }}
-                              resizeMode="cover"
-                            />
-                            <TouchableOpacity
-                              onPress={() => removePhoto(index)}
-                              style={{
-                                position: "absolute",
-                                top: -4,
-                                right: -4,
-                                backgroundColor: "#ff6b9d",
-                                borderRadius: 8,
-                                width: 16,
-                                height: 16,
-                                justifyContent: "center",
-                                alignItems: "center",
+                                marginRight: 8,
+                                position: "relative",
                               }}
                             >
-                              <Text
+                              <Image
+                                source={{ uri: photo }}
                                 style={{
-                                  color: "#fff",
-                                  fontSize: 10,
-                                  fontWeight: "bold",
+                                  width: 60,
+                                  height: 60,
+                                  borderRadius: 6,
+                                  backgroundColor: "#f0f0f0",
+                                }}
+                                resizeMode="cover"
+                                onError={(e) => {
+                                  console.warn(
+                                    "Failed to load image:",
+                                    photo,
+                                    e
+                                  );
+                                }}
+                              />
+                              <TouchableOpacity
+                                onPress={() => removePhoto(index)}
+                                style={{
+                                  position: "absolute",
+                                  top: -4,
+                                  right: -4,
+                                  backgroundColor: "#ff6b9d",
+                                  borderRadius: 8,
+                                  width: 16,
+                                  height: 16,
+                                  justifyContent: "center",
+                                  alignItems: "center",
                                 }}
                               >
-                                ×
-                              </Text>
-                            </TouchableOpacity>
-                          </View>
-                        ))}
-                      </ScrollView>
-                    </View>
-                  ) : (
-                    <TouchableOpacity
-                      onPress={pickImages}
-                      style={{
-                        borderWidth: 2,
-                        borderColor: "#f8a5c2",
-                        borderStyle: "dashed",
-                        borderRadius: 12,
-                        padding: 16,
-                        alignItems: "center",
-                        backgroundColor: "#fdf6f8",
-                        maxHeight: 80,
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Text style={{ fontSize: 24, marginBottom: 4 }}>✨</Text>
-                      <Text
+                                <Text
+                                  style={{
+                                    color: "#fff",
+                                    fontSize: 10,
+                                    fontWeight: "bold",
+                                  }}
+                                >
+                                  ×
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        onPress={pickImages}
                         style={{
-                          fontSize: 14,
-                          color: "#8b4a6b",
-                          textAlign: "center",
-                          fontWeight: "600",
+                          borderWidth: 2,
+                          borderColor: "#f8a5c2",
+                          borderStyle: "dashed",
+                          borderRadius: 12,
+                          padding: 16,
+                          alignItems: "center",
+                          backgroundColor: "#fdf6f8",
+                          maxHeight: 80,
+                          justifyContent: "center",
                         }}
                       >
-                        Add photos from camera roll
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+                        <Text style={{ fontSize: 24, marginBottom: 4 }}>
+                          ✨
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            color: "#8b4a6b",
+                            textAlign: "center",
+                            fontWeight: "600",
+                          }}
+                        >
+                          Add photos from camera roll
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })()}
                 </View>
 
                 <View
@@ -967,77 +1162,87 @@ export default function MomentsScreen() {
                 showsVerticalScrollIndicator={false}
               >
                 {/* Photos Section */}
-                {selectedMoment.photos && selectedMoment.photos.length > 0 && (
-                  <View style={{ marginBottom: 30, marginTop: 10 }}>
-                    <Text
-                      style={{
-                        fontSize: 18,
-                        fontWeight: "600",
-                        color: "#8b4a6b",
-                        textAlign: "center",
-                        marginBottom: 15,
-                      }}
-                    >
-                      📸 Our Photos 📸
-                    </Text>
-                    <FlatList
-                      data={selectedMoment.photos}
-                      horizontal
-                      pagingEnabled
-                      showsHorizontalScrollIndicator={false}
-                      keyExtractor={(item, index) => index.toString()}
-                      renderItem={({ item }) => (
-                        <View
-                          style={{
-                            width: Dimensions.get("window").width,
-                            height: 300,
-                            backgroundColor: "#f8d7da",
-                            borderRadius: 12,
-                            overflow: "hidden",
-                            marginHorizontal: 5,
-                          }}
-                        >
-                          <Image
-                            source={{ uri: item }}
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                            }}
-                            resizeMode="contain"
-                          />
-                        </View>
-                      )}
-                    />
-
-                    {selectedMoment.photos.length > 1 && (
-                      <View
+                {(() => {
+                  const displayPhotos = selectedMoment.photos || [];
+                  return displayPhotos.length > 0 ? (
+                    <View style={{ marginBottom: 30, marginTop: 10 }}>
+                      <Text
                         style={{
-                          flexDirection: "row",
-                          justifyContent: "center",
-                          marginTop: 15,
+                          fontSize: 18,
+                          fontWeight: "600",
+                          color: "#8b4a6b",
+                          textAlign: "center",
+                          marginBottom: 15,
                         }}
                       >
-                        {selectedMoment.photos.map((_, index) => (
+                        📸 Our Photos 📸
+                      </Text>
+                      <FlatList
+                        data={displayPhotos}
+                        horizontal
+                        pagingEnabled
+                        showsHorizontalScrollIndicator={false}
+                        keyExtractor={(item, index) => index.toString()}
+                        renderItem={({ item }) => (
                           <View
-                            key={index}
                             style={{
-                              width: 10,
-                              height: 10,
-                              borderRadius: 5,
-                              backgroundColor: "#f8a5c2",
-                              marginHorizontal: 4,
-                              shadowColor: "#f8a5c2",
-                              shadowOffset: { width: 0, height: 2 },
-                              shadowOpacity: 0.3,
-                              shadowRadius: 3,
-                              elevation: 2,
+                              width: Dimensions.get("window").width,
+                              height: 300,
+                              backgroundColor: "#f8d7da",
+                              borderRadius: 12,
+                              overflow: "hidden",
+                              marginHorizontal: 5,
                             }}
-                          />
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                )}
+                          >
+                            <Image
+                              source={{ uri: item }}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                              }}
+                              resizeMode="contain"
+                              onError={(e) => {
+                                console.warn(
+                                  "Failed to load image in detail view:",
+                                  item,
+                                  e
+                                );
+                              }}
+                            />
+                          </View>
+                        )}
+                      />
+
+                      {displayPhotos.length > 1 && (
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            justifyContent: "center",
+                            marginTop: 15,
+                          }}
+                        >
+                          {displayPhotos.map((_, index) => (
+                            <View
+                              key={index}
+                              style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: 5,
+                                backgroundColor: "#f8a5c2",
+                                marginHorizontal: 4,
+                                shadowColor: "#f8a5c2",
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.3,
+                                shadowRadius: 3,
+                                elevation: 2,
+                              }}
+                            />
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  ) : null;
+                })()}
 
                 {/* Description Section */}
                 <View

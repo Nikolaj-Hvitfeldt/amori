@@ -85,13 +85,21 @@ export class DatesService {
     id: string,
     updateDateEntryDto: UpdateDateEntryDto
   ): Promise<DateEntry> {
+    // Explicitly handle photos array - if it's provided (even if empty), update it
+    const updateData: any = {
+      ...updateDateEntryDto,
+      updated_at: new Date().toISOString(),
+    };
+    
+    // If photos is explicitly provided (including empty array), ensure it's set
+    if ('photos' in updateDateEntryDto) {
+      updateData.photos = updateDateEntryDto.photos || [];
+    }
+
     const { data, error } = await this.supabase
       .getClient()
       .from("date_entries")
-      .update({
-        ...updateDateEntryDto,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq("id", id)
       .select()
       .single();
