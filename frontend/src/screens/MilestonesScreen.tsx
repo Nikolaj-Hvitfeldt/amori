@@ -23,62 +23,11 @@ import {
 } from "../types/milestones";
 import { milestonesService } from "../services/milestones";
 import { API_BASE_URL } from "../services/api";
-import { getThumbnailUrl } from "../utils/imageUtils";
-
-// Milestone type configurations
-const MILESTONE_CONFIG: Record<
-  MilestoneType,
-  { icon: string; label: string; color: string; gradient: string[] }
-> = {
-  met: {
-    icon: "👋",
-    label: "We Met",
-    color: "#FF6B9D",
-    gradient: ["#FF6B9D", "#FF8E9D", "#FFB3C1"],
-  },
-  first_date: {
-    icon: "🌹",
-    label: "First Date",
-    color: "#FF69B4",
-    gradient: ["#FF69B4", "#FF8EC8", "#FFB3DC"],
-  },
-  official: {
-    icon: "💕",
-    label: "Became Official",
-    color: "#FF1493",
-    gradient: ["#FF1493", "#FF6EC7", "#FFB3E6"],
-  },
-  moved_in: {
-    icon: "🏠",
-    label: "Moved In Together",
-    color: "#C71585",
-    gradient: ["#C71585", "#DA70D6", "#EE82EE"],
-  },
-  engagement: {
-    icon: "💍",
-    label: "Engagement",
-    color: "#BA55D3",
-    gradient: ["#BA55D3", "#DDA0DD", "#E6E6FA"],
-  },
-  wedding: {
-    icon: "💒",
-    label: "Wedding",
-    color: "#9370DB",
-    gradient: ["#9370DB", "#B19CD9", "#D8BFD8"],
-  },
-  kid: {
-    icon: "👶",
-    label: "Kid",
-    color: "#FFB6C1",
-    gradient: ["#FFB6C1", "#FFC0CB", "#FFD1DC"],
-  },
-  custom: {
-    icon: "⭐",
-    label: "Custom Milestone",
-    color: "#FFD700",
-    gradient: ["#FFD700", "#FFE44D", "#FFF59D"],
-  },
-};
+import {
+  MILESTONE_CONFIG,
+  getMilestoneConfig,
+} from "../constants/milestoneConfig";
+import MilestoneDetailView from "../components/MilestoneDetailView";
 
 // Helper function for shadows
 const getBoxShadow = (
@@ -129,6 +78,10 @@ const getTextShadow = (
 export default function MilestonesScreen() {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isDetailVisible, setIsDetailVisible] = useState(false);
+  const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(
+    null
+  );
   const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(
     null
   );
@@ -230,8 +183,26 @@ export default function MilestonesScreen() {
     );
   };
 
+  const handleViewMilestone = (milestone: Milestone) => {
+    setSelectedMilestone(milestone);
+    setIsDetailVisible(true);
+  };
+
+  const closeDetailView = () => {
+    setIsDetailVisible(false);
+    setTimeout(() => setSelectedMilestone(null), 300);
+  };
+
+  const handleEditFromDetail = () => {
+    if (!selectedMilestone) return;
+    const milestoneToEdit = selectedMilestone;
+    setIsDetailVisible(false);
+    setTimeout(() => openModal(milestoneToEdit), 250);
+  };
+
   const openModal = (milestone?: Milestone) => {
     if (milestone) {
+      setSelectedMilestone(milestone);
       setEditingMilestone(milestone);
       setMilestoneType(milestone.milestone_type);
       setTitle(milestone.title);
@@ -514,7 +485,7 @@ export default function MilestonesScreen() {
     return Math.floor(diffTime / (1000 * 60 * 60 * 24));
   };
 
-  const milestoneConfig = MILESTONE_CONFIG[milestoneType];
+  const milestoneConfig = getMilestoneConfig(milestoneType);
   const milestoneColor = milestoneConfig.color;
 
   return (
@@ -609,7 +580,7 @@ export default function MilestonesScreen() {
                     overflow: "hidden",
                     position: "relative",
                   }}
-                  onPress={() => openModal(milestone)}
+                  onPress={() => handleViewMilestone(milestone)}
                   onLongPress={() => handleDeleteMilestone(milestone.id)}
                 >
                   {/* Decorative star accent */}
@@ -765,6 +736,21 @@ export default function MilestonesScreen() {
           </View>
         )}
       </ScrollView>
+
+      <Modal
+        visible={isDetailVisible}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={closeDetailView}
+      >
+        {selectedMilestone && (
+          <MilestoneDetailView
+            milestone={selectedMilestone}
+            onClose={closeDetailView}
+            onEdit={handleEditFromDetail}
+          />
+        )}
+      </Modal>
 
       {/* Floating Action Button */}
       <TouchableOpacity
