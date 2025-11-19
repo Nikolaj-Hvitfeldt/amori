@@ -5,6 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  FlatList,
   Modal,
   KeyboardAvoidingView,
   Platform,
@@ -13,6 +14,7 @@ import {
   Animated,
   Dimensions,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -25,6 +27,7 @@ import RotatingPhotoBackground from "../components/RotatingPhotoBackground";
 import { getThumbnailUrl } from "../utils/imageUtils";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const ITEMS_PER_PAGE = 10;
 
 type TimeOfDay = "morning" | "afternoon" | "evening" | "night";
 
@@ -131,6 +134,9 @@ export default function DatesScreen() {
   const [selectedDate, setSelectedDate] = useState<DateEntry | null>(null);
   const [editingDate, setEditingDate] = useState<DateEntry | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [total, setTotal] = useState(0);
 
   // Form state
   const [title, setTitle] = useState("");
@@ -169,10 +175,25 @@ export default function DatesScreen() {
     loadDates();
   }, []);
 
-  const loadDates = async () => {
+  const loadDates = async (reset: boolean = true) => {
     try {
-      setLoading(true);
-      const fetchedDates = await datesService.getAll();
+      if (reset) {
+        setLoading(true);
+        setDates([]);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const offset = reset ? 0 : dates.length;
+      const result = await datesService.getAll(ITEMS_PER_PAGE, offset);
+      
+      // Safety check: ensure result and result.data exist
+      if (!result || !result.data || !Array.isArray(result.data)) {
+        console.error("Invalid API response:", result);
+        throw new Error("Invalid response from server");
+      }
+      
+      const fetchedDates = result.data;
       // Filter out invalid photos from all dates and clean up database
       const cleanedDates = fetchedDates.map((dateEntry) => {
         const allPhotos =
@@ -198,17 +219,229 @@ export default function DatesScreen() {
           photos: validPhotos,
         };
       });
-      setDates(
-        cleanedDates.sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-        )
+      
+      const sortedDates = cleanedDates.sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
       );
+
+      if (reset) {
+        setDates(sortedDates);
+        setHasMore(sortedDates.length < (result.total || 0));
+      } else {
+        setDates((prev) => {
+          // Deduplicate by ID to prevent duplicate keys
+          const existingIds = new Set(prev.map((d) => d.id));
+          const uniqueNewDates = sortedDates.filter(
+            (d) => d.id && !existingIds.has(d.id)
+          );
+          const newDates = [...prev, ...uniqueNewDates];
+          setHasMore(newDates.length < (result.total || 0));
+          return newDates;
+        });
+      }
+
+      setTotal(result.total || 0);
     } catch (error) {
       console.error("Error loading dates:", error);
       Alert.alert("Error", "Failed to load dates");
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
+  };
+
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      loadDates(false);
+    }
+  };
+
+  const renderDateItem = ({ item: dateEntry }: { item: DateEntry }) => {
+    const moodInfo = getMoodInfo(dateEntry.mood);
+    const dateMoodColor = MOOD_COLORS[dateEntry.mood];
+    // Get photos array (support both photos and legacy image_url)
+    // Filter out blob URLs and invalid URLs
+    const allDatePhotos =
+      dateEntry.photos && dateEntry.photos.length > 0
+        ? dateEntry.photos
+        : dateEntry.image_url
+        ? [dateEntry.image_url]
+        : [];
+    const datePhotos = filterValidPhotos(allDatePhotos);
+
+    return (
+      <TouchableOpacity
+        style={{
+          backgroundColor: "#0f172a",
+          borderRadius: 16,
+          padding: 20,
+          marginBottom: 16,
+          borderWidth: 1,
+          borderColor: "#374151",
+          ...getBoxShadow(
+            dateMoodColor,
+            { width: 0, height: 4 },
+            0.3,
+            12
+          ),
+          elevation: 5,
+          overflow: "hidden",
+          position: "relative",
+        }}
+        onPress={() => {
+          setSelectedDate(dateEntry);
+          setIsDetailVisible(true);
+        }}
+        onLongPress={() => handleDeleteDate(dateEntry.id)}
+      >
+        {/* Decorative calendar accent */}
+        <View
+          style={{
+            position: "absolute",
+            top: -10,
+            right: -10,
+            width: 80,
+            height: 80,
+            borderRadius: 40,
+            backgroundColor: dateMoodColor + "15",
+            opacity: 0.5,
+          }}
+        />
+
+        {/* Rotating Photo Background */}
+        {datePhotos.length > 0 && (
+          <RotatingPhotoBackground
+            photos={datePhotos}
+            interval={8000}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 0,
+            }}
+          />
+        )}
+        {/* Content with relative positioning to appear above background */}
+        <View style={{ position: "relative", zIndex: 1 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              marginBottom: 8,
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              {/* Title */}
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontWeight: "600",
+                  color: datePhotos.length > 0 ? "#ffffff" : "#e5d3ff",
+                  marginBottom: 4,
+                  ...getTextShadow(
+                    "rgba(0, 0, 0, 0.75)",
+                    { width: 0, height: 1 },
+                    3
+                  ),
+                }}
+              >
+                {dateEntry.title || "Our Special Date"}
+              </Text>
+              {/* Date below title - italic small font */}
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontStyle: "italic",
+                  color: datePhotos.length > 0 ? "#f3f4f6" : "#9ca3af",
+                  marginBottom: 8,
+                  ...getTextShadow(
+                    "rgba(0, 0, 0, 0.75)",
+                    { width: 0, height: 1 },
+                    3
+                  ),
+                }}
+              >
+                {formatDate(dateEntry.date)}
+              </Text>
+              <View
+                style={{ flexDirection: "row", alignItems: "center" }}
+              >
+                <Text style={{ fontSize: 20, marginRight: 8 }}>
+                  {moodInfo.icon}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    color:
+                      datePhotos.length > 0 ? "#ffffff" : "#a78bfa",
+                    fontWeight: "500",
+                    ...getTextShadow(
+                      "rgba(0, 0, 0, 0.75)",
+                      { width: 0, height: 1 },
+                      3
+                    ),
+                  }}
+                >
+                  {moodInfo.label}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      color: datePhotos.length > 0 ? "#ffffff" : "#d1d5db",
+                      marginBottom: 8,
+                      fontWeight: "500",
+                      ...getTextShadow(
+                        "rgba(0, 0, 0, 0.75)",
+                        { width: 0, height: 1 },
+                        3
+                      ),
+                    }}
+                  >
+                    📍 {dateEntry.location}
+                  </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderEmpty = () => (
+    <View
+      style={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 100,
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 18,
+          color: "#6b7280",
+          textAlign: "center",
+          fontStyle: "italic",
+          lineHeight: 24,
+        }}
+      >
+        No special dates recorded yet.{"\n"}
+        Create your first memory to begin the journey.
+      </Text>
+    </View>
+  );
+
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View style={{ padding: 20, alignItems: "center" }}>
+        <ActivityIndicator size="small" color="#7c3aed" />
+      </View>
+    );
   };
 
   const resetForm = () => {
@@ -652,187 +885,19 @@ export default function DatesScreen() {
         </Text>
       </View>
 
-      <ScrollView style={{ flex: 1, padding: 20 }}>
-        {dates.length === 0 ? (
-          <View
-            style={{
-              flex: 1,
-              alignItems: "center",
-              justifyContent: "center",
-              paddingVertical: 100,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 18,
-                color: "#6b7280",
-                textAlign: "center",
-                fontStyle: "italic",
-                lineHeight: 24,
-              }}
-            >
-              No special dates recorded yet.{"\n"}
-              Create your first memory to begin the journey.
-            </Text>
-          </View>
-        ) : (
-          dates.map((dateEntry) => {
-            const moodInfo = getMoodInfo(dateEntry.mood);
-            const dateMoodColor = MOOD_COLORS[dateEntry.mood];
-            // Get photos array (support both photos and legacy image_url)
-            // Filter out blob URLs and invalid URLs
-            const allDatePhotos =
-              dateEntry.photos && dateEntry.photos.length > 0
-                ? dateEntry.photos
-                : dateEntry.image_url
-                ? [dateEntry.image_url]
-                : [];
-            const datePhotos = filterValidPhotos(allDatePhotos);
-
-            return (
-              <TouchableOpacity
-                key={dateEntry.id}
-                style={{
-                  backgroundColor: "#0f172a",
-                  borderRadius: 16,
-                  padding: 20,
-                  marginBottom: 16,
-                  borderWidth: 1,
-                  borderColor: "#374151",
-                  ...getBoxShadow(
-                    dateMoodColor,
-                    { width: 0, height: 4 },
-                    0.3,
-                    12
-                  ),
-                  elevation: 5,
-                  overflow: "hidden",
-                  position: "relative",
-                }}
-                onPress={() => {
-                  setSelectedDate(dateEntry);
-                  setIsDetailVisible(true);
-                }}
-                onLongPress={() => handleDeleteDate(dateEntry.id)}
-              >
-                {/* Decorative calendar accent */}
-                <View
-                  style={{
-                    position: "absolute",
-                    top: -10,
-                    right: -10,
-                    width: 80,
-                    height: 80,
-                    borderRadius: 40,
-                    backgroundColor: dateMoodColor + "15",
-                    opacity: 0.5,
-                  }}
-                />
-
-                {/* Rotating Photo Background */}
-                {datePhotos.length > 0 && (
-                  <RotatingPhotoBackground
-                    photos={datePhotos}
-                    interval={8000}
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      zIndex: 0,
-                    }}
-                  />
-                )}
-                {/* Content with relative positioning to appear above background */}
-                <View style={{ position: "relative", zIndex: 1 }}>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      marginBottom: 8,
-                    }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      {/* Title */}
-                      <Text
-                        style={{
-                          fontSize: 20,
-                          fontWeight: "600",
-                          color: datePhotos.length > 0 ? "#ffffff" : "#e5d3ff",
-                          marginBottom: 4,
-                          ...getTextShadow(
-                            "rgba(0, 0, 0, 0.75)",
-                            { width: 0, height: 1 },
-                            3
-                          ),
-                        }}
-                      >
-                        {dateEntry.title || "Our Special Date"}
-                      </Text>
-                      {/* Date below title - italic small font */}
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          fontStyle: "italic",
-                          color: datePhotos.length > 0 ? "#f3f4f6" : "#9ca3af",
-                          marginBottom: 8,
-                          ...getTextShadow(
-                            "rgba(0, 0, 0, 0.75)",
-                            { width: 0, height: 1 },
-                            3
-                          ),
-                        }}
-                      >
-                        {formatDate(dateEntry.date)}
-                      </Text>
-                      <View
-                        style={{ flexDirection: "row", alignItems: "center" }}
-                      >
-                        <Text style={{ fontSize: 20, marginRight: 8 }}>
-                          {moodInfo.icon}
-                        </Text>
-                        <Text
-                          style={{
-                            fontSize: 14,
-                            color:
-                              datePhotos.length > 0 ? "#ffffff" : "#a78bfa",
-                            fontWeight: "500",
-                            ...getTextShadow(
-                              "rgba(0, 0, 0, 0.75)",
-                              { width: 0, height: 1 },
-                              3
-                            ),
-                          }}
-                        >
-                          {moodInfo.label}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      color: datePhotos.length > 0 ? "#ffffff" : "#d1d5db",
-                      marginBottom: 8,
-                      fontWeight: "500",
-                      ...getTextShadow(
-                        "rgba(0, 0, 0, 0.75)",
-                        { width: 0, height: 1 },
-                        3
-                      ),
-                    }}
-                  >
-                    📍 {dateEntry.location}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })
-        )}
-      </ScrollView>
+      <FlatList
+        data={dates}
+        renderItem={renderDateItem}
+        keyExtractor={(item, index) => item.id || `date-${index}`}
+        ListEmptyComponent={renderEmpty}
+        ListFooterComponent={renderFooter}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+        refreshing={loading && dates.length === 0}
+        onRefresh={() => loadDates(true)}
+      />
 
       {/* Floating Action Button */}
       <TouchableOpacity

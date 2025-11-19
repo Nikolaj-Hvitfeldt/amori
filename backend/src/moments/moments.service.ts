@@ -16,15 +16,35 @@ export interface Moment {
 export class MomentsService {
   constructor(private readonly supabase: SupabaseService) {}
 
-  async findAll(): Promise<Moment[]> {
+  async findAll(limit?: number, offset?: number): Promise<{ data: Moment[]; total: number }> {
     try {
       console.log("Fetching moments from moments table...");
       const client = this.supabase.getClient();
       
-      const { data, error } = await client
+      // Get total count
+      const { count, error: countError } = await client
+        .from("moments")
+        .select("*", { count: "exact", head: true });
+
+      if (countError) {
+        throw new Error(`Failed to count moments: ${countError.message}`);
+      }
+
+      // Build query
+      let query = client
         .from("moments")
         .select("*")
         .order("story_date", { ascending: false });
+
+      // Apply pagination if provided
+      if (limit !== undefined) {
+        query = query.limit(limit);
+      }
+      if (offset !== undefined) {
+        query = query.range(offset, offset + (limit || 1000) - 1);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error("Supabase error:", error);
@@ -32,7 +52,10 @@ export class MomentsService {
       }
 
       console.log(`Successfully fetched ${data?.length || 0} moments`);
-      return data || [];
+      return {
+        data: data || [],
+        total: count || 0,
+      };
     } catch (error) {
       console.error("Error in findAll:", error);
       throw error;

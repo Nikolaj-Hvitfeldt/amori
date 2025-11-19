@@ -21,18 +21,42 @@ export interface DateEntry {
 export class DatesService {
   constructor(private readonly supabase: SupabaseService) {}
 
-  async findAll(): Promise<DateEntry[]> {
-    const { data, error } = await this.supabase
-      .getClient()
+  async findAll(limit?: number, offset?: number): Promise<{ data: DateEntry[]; total: number }> {
+    const client = this.supabase.getClient();
+    
+    // Get total count
+    const { count, error: countError } = await client
+      .from("date_entries")
+      .select("*", { count: "exact", head: true });
+
+    if (countError) {
+      throw new Error(`Failed to count date entries: ${countError.message}`);
+    }
+
+    // Build query
+    let query = client
       .from("date_entries")
       .select("*")
       .order("date", { ascending: false });
+
+    // Apply pagination if provided
+    if (limit !== undefined) {
+      query = query.limit(limit);
+    }
+    if (offset !== undefined) {
+      query = query.range(offset, offset + (limit || 1000) - 1);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       throw new Error(`Failed to fetch date entries: ${error.message}`);
     }
 
-    return data || [];
+    return {
+      data: data || [],
+      total: count || 0,
+    };
   }
 
   async findOne(id: string): Promise<DateEntry> {
