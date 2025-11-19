@@ -13,7 +13,8 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { momentsService, Moment, CreateMomentDto } from "../services/moments";
+import { momentsService } from "../services/moments";
+import { Moment, CreateMomentDto } from "../types/moments";
 
 export default function StoriesScreen() {
   const [moments, setMoments] = useState<Moment[]>([]);

@@ -140,6 +140,14 @@ export default function AppNavigator() {
                 borderBottomWidth: 1,
                 borderBottomColor: "#ffd70030",
               }
+            : activeScreen === "Stories"
+            ? {
+                backgroundColor: "#FF6B9D",
+                paddingVertical: 15,
+                paddingHorizontal: 20,
+                borderBottomWidth: 1,
+                borderBottomColor: "#FEC7D7",
+              }
             : headerStyle
         }
       >
@@ -158,6 +166,14 @@ export default function AppNavigator() {
                   fontSize: 20,
                   fontWeight: "300" as const,
                   color: "#ffd700",
+                  textAlign: "center" as const,
+                  letterSpacing: 1,
+                }
+              : activeScreen === "Stories"
+              ? {
+                  fontSize: 20,
+                  fontWeight: "300" as const,
+                  color: "#FFF",
                   textAlign: "center" as const,
                   letterSpacing: 1,
                 }
