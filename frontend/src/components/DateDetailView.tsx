@@ -67,9 +67,9 @@ export default function DateDetailView({
   onClose,
   onEdit,
 }: DateDetailViewProps) {
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [carouselWidth, setCarouselWidth] = useState(SCREEN_WIDTH);
 
   // Determine time of day from date (simplified - you can enhance this)
   const getTimeOfDay = (dateString: string): TimeOfDay => {
@@ -161,18 +161,18 @@ export default function DateDetailView({
               { useNativeDriver: false }
             )}
             scrollEventThrottle={16}
-            onMomentumScrollEnd={(event) => {
-              const index = Math.round(
-                event.nativeEvent.contentOffset.x / SCREEN_WIDTH
-              );
-              setCurrentPhotoIndex(index);
+            onLayout={(event) => {
+              const width = event.nativeEvent.layout.width;
+              if (width && width !== carouselWidth) {
+                setCarouselWidth(width);
+              }
             }}
           >
             {photos.map((photo, index) => (
               <Image
                 key={index}
                 source={{ uri: photo }}
-                style={styles.photo}
+                style={[styles.photo, { width: carouselWidth }]}
                 resizeMode="cover"
               />
             ))}
@@ -181,15 +181,36 @@ export default function DateDetailView({
           {/* Photo Indicators */}
           {photos.length > 1 && (
             <View style={styles.photoIndicators}>
-              {photos.map((_, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.indicator,
-                    index === currentPhotoIndex && styles.activeIndicator,
-                  ]}
-                />
-              ))}
+              {photos.map((_, index) => {
+                const inputRange = [
+                  (index - 1) * carouselWidth,
+                  index * carouselWidth,
+                  (index + 1) * carouselWidth,
+                ];
+                const scale = scrollX.interpolate({
+                  inputRange,
+                  outputRange: [0.7, 1.4, 0.7],
+                  extrapolate: "clamp",
+                });
+                const opacity = scrollX.interpolate({
+                  inputRange,
+                  outputRange: [0.3, 1, 0.3],
+                  extrapolate: "clamp",
+                });
+                return (
+                  <Animated.View
+                    key={`indicator-${index}`}
+                    style={[
+                      styles.indicator,
+                      {
+                        backgroundColor: moodColor,
+                        opacity,
+                        transform: [{ scale }],
+                      },
+                    ]}
+                  />
+                );
+              })}
             </View>
           )}
         </View>
@@ -209,48 +230,87 @@ export default function DateDetailView({
           showsVerticalScrollIndicator={false}
         >
           {/* Mood Badge */}
-          <View style={[styles.moodBadge, { backgroundColor: moodColor + "40" }]}>
+          <View
+            style={[
+              styles.moodBadge,
+              { backgroundColor: moodColor + "25", borderColor: moodColor + "60" },
+            ]}
+          >
             <Text style={styles.moodIcon}>{moodInfo.icon}</Text>
             <Text style={[styles.moodLabel, { color: moodColor }]}>
               {moodInfo.label}
             </Text>
           </View>
 
-          {/* Title and Date Header */}
-          <View style={styles.dateHeader}>
-            <Text style={[styles.dateText, { color: theme.text }]}>
-              {dateEntry.title || formatDate(dateEntry.date)}
-            </Text>
-            <Text style={[styles.daysAgoText, { color: theme.text + "80" }]}>
-              {formatDate(dateEntry.date)} • {getDaysAgo(dateEntry.date)}
-            </Text>
+          {/* Title and Meta */}
+          <Text style={[styles.titleText, { color: theme.text }]}>
+            {dateEntry.title || formatDate(dateEntry.date)}
+          </Text>
+          <Text style={[styles.subtitleText, { color: theme.text + "99" }]}>
+            {formatDate(dateEntry.date)} • {getDaysAgo(dateEntry.date)}
+          </Text>
+
+          <View style={styles.metaGrid}>
+            <View style={[styles.metaCard, { borderColor: moodColor + "50" }]}>
+              <Text style={styles.metaLabel}>Date</Text>
+              <Text style={[styles.metaValue, { color: theme.text }]}>
+                {formatDate(dateEntry.date)}
+              </Text>
+            </View>
+            <View style={[styles.metaCard, { borderColor: moodColor + "50" }]}>
+              <Text style={styles.metaLabel}>Mood</Text>
+              <Text style={[styles.metaValue, { color: theme.text }]}>
+                {moodInfo.label}
+              </Text>
+            </View>
           </View>
 
-          {/* Location */}
-          <View style={styles.locationContainer}>
-            <Text style={styles.locationIcon}>📍</Text>
-            <Text style={[styles.locationText, { color: theme.text }]}>
-              {dateEntry.location}
-            </Text>
+          {(dateEntry.location || dateEntry.weather) && (
+          <View style={styles.metaGrid}>
+            {dateEntry.location && (
+              <View style={[styles.metaCard, styles.metaCardWide, { borderColor: moodColor + "40" }]}>
+                <Text style={styles.metaLabel}>Location</Text>
+                <Text style={[styles.metaValue, { color: theme.text }]}>
+                  {dateEntry.location}
+                </Text>
+              </View>
+            )}
+            {dateEntry.weather && (
+              <View style={[styles.metaCard, styles.metaCardCompact, { borderColor: moodColor + "40" }]}>
+                <Text style={styles.metaLabel}>Weather</Text>
+                <Text style={[styles.metaValue, { color: theme.text }]}>
+                  {dateEntry.weather}
+                </Text>
+              </View>
+            )}
           </View>
+        )}
 
-          {/* Description */}
-          <View style={styles.descriptionContainer}>
-            <Text style={[styles.descriptionText, { color: theme.text }]}>
-              {dateEntry.description}
+          {/* Story */}
+          <View style={[styles.sectionCard, styles.descriptionCard]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>
+              📖 Story
+            </Text>
+            <Text
+              style={[
+                styles.sectionBody,
+                { color: theme.text + "dd" },
+              ]}
+            >
+              {dateEntry.description || "No story written for this date."}
             </Text>
           </View>
 
           {/* Highlights */}
           {dateEntry.highlights && dateEntry.highlights.length > 0 && (
-            <View style={styles.highlightsContainer}>
+            <View style={[styles.sectionCard, styles.listCard]}>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>
                 ✨ Highlights
               </Text>
               {dateEntry.highlights.map((highlight, index) => (
-                <View key={index} style={styles.highlightItem}>
-                  <Text style={styles.highlightBullet}>•</Text>
-                  <Text style={[styles.highlightText, { color: theme.text }]}>
+                <View key={index} style={styles.highlightRow}>
+                  <View style={[styles.highlightBullet, { backgroundColor: moodColor + "70" }]} />
+                  <Text style={[styles.sectionBody, { color: theme.text }]}>
                     {highlight}
                   </Text>
                 </View>
@@ -260,28 +320,29 @@ export default function DateDetailView({
 
           {/* Favorite Moment */}
           {dateEntry.favorite_moment && (
-            <View style={[styles.favoriteMomentContainer, { borderLeftColor: moodColor }]}>
+            <View
+              style={[
+                styles.sectionCard,
+                styles.favoriteCard,
+                { borderColor: moodColor + "80" },
+              ]}
+            >
               <Text style={[styles.sectionTitle, { color: theme.text }]}>
                 💫 Favorite Moment
               </Text>
-              <Text style={[styles.favoriteMomentText, { color: theme.text }]}>
+              <Text
+                style={[
+                  styles.sectionBody,
+                  styles.favoriteQuote,
+                  { color: theme.text },
+                ]}
+              >
                 "{dateEntry.favorite_moment}"
               </Text>
             </View>
           )}
 
-          {/* Weather */}
-          {dateEntry.weather && (
-            <View style={styles.weatherContainer}>
-              <Text style={styles.weatherIcon}>🌤️</Text>
-              <Text style={[styles.weatherText, { color: theme.text }]}>
-                {dateEntry.weather}
-              </Text>
-            </View>
-          )}
-
-          {/* Spacer */}
-          <View style={{ height: 40 }} />
+          <View style={{ height: 60 }} />
         </ScrollView>
       </Animated.View>
 
@@ -307,6 +368,7 @@ const styles = StyleSheet.create({
   photoContainer: {
     height: SCREEN_HEIGHT * 0.5,
     position: "relative",
+    paddingBottom: 24,
   },
   photo: {
     width: SCREEN_WIDTH,
@@ -314,22 +376,21 @@ const styles = StyleSheet.create({
   },
   photoIndicators: {
     position: "absolute",
-    bottom: 20,
+    bottom: 46,
     left: 0,
     right: 0,
     flexDirection: "row",
     justifyContent: "center",
-    gap: 8,
+    alignItems: "center",
+    paddingVertical: 4,
+    backgroundColor: "transparent",
+    zIndex: 5,
   },
   indicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.4)",
-  },
-  activeIndicator: {
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    width: 24,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginHorizontal: 4,
   },
   headerOverlay: {
     position: "absolute",
@@ -390,10 +451,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     paddingVertical: 8,
-    borderRadius: 20,
-    marginBottom: 20,
+    borderRadius: 24,
+    borderWidth: 1,
+    marginBottom: 18,
   },
   moodIcon: {
     fontSize: 20,
@@ -403,90 +465,88 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  dateHeader: {
-    marginBottom: 16,
-  },
-  dateText: {
+  titleText: {
     fontSize: 32,
-    fontWeight: "300",
-    letterSpacing: 1,
-    fontFamily: Platform.select({ ios: "Georgia", android: "serif" }),
+    fontWeight: "700",
+    letterSpacing: 0.5,
     marginBottom: 4,
   },
-  daysAgoText: {
-    fontSize: 14,
-    fontStyle: "italic",
-    marginTop: 4,
+  subtitleText: {
+    fontSize: 15,
+    marginBottom: 20,
   },
-  locationContainer: {
+  metaGrid: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 24,
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginBottom: 12,
   },
-  locationIcon: {
-    fontSize: 20,
-    marginRight: 8,
+  metaCard: {
+    width: "48%",
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 16,
+    backgroundColor: "rgba(255,255,255,0.02)",
+    marginBottom: 12,
   },
-  locationText: {
+  metaCardWide: {
+    width: "100%",
+  },
+  metaCardCompact: {
+    width: "48%",
+  },
+  metaLabel: {
+    fontSize: 13,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    color: "#94a3b8",
+    marginBottom: 6,
+  },
+  metaValue: {
     fontSize: 18,
-    fontWeight: "500",
+    fontWeight: "600",
   },
-  descriptionContainer: {
-    marginBottom: 24,
+  sectionCard: {
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(15,23,42,0.8)",
+    padding: 20,
+    marginBottom: 18,
   },
-  descriptionText: {
-    fontSize: 17,
-    lineHeight: 26,
-    letterSpacing: 0.3,
-  },
-  highlightsContainer: {
-    marginBottom: 24,
+  descriptionCard: {
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(15,23,42,0.9)",
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "600",
     marginBottom: 12,
-    letterSpacing: 0.5,
   },
-  highlightItem: {
-    flexDirection: "row",
-    marginBottom: 8,
-    alignItems: "flex-start",
-  },
-  highlightBullet: {
-    fontSize: 18,
-    marginRight: 12,
-    color: "#a78bfa",
-  },
-  highlightText: {
+  sectionBody: {
     fontSize: 16,
     lineHeight: 24,
-    flex: 1,
   },
-  favoriteMomentContainer: {
-    backgroundColor: "rgba(167, 139, 250, 0.1)",
-    padding: 20,
-    borderRadius: 16,
-    borderLeftWidth: 4,
-    marginBottom: 24,
+  listCard: {
+    backgroundColor: "rgba(15,23,42,0.85)",
   },
-  favoriteMomentText: {
-    fontSize: 17,
-    fontStyle: "italic",
-    lineHeight: 26,
-    letterSpacing: 0.3,
-  },
-  weatherContainer: {
+  highlightRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 10,
   },
-  weatherIcon: {
-    fontSize: 20,
-    marginRight: 8,
+  highlightBullet: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 12,
   },
-  weatherText: {
-    fontSize: 16,
+  favoriteCard: {
+    borderWidth: 1.5,
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  favoriteQuote: {
+    fontStyle: "italic",
   },
   gradientOverlay: {
     position: "absolute",
