@@ -35,7 +35,17 @@ export default function MomentDetailView({
   const scrollX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const photos = moment.photos || [];
+  // Filter out invalid/blob URLs
+  const filterValidPhotos = (photoUrls: string[]): string[] => {
+    return photoUrls.filter(
+      (url) =>
+        url &&
+        typeof url === "string" &&
+        (url.startsWith("http://") || url.startsWith("https://"))
+    );
+  };
+
+  const photos = filterValidPhotos(moment.photos || []);
 
   React.useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -116,6 +126,9 @@ export default function MomentDetailView({
                   source={{ uri: photo }}
                   style={styles.photo}
                   resizeMode="cover"
+                  onError={(error) => {
+                    console.error("❌ Failed to load image in detail view:", photo, error);
+                  }}
                 />
               ))}
             </Animated.ScrollView>
@@ -196,8 +209,8 @@ export default function MomentDetailView({
         style={[
           styles.gradientOverlay,
           { backgroundColor: MOMENT_GRADIENT[0] + "20" },
+          { pointerEvents: "none" },
         ]}
-        pointerEvents="none"
       />
     </View>
   );

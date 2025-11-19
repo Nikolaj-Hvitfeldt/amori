@@ -146,7 +146,7 @@ export default function MomentsScreen() {
         title: title.trim(),
         story_date: storyDate,
         description,
-        photos: validPhotos.length > 0 ? validPhotos : undefined,
+        photos: validPhotos.length > 0 ? validPhotos : [],
       };
 
       if (editingMoment) {
@@ -156,7 +156,7 @@ export default function MomentsScreen() {
       }
 
       closeModal();
-      loadMoments();
+      await loadMoments();
     } catch (error) {
       console.error("Error saving moment:", error);
       Alert.alert("Error", "Failed to save moment");
@@ -212,17 +212,22 @@ export default function MomentsScreen() {
           } else {
             const response = await fetch(uri);
             const blob = await response.blob();
-            return new Promise((resolve, reject) => {
+            return new Promise<string>(async (resolve, reject) => {
               const reader = new FileReader();
-              reader.onloadend = () => {
-                const dataUrl = reader.result as string;
-                const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-                if (matches && matches.length === 3) {
-                  mimeType = matches[1];
-                  base64 = matches[2];
-                  uploadBase64();
-                } else {
-                  reject(new Error("Failed to convert blob to base64"));
+              reader.onloadend = async () => {
+                try {
+                  const dataUrl = reader.result as string;
+                  const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+                  if (matches && matches.length === 3) {
+                    mimeType = matches[1];
+                    base64 = matches[2];
+                    const url = await uploadBase64();
+                    resolve(url);
+                  } else {
+                    reject(new Error("Failed to convert blob to base64"));
+                  }
+                } catch (error) {
+                  reject(error);
                 }
               };
               reader.onerror = reject;
@@ -232,17 +237,22 @@ export default function MomentsScreen() {
         } else {
           const response = await fetch(uri);
           const blob = await response.blob();
-          return new Promise((resolve, reject) => {
+          return new Promise<string>(async (resolve, reject) => {
             const reader = new FileReader();
-            reader.onloadend = () => {
-              const dataUrl = reader.result as string;
-              const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-              if (matches && matches.length === 3) {
-                mimeType = matches[1];
-                base64 = matches[2];
-                uploadBase64();
-              } else {
-                reject(new Error("Failed to convert to base64"));
+            reader.onloadend = async () => {
+              try {
+                const dataUrl = reader.result as string;
+                const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+                if (matches && matches.length === 3) {
+                  mimeType = matches[1];
+                  base64 = matches[2];
+                  const url = await uploadBase64();
+                  resolve(url);
+                } else {
+                  reject(new Error("Failed to convert to base64"));
+                }
+              } catch (error) {
+                reject(error);
               }
             };
             reader.onerror = reject;
@@ -269,6 +279,8 @@ export default function MomentsScreen() {
         });
 
         if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Upload failed:", response.status, errorText);
           throw new Error(`Upload failed: ${response.statusText}`);
         }
 
@@ -309,7 +321,9 @@ export default function MomentsScreen() {
             uploadImage(asset.uri)
           );
           const uploadedUrls = await Promise.all(uploadPromises);
-          setPhotos([...photos, ...uploadedUrls]);
+          
+          // Use functional update to avoid stale closure
+          setPhotos((prevPhotos) => [...prevPhotos, ...uploadedUrls]);
         } catch (uploadError) {
           console.error("Error uploading images:", uploadError);
           Alert.alert("Upload Error", "Failed to upload images");
