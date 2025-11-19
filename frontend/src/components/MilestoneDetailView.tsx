@@ -57,9 +57,9 @@ export default function MilestoneDetailView({
   onClose,
   onEdit,
 }: MilestoneDetailViewProps) {
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [carouselWidth, setCarouselWidth] = useState(SCREEN_WIDTH);
 
   const config = getMilestoneConfig(milestone.milestone_type);
   const photos = filterValidPhotos(milestone.photos || []);
@@ -98,18 +98,18 @@ export default function MilestoneDetailView({
                 { useNativeDriver: false }
               )}
               scrollEventThrottle={16}
-              onMomentumScrollEnd={(event) => {
-                const index = Math.round(
-                  event.nativeEvent.contentOffset.x / SCREEN_WIDTH
-                );
-                setCurrentPhotoIndex(index);
+              onLayout={(event) => {
+                const width = event.nativeEvent.layout.width;
+                if (width && width !== carouselWidth) {
+                  setCarouselWidth(width);
+                }
               }}
             >
               {photos.map((photo, index) => (
                 <Image
                   key={`${photo}-${index}`}
                   source={{ uri: photo }}
-                  style={styles.photo}
+                  style={[styles.photo, { width: carouselWidth }]}
                   resizeMode="cover"
                   onError={(error) => {
                     console.warn("Failed to load milestone image:", photo, error);
@@ -119,15 +119,36 @@ export default function MilestoneDetailView({
             </Animated.ScrollView>
             {photos.length > 1 && (
               <View style={styles.photoIndicators}>
-                {photos.map((_, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.indicator,
-                      index === currentPhotoIndex && styles.activeIndicator,
-                    ]}
-                  />
-                ))}
+                {photos.map((_, index) => {
+                  const inputRange = [
+                    (index - 1) * carouselWidth,
+                    index * carouselWidth,
+                    (index + 1) * carouselWidth,
+                  ];
+                  const scale = scrollX.interpolate({
+                    inputRange,
+                    outputRange: [0.7, 1.35, 0.7],
+                    extrapolate: "clamp",
+                  });
+                  const opacity = scrollX.interpolate({
+                    inputRange,
+                    outputRange: [0.3, 1, 0.3],
+                    extrapolate: "clamp",
+                  });
+                  return (
+                    <Animated.View
+                      key={`indicator-${index}`}
+                      style={[
+                        styles.indicator,
+                        {
+                          backgroundColor: config.color,
+                          opacity,
+                          transform: [{ scale }],
+                        },
+                      ]}
+                    />
+                  );
+                })}
               </View>
             )}
           </>
@@ -251,6 +272,7 @@ const styles = StyleSheet.create({
   photoContainer: {
     height: SCREEN_HEIGHT * 0.5,
     position: "relative",
+    paddingBottom: 24,
     backgroundColor: "#1f120a",
   },
   photo: {
@@ -259,22 +281,19 @@ const styles = StyleSheet.create({
   },
   photoIndicators: {
     position: "absolute",
-    bottom: 20,
+    bottom: 46,
     left: 0,
     right: 0,
     flexDirection: "row",
     justifyContent: "center",
-    gap: 6,
+    alignItems: "center",
+    zIndex: 10,
   },
   indicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "rgba(255,255,255,0.4)",
-  },
-  activeIndicator: {
-    width: 24,
-    backgroundColor: GOLD,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginHorizontal: 4,
   },
   placeholder: {
     flex: 1,

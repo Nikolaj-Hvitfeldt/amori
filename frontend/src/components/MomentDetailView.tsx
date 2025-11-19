@@ -31,9 +31,9 @@ export default function MomentDetailView({
   onClose,
   onEdit,
 }: MomentDetailViewProps) {
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [carouselWidth, setCarouselWidth] = useState(SCREEN_WIDTH);
 
   // Filter out invalid/blob URLs
   const filterValidPhotos = (photoUrls: string[]): string[] => {
@@ -113,18 +113,18 @@ export default function MomentDetailView({
                 { useNativeDriver: false }
               )}
               scrollEventThrottle={16}
-              onMomentumScrollEnd={(event) => {
-                const index = Math.round(
-                  event.nativeEvent.contentOffset.x / SCREEN_WIDTH
-                );
-                setCurrentPhotoIndex(index);
+              onLayout={(event) => {
+                const width = event.nativeEvent.layout.width;
+                if (width && width !== carouselWidth) {
+                  setCarouselWidth(width);
+                }
               }}
             >
               {photos.map((photo: string, index: number) => (
                 <Image
                   key={index}
                   source={{ uri: photo }}
-                  style={styles.photo}
+                  style={[styles.photo, { width: carouselWidth }]}
                   resizeMode="cover"
                   onError={(error) => {
                     console.error("❌ Failed to load image in detail view:", photo, error);
@@ -136,15 +136,36 @@ export default function MomentDetailView({
             {/* Photo Indicators */}
             {photos.length > 1 && (
               <View style={styles.photoIndicators}>
-                {photos.map((_: string, index: number) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.indicator,
-                      index === currentPhotoIndex && styles.activeIndicator,
-                    ]}
-                  />
-                ))}
+                {photos.map((_: string, index: number) => {
+                  const inputRange = [
+                    (index - 1) * carouselWidth,
+                    index * carouselWidth,
+                    (index + 1) * carouselWidth,
+                  ];
+                  const scale = scrollX.interpolate({
+                    inputRange,
+                    outputRange: [0.7, 1.4, 0.7],
+                    extrapolate: "clamp",
+                  });
+                  const opacity = scrollX.interpolate({
+                    inputRange,
+                    outputRange: [0.3, 1, 0.3],
+                    extrapolate: "clamp",
+                  });
+                  return (
+                    <Animated.View
+                      key={`indicator-${index}`}
+                      style={[
+                        styles.indicator,
+                        {
+                          backgroundColor: MOMENT_COLOR,
+                          opacity,
+                          transform: [{ scale }],
+                        },
+                      ]}
+                    />
+                  );
+                })}
               </View>
             )}
           </>
@@ -175,32 +196,46 @@ export default function MomentDetailView({
           showsVerticalScrollIndicator={false}
         >
           {/* Heart Badge */}
-          <View style={[styles.heartBadge, { backgroundColor: MOMENT_COLOR + "40" }]}>
+          <View
+            style={[
+              styles.heartBadge,
+              { borderColor: MOMENT_COLOR + "60", backgroundColor: MOMENT_COLOR + "15" },
+            ]}
+          >
             <Text style={styles.heartIcon}>💕</Text>
             <Text style={[styles.heartLabel, { color: MOMENT_COLOR }]}>
               Special Moment
             </Text>
           </View>
 
-          {/* Title and Date Header */}
-          <View style={styles.dateHeader}>
-            <Text style={[styles.dateText, { color: MOMENT_TEXT }]}>
-              {moment.title}
-            </Text>
-            <Text style={[styles.daysAgoText, { color: MOMENT_TEXT + "80" }]}>
-              {formatDate(moment.story_date)} • {getDaysAgo(moment.story_date)}
+          <Text style={[styles.titleText, { color: MOMENT_TEXT }]}>{moment.title}</Text>
+          <Text style={[styles.subtitleText, { color: MOMENT_TEXT + "aa" }]}>
+            {formatDate(moment.story_date)} • {getDaysAgo(moment.story_date)}
+          </Text>
+
+          <View style={styles.metaGrid}>
+            <View style={[styles.metaCard, { borderColor: MOMENT_COLOR + "60" }]}>
+              <Text style={styles.metaLabel}>Date</Text>
+              <Text style={[styles.metaValue, { color: MOMENT_TEXT }]}>
+                {formatDate(moment.story_date)}
+              </Text>
+            </View>
+            <View style={[styles.metaCard, { borderColor: MOMENT_COLOR + "60" }]}>
+              <Text style={styles.metaLabel}>Since</Text>
+              <Text style={[styles.metaValue, { color: MOMENT_TEXT }]}>
+                {getDaysAgo(moment.story_date)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.sectionCard, styles.descriptionCard]}>
+            <Text style={[styles.sectionTitle, { color: MOMENT_TEXT }]}>💖 Story</Text>
+            <Text style={[styles.sectionBody, { color: MOMENT_TEXT + "dd" }]}>
+              {moment.description || "No description for this moment yet."}
             </Text>
           </View>
 
-          {/* Description */}
-          <View style={styles.descriptionContainer}>
-            <Text style={[styles.descriptionText, { color: MOMENT_TEXT }]}>
-              {moment.description}
-            </Text>
-          </View>
-
-          {/* Spacer */}
-          <View style={{ height: 40 }} />
+          <View style={{ height: 60 }} />
         </ScrollView>
       </Animated.View>
 
@@ -224,6 +259,7 @@ const styles = StyleSheet.create({
   photoContainer: {
     height: SCREEN_HEIGHT * 0.5,
     position: "relative",
+    paddingBottom: 24,
   },
   photo: {
     width: SCREEN_WIDTH,
@@ -231,22 +267,19 @@ const styles = StyleSheet.create({
   },
   photoIndicators: {
     position: "absolute",
-    bottom: 20,
+    bottom: 54,
     left: 0,
     right: 0,
     flexDirection: "row",
     justifyContent: "center",
-    gap: 8,
+    alignItems: "center",
+    zIndex: 10,
   },
   indicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.4)",
-  },
-  activeIndicator: {
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    width: 24,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginHorizontal: 4,
   },
   headerOverlay: {
     position: "absolute",
@@ -301,10 +334,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     paddingVertical: 8,
-    borderRadius: 20,
-    marginBottom: 20,
+    borderRadius: 24,
+    borderWidth: 1,
+    marginBottom: 18,
   },
   heartIcon: {
     fontSize: 20,
@@ -313,29 +347,62 @@ const styles = StyleSheet.create({
   heartLabel: {
     fontSize: 16,
     fontWeight: "600",
+    letterSpacing: 0.5,
   },
-  dateHeader: {
-    marginBottom: 16,
+  titleText: {
+    fontSize: 34,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    marginBottom: 6,
   },
-  dateText: {
-    fontSize: 32,
-    fontWeight: "300",
+  subtitleText: {
+    fontSize: 15,
+    marginBottom: 20,
+  },
+  metaGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginBottom: 18,
+  },
+  metaCard: {
+    width: "48%",
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 16,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    marginBottom: 12,
+  },
+  metaLabel: {
+    fontSize: 13,
+    textTransform: "uppercase",
     letterSpacing: 1,
-    fontFamily: Platform.select({ ios: "Georgia", android: "serif" }),
-    marginBottom: 4,
+    color: "#ffb0c8",
+    marginBottom: 8,
   },
-  daysAgoText: {
-    fontSize: 14,
-    fontStyle: "italic",
-    marginTop: 4,
+  metaValue: {
+    fontSize: 18,
+    fontWeight: "600",
   },
-  descriptionContainer: {
-    marginBottom: 24,
+  sectionCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(26,15,26,0.95)",
+    padding: 22,
+    marginBottom: 18,
   },
-  descriptionText: {
-    fontSize: 17,
-    lineHeight: 26,
-    letterSpacing: 0.3,
+  descriptionCard: {
+    borderColor: MOMENT_COLOR + "30",
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  sectionBody: {
+    fontSize: 16,
+    lineHeight: 24,
   },
   gradientOverlay: {
     position: "absolute",
