@@ -1,6 +1,5 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { JournalModule } from "./journal/journal.module";
 import { SupabaseModule } from "./supabase/supabase.module";
 import { MomentsModule } from "./moments/moments.module";
 import { DatesModule } from "./dates/dates.module";
@@ -13,7 +12,7 @@ import { MilestonesModule } from "./milestones/milestones.module";
       envFilePath: ".env",
     }),
     SupabaseModule,
-    JournalModule,
+    // JournalModule removed - legacy system replaced by Dates/Moments/Milestones modules
     MomentsModule,
     DatesModule,
     MilestonesModule,
