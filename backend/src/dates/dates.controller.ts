@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   HttpException,
   HttpStatus,
 } from "@nestjs/common";
@@ -33,9 +34,11 @@ export class DatesController {
   }
 
   @Get()
-  async findAll() {
+  async findAll(@Query("limit") limit?: string, @Query("offset") offset?: string) {
     try {
-      return await this.datesService.findAll();
+      const limitNum = limit ? parseInt(limit, 10) : undefined;
+      const offsetNum = offset ? parseInt(offset, 10) : undefined;
+      return await this.datesService.findAll(limitNum, offsetNum);
     } catch (error) {
       throw new HttpException(
         error.message || "Failed to fetch date entries",

@@ -4,26 +4,69 @@ import {
   UpdateMilestoneDto,
 } from "../types/milestones";
 import { API_BASE_URL } from "./api";
+import { getCachedData, setCachedData, invalidateResourceCache } from "../utils/cache";
+
+const CACHE_KEY_ALL = "milestones_all";
+const CACHE_KEY_PREFIX = "milestones_";
 
 export const milestonesService = {
-  async getAll(): Promise<Milestone[]> {
-    const response = await fetch(`${API_BASE_URL}/milestones`);
+  async getAll(limit?: number, offset?: number): Promise<{ data: Milestone[]; total: number }> {
+    const cacheKey = limit !== undefined || offset !== undefined 
+      ? `${CACHE_KEY_ALL}_${limit || 'all'}_${offset || 0}`
+      : CACHE_KEY_ALL;
+    
+    // Check cache first (only for full loads, not paginated)
+    if (limit === undefined && offset === undefined) {
+      const cached = await getCachedData<{ data: Milestone[]; total: number }>(cacheKey);
+      if (cached !== null) {
+        return cached;
+      }
+    }
+
+    // Build URL with query parameters
+    const url = new URL(`${API_BASE_URL}/milestones`);
+    if (limit !== undefined) url.searchParams.set("limit", limit.toString());
+    if (offset !== undefined) url.searchParams.set("offset", offset.toString());
+
+    // Fetch from API
+    const response = await fetch(url.toString());
 
     if (!response.ok) {
       throw new Error(`Failed to fetch milestones: ${response.statusText}`);
     }
 
-    return response.json();
+    const result = await response.json();
+    
+    // Cache the result with 1 hour TTL (milestones change less frequently, only for full loads)
+    if (limit === undefined && offset === undefined) {
+      await setCachedData(cacheKey, result, 60 * 60 * 1000);
+    }
+    
+    return result;
   },
 
   async getById(id: string): Promise<Milestone> {
+    const cacheKey = `${CACHE_KEY_PREFIX}${id}`;
+    
+    // Check cache first
+    const cached = await getCachedData<Milestone>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
+    // Fetch from API
     const response = await fetch(`${API_BASE_URL}/milestones/${id}`);
 
     if (!response.ok) {
       throw new Error(`Failed to fetch milestone: ${response.statusText}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    
+    // Cache the result with 1 hour TTL (milestones change less frequently)
+    await setCachedData(cacheKey, data, 60 * 60 * 1000);
+    
+    return data;
   },
 
   async create(milestone: CreateMilestoneDto): Promise<Milestone> {
@@ -43,7 +86,12 @@ export const milestonesService = {
       );
     }
 
-    return response.json();
+    const data = await response.json();
+    
+    // Invalidate cache since we added a new entry
+    await invalidateResourceCache("milestones");
+    
+    return data;
   },
 
   async update(id: string, milestone: UpdateMilestoneDto): Promise<Milestone> {
@@ -63,7 +111,12 @@ export const milestonesService = {
       );
     }
 
-    return response.json();
+    const data = await response.json();
+    
+    // Invalidate cache for this specific entry and the list
+    await invalidateResourceCache("milestones");
+    
+    return data;
   },
 
   async delete(id: string): Promise<void> {
@@ -78,6 +131,9 @@ export const milestonesService = {
         `Failed to delete milestone: ${response.status} - ${errorText}`
       );
     }
+
+    // Invalidate cache since we removed an entry
+    await invalidateResourceCache("milestones");
   },
 };
 

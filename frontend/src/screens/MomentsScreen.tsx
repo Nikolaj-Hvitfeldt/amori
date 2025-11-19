@@ -3,6 +3,7 @@ import {
   View,
   Text,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   TextInput,
   Modal,
@@ -12,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  ActivityIndicator,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -75,9 +77,14 @@ const MOMENT_GRADIENT = ["#FF6B9D", "#FF8E9D", "#FFB3C1"];
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
+const ITEMS_PER_PAGE = 10;
+
 export default function MomentsScreen() {
   const [moments, setMoments] = useState<Moment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [total, setTotal] = useState(0);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isDetailVisible, setIsDetailVisible] = useState(false);
   const [selectedMoment, setSelectedMoment] = useState<Moment | null>(null);
@@ -97,20 +104,57 @@ export default function MomentsScreen() {
     loadMoments();
   }, []);
 
-  const loadMoments = async () => {
+  const loadMoments = async (reset: boolean = true) => {
     try {
-      setLoading(true);
-      const fetchedMoments = await momentsService.getAllMoments();
-      setMoments(
-        fetchedMoments.sort(
-          (a, b) => new Date(b.story_date).getTime() - new Date(a.story_date).getTime()
-        )
+      if (reset) {
+        setLoading(true);
+        setMoments([]);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const offset = reset ? 0 : moments.length;
+      const result = await momentsService.getAllMoments(ITEMS_PER_PAGE, offset);
+      
+      // Safety check: ensure result and result.data exist
+      if (!result || !result.data || !Array.isArray(result.data)) {
+        console.error("Invalid API response:", result);
+        throw new Error("Invalid response from server");
+      }
+      
+      const sortedMoments = result.data.sort(
+        (a, b) => new Date(b.story_date).getTime() - new Date(a.story_date).getTime()
       );
+
+      if (reset) {
+        setMoments(sortedMoments);
+        setHasMore(sortedMoments.length < (result.total || 0));
+      } else {
+        setMoments((prev) => {
+          // Deduplicate by ID to prevent duplicate keys
+          const existingIds = new Set(prev.map((m) => m.id));
+          const uniqueNewMoments = sortedMoments.filter(
+            (m) => m.id && !existingIds.has(m.id)
+          );
+          const newMoments = [...prev, ...uniqueNewMoments];
+          setHasMore(newMoments.length < (result.total || 0));
+          return newMoments;
+        });
+      }
+
+      setTotal(result.total || 0);
     } catch (error) {
       console.error("Error loading moments:", error);
       Alert.alert("Error", "Failed to load your moments");
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      loadMoments(false);
     }
   };
 
@@ -420,187 +464,209 @@ export default function MomentsScreen() {
     );
   }
 
-  return (
-    <View style={{ flex: 1, backgroundColor: MOMENT_BG }}>
-      <ScrollView style={{ flex: 1, padding: 20 }}>
-        {moments.length === 0 ? (
+  const renderMoment = ({ item: moment }: { item: Moment }) => {
+    const momentPhotos = filterValidPhotos(moment.photos || []);
+    // Use thumbnails for list view performance
+    const thumbnailPhotos = momentPhotos.map((photo) => getThumbnailUrl(photo));
+
+    return (
+      <TouchableOpacity
+        key={moment.id}
+        onPress={() => handleViewMoment(moment)}
+        onLongPress={() => openModal(moment)}
+        style={{
+          backgroundColor: MOMENT_BG,
+          borderRadius: 24,
+          padding: 20,
+          marginBottom: 20,
+          marginHorizontal: 20,
+          minHeight: 180,
+          overflow: "hidden",
+          position: "relative",
+          borderWidth: 2,
+          borderColor: MOMENT_COLOR + "40",
+          ...getBoxShadow(
+            MOMENT_COLOR,
+            { width: 0, height: 6 },
+            0.5,
+            16
+          ),
+          elevation: 10,
+        }}
+      >
+        {/* Decorative heart accent */}
+        <View
+          style={{
+            position: "absolute",
+            top: -20,
+            right: -20,
+            width: 120,
+            height: 120,
+            borderRadius: 60,
+            backgroundColor: MOMENT_COLOR + "15",
+            opacity: 0.6,
+          }}
+        />
+
+        {/* Rotating Photo Background - using thumbnails for performance */}
+        {momentPhotos.length > 0 && (
+          <RotatingPhotoBackground
+            photos={thumbnailPhotos}
+            interval={8000}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 0,
+            }}
+          />
+        )}
+
+        {/* Content with relative positioning to appear above background */}
+        <View style={{ position: "relative", zIndex: 1 }}>
           <View
             style={{
-              flex: 1,
-              alignItems: "center",
-              justifyContent: "center",
-              paddingVertical: 100,
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              marginBottom: 8,
             }}
           >
-            <Text style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>
-              💕
-            </Text>
-            <Text
-              style={{
-                fontSize: 18,
-                color: MOMENT_TEXT + "80",
-                textAlign: "center",
-                fontStyle: "italic",
-                lineHeight: 24,
-              }}
-            >
-              No special moments yet.{"\n"}
-              Capture your first moment to begin!
-            </Text>
-          </View>
-        ) : (
-          moments.map((moment) => {
-            const momentPhotos = filterValidPhotos(moment.photos || []);
-            // Use thumbnails for list view performance
-            const thumbnailPhotos = momentPhotos.map((photo) => getThumbnailUrl(photo));
-
-            return (
-              <TouchableOpacity
-                key={moment.id}
-                onPress={() => handleViewMoment(moment)}
-                onLongPress={() => openModal(moment)}
+            <View style={{ flex: 1 }}>
+              {/* Title */}
+              <Text
                 style={{
-                  backgroundColor: MOMENT_BG,
-                  borderRadius: 24,
-                  padding: 20,
-                  marginBottom: 20,
-                  minHeight: 180,
-                  overflow: "hidden",
-                  position: "relative",
-                  borderWidth: 2,
-                  borderColor: MOMENT_COLOR + "40",
-                  ...getBoxShadow(
-                    MOMENT_COLOR,
-                    { width: 0, height: 6 },
-                    0.5,
-                    16
+                  fontSize: 20,
+                  fontWeight: "600",
+                  color:
+                    momentPhotos.length > 0 ? "#ffffff" : MOMENT_TEXT,
+                  marginBottom: 4,
+                  ...getTextShadow(
+                    "rgba(0, 0, 0, 0.75)",
+                    { width: 0, height: 1 },
+                    3
                   ),
-                  elevation: 10,
                 }}
               >
-                {/* Decorative heart accent */}
-                <View
+                {moment.title}
+              </Text>
+              {/* Date below title - italic small font */}
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontStyle: "italic",
+                  color:
+                    momentPhotos.length > 0 ? "#f3f4f6" : MOMENT_TEXT + "80",
+                  marginBottom: 8,
+                  ...getTextShadow(
+                    "rgba(0, 0, 0, 0.75)",
+                    { width: 0, height: 1 },
+                    3
+                  ),
+                }}
+              >
+                {formatDate(moment.story_date)}
+              </Text>
+              <View
+                style={{ flexDirection: "row", alignItems: "center" }}
+              >
+                <Text style={{ fontSize: 20, marginRight: 8 }}>💕</Text>
+                <Text
                   style={{
-                    position: "absolute",
-                    top: -20,
-                    right: -20,
-                    width: 120,
-                    height: 120,
-                    borderRadius: 60,
-                    backgroundColor: MOMENT_COLOR + "15",
-                    opacity: 0.6,
+                    fontSize: 14,
+                    color:
+                      momentPhotos.length > 0
+                        ? "#ffffff"
+                        : MOMENT_COLOR,
+                    fontWeight: "500",
+                    ...getTextShadow(
+                      "rgba(0, 0, 0, 0.75)",
+                      { width: 0, height: 1 },
+                      3
+                    ),
                   }}
-                />
+                >
+                  Special Moment
+                </Text>
+              </View>
+            </View>
+          </View>
 
-                {/* Rotating Photo Background - using thumbnails for performance */}
-                {momentPhotos.length > 0 && (
-                  <RotatingPhotoBackground
-                    photos={thumbnailPhotos}
-                    interval={8000}
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      zIndex: 0,
-                    }}
-                  />
-                )}
+          <Text
+            style={{
+              fontSize: 16,
+              color:
+                momentPhotos.length > 0 ? "#ffffff" : MOMENT_TEXT + "CC",
+              marginTop: 8,
+              fontWeight: "500",
+              ...getTextShadow(
+                "rgba(0, 0, 0, 0.75)",
+                { width: 0, height: 1 },
+                3
+              ),
+            }}
+            numberOfLines={2}
+          >
+            {moment.description}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
-                {/* Content with relative positioning to appear above background */}
-                <View style={{ position: "relative", zIndex: 1 }}>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      marginBottom: 8,
-                    }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      {/* Title */}
-                      <Text
-                        style={{
-                          fontSize: 20,
-                          fontWeight: "600",
-                          color:
-                            momentPhotos.length > 0 ? "#ffffff" : MOMENT_TEXT,
-                          marginBottom: 4,
-                          ...getTextShadow(
-                            "rgba(0, 0, 0, 0.75)",
-                            { width: 0, height: 1 },
-                            3
-                          ),
-                        }}
-                      >
-                        {moment.title}
-                      </Text>
-                      {/* Date below title - italic small font */}
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          fontStyle: "italic",
-                          color:
-                            momentPhotos.length > 0 ? "#f3f4f6" : MOMENT_TEXT + "80",
-                          marginBottom: 8,
-                          ...getTextShadow(
-                            "rgba(0, 0, 0, 0.75)",
-                            { width: 0, height: 1 },
-                            3
-                          ),
-                        }}
-                      >
-                        {formatDate(moment.story_date)}
-                      </Text>
-                      <View
-                        style={{ flexDirection: "row", alignItems: "center" }}
-                      >
-                        <Text style={{ fontSize: 20, marginRight: 8 }}>💕</Text>
-                        <Text
-                          style={{
-                            fontSize: 14,
-                            color:
-                              momentPhotos.length > 0
-                                ? "#ffffff"
-                                : MOMENT_COLOR,
-                            fontWeight: "500",
-                            ...getTextShadow(
-                              "rgba(0, 0, 0, 0.75)",
-                              { width: 0, height: 1 },
-                              3
-                            ),
-                          }}
-                        >
-                          Special Moment
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
+  const renderEmpty = () => (
+    <View
+      style={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 100,
+      }}
+    >
+      <Text style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>
+        💕
+      </Text>
+      <Text
+        style={{
+          fontSize: 18,
+          color: MOMENT_TEXT + "80",
+          textAlign: "center",
+          fontStyle: "italic",
+          lineHeight: 24,
+        }}
+      >
+        No special moments yet.{"\n"}
+        Capture your first moment to begin!
+      </Text>
+    </View>
+  );
 
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      color:
-                        momentPhotos.length > 0 ? "#ffffff" : MOMENT_TEXT + "CC",
-                      marginTop: 8,
-                      fontWeight: "500",
-                      ...getTextShadow(
-                        "rgba(0, 0, 0, 0.75)",
-                        { width: 0, height: 1 },
-                        3
-                      ),
-                    }}
-                    numberOfLines={2}
-                  >
-                    {moment.description}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })
-        )}
-      </ScrollView>
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View style={{ padding: 20, alignItems: "center" }}>
+        <ActivityIndicator size="small" color={MOMENT_COLOR} />
+      </View>
+    );
+  };
+
+  return (
+    <View style={{ flex: 1, backgroundColor: MOMENT_BG }}>
+      <FlatList
+        data={moments}
+        renderItem={renderMoment}
+        keyExtractor={(item, index) => item.id || `moment-${index}`}
+        ListEmptyComponent={renderEmpty}
+        ListFooterComponent={renderFooter}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        contentContainerStyle={{ paddingVertical: 20 }}
+        showsVerticalScrollIndicator={false}
+        refreshing={loading && moments.length === 0}
+        onRefresh={() => loadMoments(true)}
+      />
 
       {/* Floating Action Button */}
       <TouchableOpacity
