@@ -15,12 +15,10 @@ export const milestonesService = {
       ? `${CACHE_KEY_ALL}_${limit || 'all'}_${offset || 0}`
       : CACHE_KEY_ALL;
     
-    // Check cache first (only for full loads, not paginated)
-    if (limit === undefined && offset === undefined) {
-      const cached = await getCachedData<{ data: Milestone[]; total: number }>(cacheKey);
-      if (cached !== null) {
-        return cached;
-      }
+    // Check cache first for all requests
+    const cached = await getCachedData<{ data: Milestone[]; total: number }>(cacheKey);
+    if (cached !== null) {
+      return cached;
     }
 
     // Build URL with query parameters
@@ -37,10 +35,8 @@ export const milestonesService = {
 
     const result = await response.json();
     
-    // Cache the result with 1 hour TTL (milestones change less frequently, only for full loads)
-    if (limit === undefined && offset === undefined) {
-      await setCachedData(cacheKey, result, 60 * 60 * 1000);
-    }
+    // Cache the result with 1 hour TTL (milestones change less frequently) for all requests
+    await setCachedData(cacheKey, result, 60 * 60 * 1000);
     
     return result;
   },

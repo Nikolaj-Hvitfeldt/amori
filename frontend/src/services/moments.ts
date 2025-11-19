@@ -17,12 +17,10 @@ class MomentsService {
         ? `${CACHE_KEY_ALL}_${limit || 'all'}_${offset || 0}`
         : CACHE_KEY_ALL;
       
-      // Check cache first (only for full loads, not paginated)
-      if (limit === undefined && offset === undefined) {
-        const cached = await getCachedData<{ data: Moment[]; total: number }>(cacheKey);
-        if (cached !== null) {
-          return cached;
-        }
+      // Check cache first for all requests
+      const cached = await getCachedData<{ data: Moment[]; total: number }>(cacheKey);
+      if (cached !== null) {
+        return cached;
       }
 
       // Build URL with query parameters
@@ -38,10 +36,8 @@ class MomentsService {
       
       const result = await response.json();
       
-      // Cache the result with 30 minute TTL (only for full loads)
-      if (limit === undefined && offset === undefined) {
-        await setCachedData(cacheKey, result, 30 * 60 * 1000);
-      }
+      // Cache the result with 30 minute TTL for all requests
+      await setCachedData(cacheKey, result, 30 * 60 * 1000);
       
       return result;
     } catch (error) {
