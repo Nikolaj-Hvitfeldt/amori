@@ -337,6 +337,12 @@ export default function DatesScreen() {
       const filteredHighlights = highlights.filter((h) => h.trim() !== "");
       // Filter out invalid/blob URLs before saving
       const validPhotos = filterValidPhotos(photos);
+      
+      // Debug logging
+      console.log("💾 Saving date entry:");
+      console.log("  - Photos in state:", photos);
+      console.log("  - Valid photos after filtering:", validPhotos);
+      console.log("  - Photos count:", photos.length, "->", validPhotos.length);
 
       const dateData: CreateDateEntryDto = {
         title: title.trim() || undefined,
@@ -347,16 +353,21 @@ export default function DatesScreen() {
         highlights: filteredHighlights,
         weather: weather || undefined,
         favorite_moment: favoriteMoment || undefined,
-        // Explicitly pass empty array to clear photos, not undefined
-        photos: validPhotos.length > 0 ? validPhotos : [],
+        // Always include photos array - empty array means no photos
+        photos: validPhotos,
       };
+      
+      console.log("  - Data being sent:", { ...dateData, photos: dateData.photos });
 
       if (editingDate) {
+        console.log("  - Updating existing date:", editingDate.id);
         await datesService.update(editingDate.id, dateData);
       } else {
+        console.log("  - Creating new date");
         await datesService.create(dateData);
       }
 
+      console.log("  - ✅ Date saved successfully");
       closeModal();
       loadDates();
     } catch (error) {
@@ -546,8 +557,11 @@ export default function DatesScreen() {
             return uploadImage(asset.uri);
           });
           const uploadedUrls = await Promise.all(uploadPromises);
-          console.log("Uploaded URLs:", uploadedUrls);
-          setPhotos([...photos, ...uploadedUrls]);
+          console.log("📸 Uploaded URLs:", uploadedUrls);
+          console.log("📸 Current photos before adding:", photos);
+          const newPhotos = [...photos, ...uploadedUrls];
+          console.log("📸 New photos array:", newPhotos);
+          setPhotos(newPhotos);
         } catch (uploadError) {
           console.error("Error uploading images:", uploadError);
           Alert.alert(

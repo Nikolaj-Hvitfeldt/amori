@@ -21,8 +21,14 @@ Create a `.env` file in the backend directory:
 
 ```
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
+
+**Important Notes:**
+- Use `SUPABASE_SERVICE_ROLE_KEY` (service role key), NOT the anon key
+- The service role key has full access and bypasses RLS policies
+- Find it in Supabase Dashboard > Settings > API > Service Role Key
+- You can also use `SUPABASE_KEY` as an alias (it will check both)
 
 ## API Endpoints
 

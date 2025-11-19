@@ -85,13 +85,23 @@ export class DatesService {
     id: string,
     updateDateEntryDto: UpdateDateEntryDto
   ): Promise<DateEntry> {
-    // Explicitly handle photos array - if it's provided (even if empty), update it
+    // Build update data, but handle photos specially
     const updateData: any = {
-      ...updateDateEntryDto,
       updated_at: new Date().toISOString(),
     };
     
-    // If photos is explicitly provided (including empty array), ensure it's set
+    // Only include fields that are actually provided
+    if (updateDateEntryDto.title !== undefined) updateData.title = updateDateEntryDto.title;
+    if (updateDateEntryDto.date !== undefined) updateData.date = updateDateEntryDto.date;
+    if (updateDateEntryDto.location !== undefined) updateData.location = updateDateEntryDto.location;
+    if (updateDateEntryDto.description !== undefined) updateData.description = updateDateEntryDto.description;
+    if (updateDateEntryDto.mood !== undefined) updateData.mood = updateDateEntryDto.mood;
+    if (updateDateEntryDto.highlights !== undefined) updateData.highlights = updateDateEntryDto.highlights;
+    if (updateDateEntryDto.weather !== undefined) updateData.weather = updateDateEntryDto.weather;
+    if (updateDateEntryDto.favorite_moment !== undefined) updateData.favorite_moment = updateDateEntryDto.favorite_moment;
+    
+    // Only update photos if explicitly provided (allows clearing with empty array)
+    // If photos is not in the DTO, don't touch the existing photos
     if ('photos' in updateDateEntryDto) {
       updateData.photos = updateDateEntryDto.photos || [];
     }
