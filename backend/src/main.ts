@@ -30,8 +30,24 @@ async function bootstrap() {
 
   // Listen on all interfaces (0.0.0.0) so mobile devices can connect
   await app.listen(3000, "0.0.0.0");
+  
+  // Get local IP for mobile connection
+  const os = require('os');
+  const networkInterfaces = os.networkInterfaces();
+  let localIP = 'localhost';
+  for (const name of Object.keys(networkInterfaces)) {
+    for (const iface of networkInterfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        localIP = iface.address;
+        break;
+      }
+    }
+    if (localIP !== 'localhost') break;
+  }
+  
   console.log("Backend is running on http://0.0.0.0:3000");
-  console.log("Also accessible at http://172.20.10.3:3000");
+  console.log(`Also accessible at http://${localIP}:3000`);
   console.log("Body size limit set to 20MB");
+  console.log(`\n📱 For mobile connection, update frontend/src/services/api.ts with: http://${localIP}:3000`);
 }
 bootstrap();

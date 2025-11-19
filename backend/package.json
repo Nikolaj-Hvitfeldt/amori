@@ -13,7 +13,8 @@
     "regenerate:thumbnails": "ts-node scripts/regenerate-thumbnails.ts",
     "compress:images": "ts-node scripts/compress-existing-images.ts",
     "fix:date-photos": "ts-node scripts/fix-date-photos.ts",
-    "check:env": "ts-node tests/check-env.ts"
+    "check:env": "ts-node tests/check-env.ts",
+    "get:ip": "ts-node scripts/get-ip.ts"
   },
   "keywords": [],
   "author": "",
