@@ -21,6 +21,7 @@ import { Moment, CreateMomentDto } from "../types/moments";
 import { API_BASE_URL } from "../services/api";
 import RotatingPhotoBackground from "../components/RotatingPhotoBackground";
 import MomentDetailView from "../components/MomentDetailView";
+import { getThumbnailUrl } from "../utils/imageUtils";
 
 // Helper function for shadows
 const getBoxShadow = (
@@ -436,6 +437,8 @@ export default function MomentsScreen() {
         ) : (
           moments.map((moment) => {
             const momentPhotos = filterValidPhotos(moment.photos || []);
+            // Use thumbnails for list view performance
+            const thumbnailPhotos = momentPhotos.map((photo) => getThumbnailUrl(photo));
 
             return (
               <TouchableOpacity
@@ -475,10 +478,10 @@ export default function MomentsScreen() {
                   }}
                 />
 
-                {/* Rotating Photo Background */}
+                {/* Rotating Photo Background - using thumbnails for performance */}
                 {momentPhotos.length > 0 && (
                   <RotatingPhotoBackground
-                    photos={momentPhotos}
+                    photos={thumbnailPhotos}
                     interval={8000}
                     style={{
                       position: "absolute",
@@ -712,7 +715,7 @@ export default function MomentsScreen() {
                   {photos.map((photo, index) => (
                     <View key={index} style={{ position: "relative" }}>
                       <Image
-                        source={{ uri: photo }}
+                        source={{ uri: getThumbnailUrl(photo) }}
                         style={{
                           width: 120,
                           height: 120,
@@ -1110,7 +1113,7 @@ export default function MomentsScreen() {
                     {photos.map((photo, index) => (
                       <View key={index} style={{ position: "relative" }}>
                         <Image
-                          source={{ uri: photo }}
+                          source={{ uri: getThumbnailUrl(photo) }}
                           style={{
                             width: 120,
                             height: 120,
