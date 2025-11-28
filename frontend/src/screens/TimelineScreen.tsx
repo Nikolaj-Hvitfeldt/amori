@@ -17,12 +17,15 @@ import { Milestone } from "../types/milestones";
 import MomentDetailView from "../components/MomentDetailView";
 import DateDetailView from "../components/DateDetailView";
 import MilestoneDetailView from "../components/MilestoneDetailView";
-import TimelineMomentCard from "../components/timeline/TimelineMomentCard";
-import TimelineDateCard from "../components/timeline/TimelineDateCard";
-import TimelineMilestoneCard from "../components/timeline/TimelineMilestoneCard";
-import TimelineRope from "../components/timeline/TimelineRope";
+import MomentCard from "../components/MomentCard";
+import DateCard from "../components/DateCard";
+import MilestoneCard from "../components/MilestoneCard";
+import TimelineRope from "../components/TimelineRope";
+import LoadingState from "../components/common/LoadingState";
+import EmptyState from "../components/common/EmptyState";
+import LoadingMore from "../components/common/LoadingMore";
 import { getCachedData, setCachedData, invalidateCache } from "../utils/cache";
-import { TIMELINE_BG, TEXT_SECONDARY, TEXT_PRIMARY } from "../constants/theme";
+import { TIMELINE_BG, PRIMARY_PINK } from "../constants/theme";
 import {
   TIMELINE_TOP_PADDING,
   TIMELINE_BOTTOM_PADDING,
@@ -294,7 +297,7 @@ export default function TimelineScreen() {
   const renderMomentCard = (item: TimelineItem) => {
     if (!item.moment) return null;
     return (
-      <TimelineMomentCard
+      <MomentCard
         key={item.id}
         moment={item.moment}
         onPress={() => handleItemPress(item)}
@@ -305,7 +308,7 @@ export default function TimelineScreen() {
   const renderDateCard = (item: TimelineItem) => {
     if (!item.dateEntry) return null;
     return (
-      <TimelineDateCard
+      <DateCard
         key={item.id}
         dateEntry={item.dateEntry}
         onPress={() => handleItemPress(item)}
@@ -316,7 +319,7 @@ export default function TimelineScreen() {
   const renderMilestoneCard = (item: TimelineItem) => {
     if (!item.milestone) return null;
     return (
-      <TimelineMilestoneCard
+      <MilestoneCard
         key={item.id}
         milestone={item.milestone}
         onPress={() => handleItemPress(item)}
@@ -326,23 +329,22 @@ export default function TimelineScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF6B9D" />
-        <Text style={styles.loadingText}>Loading your timeline...</Text>
-      </View>
+      <LoadingState
+        message="Loading your timeline..."
+        color={PRIMARY_PINK}
+        backgroundColor={TIMELINE_BG}
+      />
     );
   }
 
   if (timelineItems.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyIcon}>📅</Text>
-        <Text style={styles.emptyTitle}>Your Timeline is Empty</Text>
-        <Text style={styles.emptyText}>
-          Start adding moments, dates, and milestones to see your journey
-          together!
-        </Text>
-      </View>
+      <EmptyState
+        icon="📅"
+        title="Your Timeline is Empty"
+        message="Start adding moments, dates, and milestones to see your journey together!"
+        backgroundColor={TIMELINE_BG}
+      />
     );
   }
 
@@ -372,11 +374,7 @@ export default function TimelineScreen() {
         })}
 
         {/* Loading more indicator */}
-        {loadingMore && (
-          <View style={styles.loadingMoreContainer}>
-            <Text style={styles.loadingMoreText}>Loading more memories...</Text>
-          </View>
-        )}
+        {loadingMore && <LoadingMore message="Loading more memories..." />}
       </ScrollView>
 
       {/* Detail Modal */}
@@ -424,55 +422,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: TIMELINE_BG,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: TIMELINE_BG,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: TEXT_SECONDARY,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: TIMELINE_BG,
-    padding: 40,
-  },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: TEXT_PRIMARY,
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: TEXT_SECONDARY,
-    textAlign: "center",
-    lineHeight: 24,
-  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingTop: TIMELINE_TOP_PADDING,
     paddingBottom: TIMELINE_BOTTOM_PADDING,
-  },
-  loadingMoreContainer: {
-    padding: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  loadingMoreText: {
-    fontSize: 14,
-    color: TEXT_SECONDARY,
-    fontStyle: "italic",
   },
 });

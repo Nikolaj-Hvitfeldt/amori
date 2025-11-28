@@ -5,7 +5,7 @@ import {
   ROPE_COLOR_DARK,
   ROPE_COLOR_LIGHT,
   GOLD,
-} from "../../constants/theme";
+} from "../constants/theme";
 import {
   ROPE_WIDTH,
   ROPE_CENTER_OFFSET,
@@ -19,7 +19,7 @@ import {
   CHARM_CONTAINER_WIDTH,
   CHARM_CONTAINER_HEIGHT,
   CHARM_BOTTOM_OFFSET,
-} from "../../constants/spacing";
+} from "../constants/spacing";
 
 export default function TimelineRope() {
   return (
@@ -251,4 +251,3 @@ const styles = StyleSheet.create({
     }),
   },
 });
-

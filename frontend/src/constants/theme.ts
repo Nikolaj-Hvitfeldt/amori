@@ -2,6 +2,9 @@
  * Theme colors for the application
  */
 
+// Primary colors
+export const PRIMARY_PINK = "#FF6B9D";
+
 // Moment/Story colors
 export const MOMENT_COLOR = "#FF6B9D";
 export const MOMENT_BG = "#1a0f1a";

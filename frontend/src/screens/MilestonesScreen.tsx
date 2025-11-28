@@ -30,6 +30,9 @@ import {
   getMilestoneConfig,
 } from "../constants/milestoneConfig";
 import MilestoneDetailView from "../components/MilestoneDetailView";
+import MilestoneCard from "../components/MilestoneCard";
+import EmptyState from "../components/common/EmptyState";
+import LoadingMore from "../components/common/LoadingMore";
 import { getThumbnailUrl, filterValidPhotos } from "../utils/imageUtils";
 import { getBoxShadow, getTextShadow } from "../utils/shadows";
 import { formatDateEU, calculateDaysSince } from "../utils/dateUtils";
@@ -177,217 +180,29 @@ export default function MilestonesScreen() {
   };
 
   const renderMilestoneItem = ({ item: milestone }: { item: Milestone }) => {
-    const config = MILESTONE_CONFIG[milestone.milestone_type];
-    const daysSince = calculateDaysSince(milestone.date);
-    const milestonePhotos = filterValidPhotos(milestone.photos || []);
-
     return (
-      <TouchableOpacity
-        style={{
-          backgroundColor: MILESTONE_BG,
-          borderRadius: 24,
-          padding: 24,
-          marginBottom: 20,
-          borderWidth: 1,
-          borderColor: MILESTONE_BORDER_OPACITY_40,
-          ...getBoxShadow(
-            MILESTONE_COLOR,
-            { width: 0, height: 4 },
-            0.3,
-            12
-          ),
-          elevation: 5,
-          overflow: "hidden",
-          position: "relative",
-        }}
+      <MilestoneCard
+        key={milestone.id}
+        milestone={milestone}
         onPress={() => handleViewMilestone(milestone)}
         onLongPress={() => handleDeleteMilestone(milestone.id)}
-      >
-        {/* Decorative star accent */}
-        <View
-          style={{
-            position: "absolute",
-            top: -10,
-            right: -10,
-            width: 80,
-            height: 80,
-            borderRadius: 40,
-            backgroundColor: config.color + "15",
-            opacity: 0.5,
-          }}
-        />
-
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "flex-start",
-            marginBottom: 16,
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          <View
-            style={{
-              width: 70,
-              height: 70,
-              borderRadius: 35,
-              backgroundColor: config.color + "25",
-              alignItems: "center",
-              justifyContent: "center",
-              marginRight: 16,
-              borderWidth: 2,
-              borderColor: config.color + "50",
-            }}
-          >
-            <Text style={{ fontSize: 36 }}>{config.icon}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text
-              style={{
-                fontSize: 20,
-                fontWeight: "600",
-                color: MILESTONE_COLOR,
-                marginBottom: 6,
-                ...getTextShadow("#000", { width: 0, height: 1 }, 2),
-              }}
-            >
-              {milestone.title}
-            </Text>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                marginBottom: 6,
-              }}
-            >
-              <Text style={{ fontSize: 16, marginRight: 6 }}>
-                {config.icon}
-              </Text>
-              <Text
-                style={{
-                  fontSize: 14,
-                  color: config.color,
-                  fontWeight: "500",
-                }}
-              >
-                {config.label}
-              </Text>
-            </View>
-            <Text
-              style={{
-                fontSize: 12,
-                color: MILESTONE_BROWN_TEXT,
-                fontStyle: "italic",
-              }}
-            >
-              {formatDate(milestone.date)} • {daysSince} days ago
-            </Text>
-          </View>
-        </View>
-
-        {milestone.description && (
-          <Text
-            style={{
-              fontSize: 15,
-              color: MILESTONE_LIGHT_BROWN,
-              lineHeight: 22,
-              marginBottom: 16,
-              position: "relative",
-              zIndex: 1,
-            }}
-          >
-            {milestone.description}
-          </Text>
-        )}
-
-        {(() => {
-          // Filter out images that failed to load
-          const validDisplayPhotos = milestonePhotos.filter(
-            (photo) => !failedImages.has(photo)
-          );
-          return validDisplayPhotos.length > 0 ? (
-            <View
-              onStartShouldSetResponder={() => true}
-              onMoveShouldSetResponder={() => true}
-            >
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{ marginTop: 8 }}
-                contentContainerStyle={{
-                  gap: 10,
-                  paddingRight: 20,
-                }}
-                nestedScrollEnabled={true}
-              >
-                {validDisplayPhotos.map((photo, photoIndex) => (
-                  <Image
-                    key={photoIndex}
-                    source={{ uri: photo }}
-                    style={{
-                      width: 100,
-                      height: 100,
-                      borderRadius: 16,
-                      borderWidth: 2,
-                      borderColor: config.color + "60",
-                      backgroundColor: MILESTONE_SCREEN_BG, // Prevent white flash
-                    }}
-                    resizeMode="cover"
-                    onError={(error) => {
-                      console.warn(
-                        "Failed to load image on card:",
-                        photo,
-                        error
-                      );
-                      // Only mark as failed if it's actually a bad URL
-                      setFailedImages((prev: Set<string>) =>
-                        new Set(prev).add(photo)
-                      );
-                    }}
-                  />
-                ))}
-              </ScrollView>
-            </View>
-          ) : null;
-        })()}
-      </TouchableOpacity>
+        variant="screen"
+      />
     );
   };
 
   const renderEmpty = () => (
-    <View
-      style={{
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        paddingVertical: 100,
-      }}
-    >
-      <Text style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>
-        ⭐
-      </Text>
-      <Text
-        style={{
-          fontSize: 18,
-          color: "#8b7355",
-          textAlign: "center",
-          fontStyle: "italic",
-          lineHeight: 24,
-        }}
-      >
-        No milestones recorded yet.{"\n"}
-        Start documenting your journey together!
-      </Text>
-    </View>
+    <EmptyState
+      icon="⭐"
+      title="No milestones recorded yet"
+      message="Start documenting your journey together!"
+      backgroundColor={MILESTONE_SCREEN_BG}
+    />
   );
 
   const renderFooter = () => {
     if (!loadingMore) return null;
-    return (
-      <View style={{ padding: 20, alignItems: "center" }}>
-        <ActivityIndicator size="small" color={MILESTONE_COLOR} />
-      </View>
-    );
+    return <LoadingMore color={MILESTONE_COLOR} />;
   };
 
   const resetForm = () => {

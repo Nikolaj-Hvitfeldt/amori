@@ -1,39 +1,52 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Image, StyleSheet } from "react-native";
-import { Milestone } from "../../types/milestones";
-import { MILESTONE_CONFIG } from "../../constants/milestoneConfig";
-import { filterValidPhotos } from "../../utils/imageUtils";
-import { getBoxShadow, getTextShadow } from "../../utils/shadows";
-import { formatDateUS, calculateDaysSince } from "../../utils/dateUtils";
+import { View, Text, TouchableOpacity, ScrollView, Image, StyleSheet, Platform } from "react-native";
+import { Milestone } from "../types/milestones";
+import { MILESTONE_CONFIG } from "../constants/milestoneConfig";
+import DecorativeAccent from "./common/DecorativeAccent";
+import { filterValidPhotos } from "../utils/imageUtils";
+import { getBoxShadow, getTextShadow } from "../utils/shadows";
+import { formatDateUS, calculateDaysSince } from "../utils/dateUtils";
 import {
   CARD_MARGIN_HORIZONTAL,
   CARD_MARGIN_BOTTOM,
   CARD_PADDING_LARGE,
   CARD_BORDER_RADIUS_LARGE,
-  ACCENT_CIRCLE_SIZE,
-  ACCENT_CIRCLE_OFFSET,
-} from "../../constants/spacing";
+} from "../constants/spacing";
 
-interface TimelineMilestoneCardProps {
+interface MilestoneCardProps {
   milestone: Milestone;
   onPress: () => void;
+  onLongPress?: () => void;
+  variant?: "timeline" | "screen";
 }
 
-export default function TimelineMilestoneCard({
+export default function MilestoneCard({
   milestone,
   onPress,
-}: TimelineMilestoneCardProps) {
+  onLongPress,
+  variant = "timeline",
+}: MilestoneCardProps) {
   const config = MILESTONE_CONFIG[milestone.milestone_type];
   const daysSince = calculateDaysSince(milestone.date);
   const milestonePhotos = filterValidPhotos(milestone.photos || []);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
+  // Adjust styling based on variant
+  const cardStyle = variant === "screen" 
+    ? {
+        borderRadius: 24,
+        padding: 24,
+        marginBottom: 20,
+      }
+    : styles.card;
+
   return (
     <TouchableOpacity
       onPress={onPress}
+      onLongPress={onLongPress}
       activeOpacity={0.7}
       style={[
-        styles.card,
+        cardStyle,
         {
           backgroundColor: "#2d1810",
           borderColor: "#ffd70040",
@@ -41,15 +54,8 @@ export default function TimelineMilestoneCard({
         },
       ]}
     >
-      {/* Decorative star accent */}
-      <View
-        style={[
-          styles.accentCircle,
-          {
-            backgroundColor: config.color + "15",
-          },
-        ]}
-      />
+        {/* Decorative star accent */}
+        <DecorativeAccent color={config.color} size="default" opacity={0.5} />
 
       <View style={styles.content}>
         <View style={styles.header}>
@@ -96,8 +102,21 @@ export default function TimelineMilestoneCard({
           );
           return validDisplayPhotos.length > 0 ? (
             <View
-              onStartShouldSetResponder={() => true}
-              onMoveShouldSetResponder={() => true}
+              onStartShouldSetResponder={(evt) => {
+                // Only capture horizontal scroll gestures
+                if (Platform.OS === "web") {
+                  return false; // Let browser handle it on web
+                }
+                return true;
+              }}
+              onMoveShouldSetResponder={(evt) => {
+                // Only capture if it's a horizontal movement
+                if (Platform.OS === "web") {
+                  return false; // Let browser handle it on web
+                }
+                const { dx, dy } = evt.nativeEvent;
+                return Math.abs(dx) > Math.abs(dy); // Horizontal scroll
+              }}
             >
               <ScrollView
                 horizontal
@@ -142,15 +161,6 @@ const styles = StyleSheet.create({
     zIndex: 2,
     borderWidth: 1,
     elevation: 5,
-  },
-  accentCircle: {
-    position: "absolute",
-    top: ACCENT_CIRCLE_OFFSET,
-    right: ACCENT_CIRCLE_OFFSET,
-    width: ACCENT_CIRCLE_SIZE,
-    height: ACCENT_CIRCLE_SIZE,
-    borderRadius: ACCENT_CIRCLE_SIZE / 2,
-    opacity: 0.5,
   },
   content: {
     position: "relative",

@@ -1,63 +1,72 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { Moment } from "../../types/moments";
-import RotatingPhotoBackground from "../RotatingPhotoBackground";
-import { getThumbnailUrl, filterValidPhotos } from "../../utils/imageUtils";
-import { getBoxShadow, getTextShadow } from "../../utils/shadows";
-import { formatDateUS } from "../../utils/dateUtils";
-import {
-  MOMENT_COLOR,
-  MOMENT_BG,
-  MOMENT_TEXT,
-} from "../../constants/theme";
+import { DateEntry } from "../types/dates";
+import RotatingPhotoBackground from "./RotatingPhotoBackground";
+import DecorativeAccent from "./common/DecorativeAccent";
+import { filterValidPhotos } from "../utils/imageUtils";
+import { getBoxShadow, getTextShadow } from "../utils/shadows";
+import { formatDateUS } from "../utils/dateUtils";
+import { getMoodInfo, MOOD_COLORS } from "../utils/moodUtils";
 import {
   CARD_MARGIN_HORIZONTAL,
   CARD_MARGIN_BOTTOM,
   CARD_PADDING,
-  CARD_BORDER_RADIUS_LARGE,
-  ACCENT_CIRCLE_SIZE_LARGE,
-  ACCENT_CIRCLE_OFFSET_LARGE,
-} from "../../constants/spacing";
+  CARD_BORDER_RADIUS,
+} from "../constants/spacing";
 
-interface TimelineMomentCardProps {
-  moment: Moment;
+interface DateCardProps {
+  dateEntry: DateEntry;
   onPress: () => void;
+  onLongPress?: () => void;
+  variant?: "timeline" | "screen";
 }
 
-export default function TimelineMomentCard({
-  moment,
+export default function DateCard({
+  dateEntry,
   onPress,
-}: TimelineMomentCardProps) {
-  const momentPhotos = filterValidPhotos(moment.photos || []);
-  const thumbnailPhotos = momentPhotos.map((photo) => getThumbnailUrl(photo));
+  onLongPress,
+  variant = "timeline",
+}: DateCardProps) {
+  const moodInfo = getMoodInfo(dateEntry.mood);
+  const dateMoodColor = MOOD_COLORS[dateEntry.mood];
+  const allDatePhotos =
+    dateEntry.photos && dateEntry.photos.length > 0
+      ? dateEntry.photos
+      : dateEntry.image_url
+      ? [dateEntry.image_url]
+      : [];
+  const datePhotos = filterValidPhotos(allDatePhotos);
+
+  // Adjust styling based on variant
+  const cardStyle = variant === "screen" 
+    ? {
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 16,
+      }
+    : styles.card;
 
   return (
     <TouchableOpacity
       onPress={onPress}
+      onLongPress={onLongPress}
       activeOpacity={0.7}
       style={[
-        styles.card,
+        cardStyle,
         {
-          backgroundColor: MOMENT_BG,
-          borderColor: MOMENT_COLOR + "40",
-          ...getBoxShadow(MOMENT_COLOR, { width: 0, height: 6 }, 0.5, 16),
+          backgroundColor: "#0f172a",
+          borderColor: "#374151",
+          ...getBoxShadow(dateMoodColor, { width: 0, height: 4 }, 0.3, 12),
         },
       ]}
     >
-      {/* Decorative heart accent */}
-      <View
-        style={[
-          styles.accentCircle,
-          {
-            backgroundColor: MOMENT_COLOR + "15",
-          },
-        ]}
-      />
+        {/* Decorative calendar accent */}
+        <DecorativeAccent color={dateMoodColor} size="default" opacity={0.5} />
 
       {/* Rotating Photo Background */}
-      {momentPhotos.length > 0 && (
+      {datePhotos.length > 0 && (
         <RotatingPhotoBackground
-          photos={thumbnailPhotos}
+          photos={datePhotos}
           interval={8000}
           style={styles.photoBackground}
         />
@@ -72,56 +81,56 @@ export default function TimelineMomentCard({
                 style={[
                   styles.title,
                   {
-                    color: momentPhotos.length > 0 ? "#ffffff" : MOMENT_TEXT,
+                    color: datePhotos.length > 0 ? "#ffffff" : "#e5d3ff",
                   },
                   getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
                 ]}
               >
-                {moment.title}
+                {dateEntry.title || "Our Special Date"}
               </Text>
-              <Text style={styles.icon}>💕</Text>
+              {variant === "timeline" && <Text style={styles.icon}>📅</Text>}
             </View>
             <Text
               style={[
                 styles.date,
                 {
-                  color:
-                    momentPhotos.length > 0 ? "#f3f4f6" : MOMENT_TEXT + "80",
+                  color: datePhotos.length > 0 ? "#f3f4f6" : "#9ca3af",
                 },
                 getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
               ]}
             >
-              {formatDateUS(moment.story_date)}
+              {formatDateUS(dateEntry.date)}
             </Text>
             <View style={styles.labelRow}>
-              <Text style={styles.labelIcon}>💕</Text>
+              <Text style={styles.labelIcon}>{moodInfo.icon}</Text>
               <Text
                 style={[
                   styles.label,
                   {
-                    color: momentPhotos.length > 0 ? "#ffffff" : MOMENT_COLOR,
+                    color: datePhotos.length > 0 ? "#ffffff" : "#a78bfa",
                   },
                   getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
                 ]}
               >
-                Special Moment
+                {moodInfo.label}
               </Text>
             </View>
           </View>
         </View>
 
-        <Text
-          style={[
-            styles.description,
-            {
-              color: momentPhotos.length > 0 ? "#ffffff" : MOMENT_TEXT + "CC",
-            },
-            getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
-          ]}
-          numberOfLines={2}
-        >
-          {moment.description}
-        </Text>
+        {dateEntry.location && (
+          <Text
+            style={[
+              styles.location,
+              {
+                color: datePhotos.length > 0 ? "#ffffff" : "#d1d5db",
+              },
+              getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
+            ]}
+          >
+            📍 {dateEntry.location}
+          </Text>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -129,25 +138,15 @@ export default function TimelineMomentCard({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: CARD_BORDER_RADIUS_LARGE,
+    borderRadius: CARD_BORDER_RADIUS,
     padding: CARD_PADDING,
     marginBottom: CARD_MARGIN_BOTTOM,
     marginHorizontal: CARD_MARGIN_HORIZONTAL,
-    minHeight: 180,
     overflow: "hidden",
     position: "relative",
-    borderWidth: 2,
-    elevation: 10,
     zIndex: 2,
-  },
-  accentCircle: {
-    position: "absolute",
-    top: ACCENT_CIRCLE_OFFSET_LARGE,
-    right: ACCENT_CIRCLE_OFFSET_LARGE,
-    width: ACCENT_CIRCLE_SIZE_LARGE,
-    height: ACCENT_CIRCLE_SIZE_LARGE,
-    borderRadius: ACCENT_CIRCLE_SIZE_LARGE / 2,
-    opacity: 0.6,
+    borderWidth: 1,
+    elevation: 5,
   },
   photoBackground: {
     position: "absolute",
@@ -200,9 +199,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
-  description: {
+  location: {
     fontSize: 16,
-    marginTop: 8,
+    marginBottom: 8,
     fontWeight: "500",
   },
 });

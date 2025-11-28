@@ -23,7 +23,9 @@ import { DateEntry, CreateDateEntryDto, DateMood } from "../types/dates";
 import { datesService } from "../services/dates";
 import { API_BASE_URL } from "../services/api";
 import DateDetailView from "../components/DateDetailView";
-import RotatingPhotoBackground from "../components/RotatingPhotoBackground";
+import DateCard from "../components/DateCard";
+import EmptyState from "../components/common/EmptyState";
+import LoadingMore from "../components/common/LoadingMore";
 import { getThumbnailUrl, filterValidPhotos } from "../utils/imageUtils";
 import { getBoxShadow, getTextShadow } from "../utils/shadows";
 import { formatDateEU } from "../utils/dateUtils";
@@ -182,191 +184,32 @@ export default function DatesScreen() {
   };
 
   const renderDateItem = ({ item: dateEntry }: { item: DateEntry }) => {
-    const moodInfo = getMoodInfo(dateEntry.mood);
-    const dateMoodColor = MOOD_COLORS[dateEntry.mood];
-    // Get photos array (support both photos and legacy image_url)
-    // Filter out blob URLs and invalid URLs
-    const allDatePhotos =
-      dateEntry.photos && dateEntry.photos.length > 0
-        ? dateEntry.photos
-        : dateEntry.image_url
-        ? [dateEntry.image_url]
-        : [];
-    const datePhotos = filterValidPhotos(allDatePhotos);
-
     return (
-      <TouchableOpacity
-        style={{
-          backgroundColor: DATE_BG,
-          borderRadius: 16,
-          padding: 20,
-          marginBottom: 16,
-          borderWidth: 1,
-          borderColor: DATE_BORDER,
-          ...getBoxShadow(
-            dateMoodColor,
-            { width: 0, height: 4 },
-            0.3,
-            12
-          ),
-          elevation: 5,
-          overflow: "hidden",
-          position: "relative",
-        }}
+      <DateCard
+        key={dateEntry.id}
+        dateEntry={dateEntry}
         onPress={() => {
           setSelectedDate(dateEntry);
           setIsDetailVisible(true);
         }}
         onLongPress={() => handleDeleteDate(dateEntry.id)}
-      >
-        {/* Decorative calendar accent */}
-        <View
-          style={{
-            position: "absolute",
-            top: -10,
-            right: -10,
-            width: 80,
-            height: 80,
-            borderRadius: 40,
-            backgroundColor: dateMoodColor + "15",
-            opacity: 0.5,
-          }}
-        />
-
-        {/* Rotating Photo Background */}
-        {datePhotos.length > 0 && (
-          <RotatingPhotoBackground
-            photos={datePhotos}
-            interval={8000}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 0,
-            }}
-          />
-        )}
-        {/* Content with relative positioning to appear above background */}
-        <View style={{ position: "relative", zIndex: 1 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              marginBottom: 8,
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              {/* Title */}
-              <Text
-                style={{
-                  fontSize: 20,
-                  fontWeight: "600",
-                  color: datePhotos.length > 0 ? DATE_SCREEN_WHITE : DATE_TEXT,
-                  marginBottom: 4,
-                  ...getTextShadow(
-                    "rgba(0, 0, 0, 0.75)",
-                    { width: 0, height: 1 },
-                    3
-                  ),
-                }}
-              >
-                {dateEntry.title || "Our Special Date"}
-              </Text>
-              {/* Date below title - italic small font */}
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontStyle: "italic",
-                  color: datePhotos.length > 0 ? GRAY_LIGHT : GRAY_MEDIUM,
-                  marginBottom: 8,
-                  ...getTextShadow(
-                    "rgba(0, 0, 0, 0.75)",
-                    { width: 0, height: 1 },
-                    3
-                  ),
-                }}
-              >
-                {formatDate(dateEntry.date)}
-              </Text>
-              <View
-                style={{ flexDirection: "row", alignItems: "center" }}
-              >
-                <Text style={{ fontSize: 20, marginRight: 8 }}>
-                  {moodInfo.icon}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 14,
-                    color:
-                      datePhotos.length > 0 ? DATE_SCREEN_WHITE : DATE_TEXT_SECONDARY,
-                    fontWeight: "500",
-                    ...getTextShadow(
-                      "rgba(0, 0, 0, 0.75)",
-                      { width: 0, height: 1 },
-                      3
-                    ),
-                  }}
-                >
-                  {moodInfo.label}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      color: datePhotos.length > 0 ? DATE_SCREEN_WHITE : DATE_SCREEN_TEXT_LIGHT,
-                      marginBottom: 8,
-                      fontWeight: "500",
-                      ...getTextShadow(
-                        "rgba(0, 0, 0, 0.75)",
-                        { width: 0, height: 1 },
-                        3
-                      ),
-                    }}
-                  >
-                    📍 {dateEntry.location}
-                  </Text>
-        </View>
-      </TouchableOpacity>
+        variant="screen"
+      />
     );
   };
 
   const renderEmpty = () => (
-    <View
-      style={{
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        paddingVertical: 100,
-      }}
-    >
-      <Text
-        style={{
-          fontSize: 18,
-          color: DATE_SCREEN_GRAY,
-          textAlign: "center",
-          fontStyle: "italic",
-          lineHeight: 24,
-        }}
-      >
-        No special dates recorded yet.{"\n"}
-        Create your first memory to begin the journey.
-      </Text>
-    </View>
+    <EmptyState
+      icon="📅"
+      title="No special dates recorded yet"
+      message="Create your first memory to begin the journey."
+      backgroundColor={DATE_SCREEN_BG}
+    />
   );
 
   const renderFooter = () => {
     if (!loadingMore) return null;
-    return (
-      <View style={{ padding: 20, alignItems: "center" }}>
-        <ActivityIndicator size="small" color={DATE_SCREEN_PURPLE} />
-      </View>
-    );
+    return <LoadingMore color={DATE_SCREEN_PURPLE} />;
   };
 
   const resetForm = () => {
