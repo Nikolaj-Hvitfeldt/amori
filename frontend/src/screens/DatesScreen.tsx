@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -183,20 +183,25 @@ export default function DatesScreen() {
     }
   };
 
-  const renderDateItem = ({ item: dateEntry }: { item: DateEntry }) => {
-    return (
-      <DateCard
-        key={dateEntry.id}
-        dateEntry={dateEntry}
-        onPress={() => {
-          setSelectedDate(dateEntry);
-          setIsDetailVisible(true);
-        }}
-        onLongPress={() => handleDeleteDate(dateEntry.id)}
-        variant="screen"
-      />
-    );
-  };
+  const handleViewDate = useCallback((dateEntry: DateEntry) => {
+    setSelectedDate(dateEntry);
+    setIsDetailVisible(true);
+  }, []);
+
+  const renderDateItem = useCallback(
+    ({ item: dateEntry }: { item: DateEntry }) => {
+      return (
+        <DateCard
+          key={dateEntry.id}
+          dateEntry={dateEntry}
+          onPress={() => handleViewDate(dateEntry)}
+          onLongPress={() => handleDeleteDate(dateEntry.id)}
+          variant="screen"
+        />
+      );
+    },
+    [handleViewDate, handleDeleteDate]
+  );
 
   const renderEmpty = () => (
     <EmptyState

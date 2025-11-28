@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -284,48 +284,57 @@ export default function TimelineScreen() {
     }
   };
 
-  const handleItemPress = (item: TimelineItem) => {
+  const handleItemPress = useCallback((item: TimelineItem) => {
     setSelectedItem(item);
     setDetailModalVisible(true);
-  };
+  }, []);
 
-  const closeDetailModal = () => {
+  const closeDetailModal = useCallback(() => {
     setDetailModalVisible(false);
     setTimeout(() => setSelectedItem(null), 300);
-  };
+  }, []);
 
-  const renderMomentCard = (item: TimelineItem) => {
-    if (!item.moment) return null;
-    return (
-      <MomentCard
-        key={item.id}
-        moment={item.moment}
-        onPress={() => handleItemPress(item)}
-      />
-    );
-  };
+  const renderMomentCard = useCallback(
+    (item: TimelineItem) => {
+      if (!item.moment) return null;
+      return (
+        <MomentCard
+          key={item.id}
+          moment={item.moment}
+          onPress={() => handleItemPress(item)}
+        />
+      );
+    },
+    [handleItemPress]
+  );
 
-  const renderDateCard = (item: TimelineItem) => {
-    if (!item.dateEntry) return null;
-    return (
-      <DateCard
-        key={item.id}
-        dateEntry={item.dateEntry}
-        onPress={() => handleItemPress(item)}
-      />
-    );
-  };
+  const renderDateCard = useCallback(
+    (item: TimelineItem) => {
+      if (!item.dateEntry) return null;
+      return (
+        <DateCard
+          key={item.id}
+          dateEntry={item.dateEntry}
+          onPress={() => handleItemPress(item)}
+        />
+      );
+    },
+    [handleItemPress]
+  );
 
-  const renderMilestoneCard = (item: TimelineItem) => {
-    if (!item.milestone) return null;
-    return (
-      <MilestoneCard
-        key={item.id}
-        milestone={item.milestone}
-        onPress={() => handleItemPress(item)}
-      />
-    );
-  };
+  const renderMilestoneCard = useCallback(
+    (item: TimelineItem) => {
+      if (!item.milestone) return null;
+      return (
+        <MilestoneCard
+          key={item.id}
+          milestone={item.milestone}
+          onPress={() => handleItemPress(item)}
+        />
+      );
+    },
+    [handleItemPress]
+  );
 
   if (loading) {
     return (

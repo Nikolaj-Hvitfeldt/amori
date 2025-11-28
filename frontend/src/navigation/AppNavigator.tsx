@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
-import HomeScreen from "../screens/HomeScreen";
+import TimelineScreen from "../screens/TimelineScreen";
 import DatesScreen from "../screens/DatesScreen";
 import PicturesScreen from "../screens/PicturesScreen";
 import MomentsScreen from "../screens/MomentsScreen";
@@ -14,7 +14,7 @@ export default function AppNavigator() {
   const renderScreen = () => {
     switch (activeScreen) {
       case "Home":
-        return <HomeScreen />;
+        return <TimelineScreen />;
       case "Stories":
         return <MomentsScreen />;
       case "Dates":
@@ -24,7 +24,7 @@ export default function AppNavigator() {
       case "Milestones":
         return <MilestonesScreen />;
       default:
-        return <HomeScreen />;
+        return <TimelineScreen />;
     }
   };
 

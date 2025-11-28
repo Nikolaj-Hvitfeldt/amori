@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -179,17 +179,25 @@ export default function MilestonesScreen() {
     }
   };
 
-  const renderMilestoneItem = ({ item: milestone }: { item: Milestone }) => {
-    return (
-      <MilestoneCard
-        key={milestone.id}
-        milestone={milestone}
-        onPress={() => handleViewMilestone(milestone)}
-        onLongPress={() => handleDeleteMilestone(milestone.id)}
-        variant="screen"
-      />
-    );
-  };
+  const handleViewMilestone = useCallback((milestone: Milestone) => {
+    setSelectedMilestone(milestone);
+    setIsDetailVisible(true);
+  }, []);
+
+  const renderMilestoneItem = useCallback(
+    ({ item: milestone }: { item: Milestone }) => {
+      return (
+        <MilestoneCard
+          key={milestone.id}
+          milestone={milestone}
+          onPress={() => handleViewMilestone(milestone)}
+          onLongPress={() => handleDeleteMilestone(milestone.id)}
+          variant="screen"
+        />
+      );
+    },
+    [handleViewMilestone, handleDeleteMilestone]
+  );
 
   const renderEmpty = () => (
     <EmptyState

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -120,7 +120,7 @@ export default function MomentsScreen() {
     }
   };
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setTitle("");
     setStoryDate("");
     setDatePickerValue(new Date());
@@ -129,7 +129,7 @@ export default function MomentsScreen() {
     setEditingMoment(null);
     setShowDatePicker(false);
     setWebDateInput("");
-  };
+  }, []);
 
   const filterValidPhotos = (photoUrls: string[]): string[] => {
     return photoUrls.filter(
@@ -169,36 +169,41 @@ export default function MomentsScreen() {
     }
   };
 
-  const openModal = (moment?: Moment) => {
-    if (moment) {
-      setEditingMoment(moment);
-      setTitle(moment.title);
-      setStoryDate(moment.story_date);
-      const parsedDate = new Date(moment.story_date);
-      setDatePickerValue(isNaN(parsedDate.getTime()) ? new Date() : parsedDate);
-      setDescription(moment.description || "");
-      setPhotos(filterValidPhotos(moment.photos || []));
-    } else {
-      resetForm();
-    }
-    setIsModalVisible(true);
-    fadeAnim.setValue(0);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: Platform.OS !== "web",
-    }).start();
-  };
+  const openModal = useCallback(
+    (moment?: Moment) => {
+      if (moment) {
+        setEditingMoment(moment);
+        setTitle(moment.title);
+        setStoryDate(moment.story_date);
+        const parsedDate = new Date(moment.story_date);
+        setDatePickerValue(
+          isNaN(parsedDate.getTime()) ? new Date() : parsedDate
+        );
+        setDescription(moment.description || "");
+        setPhotos(filterValidPhotos(moment.photos || []));
+      } else {
+        resetForm();
+      }
+      setIsModalVisible(true);
+      fadeAnim.setValue(0);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: Platform.OS !== "web",
+      }).start();
+    },
+    [fadeAnim]
+  );
 
   const closeModal = () => {
     setIsModalVisible(false);
     setTimeout(resetForm, 300);
   };
 
-  const handleViewMoment = (moment: Moment) => {
+  const handleViewMoment = useCallback((moment: Moment) => {
     setSelectedMoment(moment);
     setIsDetailVisible(true);
-  };
+  }, []);
 
   const uploadImage = async (uri: string): Promise<string> => {
     try {
@@ -426,17 +431,20 @@ export default function MomentsScreen() {
     );
   }
 
-  const renderMoment = ({ item: moment }: { item: Moment }) => {
-    return (
-      <MomentCard
-        key={moment.id}
-        moment={moment}
-        onPress={() => handleViewMoment(moment)}
-        onLongPress={() => openModal(moment)}
-        variant="screen"
-      />
-    );
-  };
+  const renderMoment = useCallback(
+    ({ item: moment }: { item: Moment }) => {
+      return (
+        <MomentCard
+          key={moment.id}
+          moment={moment}
+          onPress={() => handleViewMoment(moment)}
+          onLongPress={() => openModal(moment)}
+          variant="screen"
+        />
+      );
+    },
+    [handleViewMoment, openModal]
+  );
 
   const renderEmpty = () => (
     <EmptyState

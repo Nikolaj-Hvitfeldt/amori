@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, memo, useMemo, useCallback } from "react";
 import { View, Text, TouchableOpacity, ScrollView, Image, StyleSheet, Platform } from "react-native";
 import { Milestone } from "../types/milestones";
 import { MILESTONE_CONFIG } from "../constants/milestoneConfig";
@@ -20,25 +20,45 @@ interface MilestoneCardProps {
   variant?: "timeline" | "screen";
 }
 
-export default function MilestoneCard({
+function MilestoneCard({
   milestone,
   onPress,
   onLongPress,
   variant = "timeline",
 }: MilestoneCardProps) {
-  const config = MILESTONE_CONFIG[milestone.milestone_type];
-  const daysSince = calculateDaysSince(milestone.date);
-  const milestonePhotos = filterValidPhotos(milestone.photos || []);
+  const config = useMemo(
+    () => MILESTONE_CONFIG[milestone.milestone_type],
+    [milestone.milestone_type]
+  );
+  const daysSince = useMemo(
+    () => calculateDaysSince(milestone.date),
+    [milestone.date]
+  );
+  const milestonePhotos = useMemo(
+    () => filterValidPhotos(milestone.photos || []),
+    [milestone.photos]
+  );
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
   // Adjust styling based on variant
-  const cardStyle = variant === "screen" 
-    ? {
-        borderRadius: 24,
-        padding: 24,
-        marginBottom: 20,
-      }
-    : styles.card;
+  const cardStyle = useMemo(
+    () =>
+      variant === "screen"
+        ? {
+            borderRadius: 24,
+            padding: 24,
+            marginBottom: 20,
+          }
+        : styles.card,
+    [variant]
+  );
+
+  const handleImageError = useCallback(
+    (photo: string) => {
+      setFailedImages((prev) => new Set(prev).add(photo));
+    },
+    []
+  );
 
   return (
     <TouchableOpacity
@@ -47,11 +67,8 @@ export default function MilestoneCard({
       activeOpacity={0.7}
       style={[
         cardStyle,
-        {
-          backgroundColor: "#2d1810",
-          borderColor: "#ffd70040",
-          ...getBoxShadow("#ffd700", { width: 0, height: 4 }, 0.3, 12),
-        },
+        styles.cardBase,
+        getBoxShadow("#ffd700", { width: 0, height: 4 }, 0.3, 12),
       ]}
     >
         {/* Decorative star accent */}
@@ -136,9 +153,7 @@ export default function MilestoneCard({
                       },
                     ]}
                     resizeMode="cover"
-                    onError={() => {
-                      setFailedImages((prev) => new Set(prev).add(photo));
-                    }}
+                    onError={() => handleImageError(photo)}
                   />
                 ))}
               </ScrollView>
@@ -161,6 +176,10 @@ const styles = StyleSheet.create({
     zIndex: 2,
     borderWidth: 1,
     elevation: 5,
+  },
+  cardBase: {
+    backgroundColor: "#2d1810",
+    borderColor: "#ffd70040",
   },
   content: {
     position: "relative",
@@ -231,4 +250,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#1a0f00",
   },
 });
+
+export default memo(MilestoneCard);
 

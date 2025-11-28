@@ -27,7 +27,7 @@
                             │ HTTP REST API
                             │
 ┌─────────────────────────────────────────────────────────────┐
-│                     NestJS Backend                           │
+│                     NestJS Backend                          │
 │                      (TypeScript)                            │
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
@@ -50,14 +50,14 @@
                             │ Supabase Client
                             │
 ┌─────────────────────────────────────────────────────────────┐
-│                      Supabase Database                       │
-│                      (PostgreSQL)                            │
+│                      Supabase Database                      │
+│                      (PostgreSQL)                           │
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
 │  Table: journal_entries                                      │
 │  ┌──────────────────────────────────────────────────┐       │
 │  │ • id (UUID)                                       │       │
-│  │ • title (TEXT)                                    │       │
+│  │ • title (TEXT)                                     │       │
 │  │ • content (TEXT)                                  │       │
 │  │ • entry_type (TEXT) - lovestory|date|milestone    │       │
 │  │ • entry_date (DATE)                               │       │

@@ -17,9 +17,10 @@ React Native mobile application for the Amori relationship journal.
 ```
 src/
 ├── screens/          # Screen components
-│   ├── HomeScreen.tsx       # Timeline view
+│   ├── TimelineScreen.tsx   # Timeline view (Home tab)
 │   ├── MomentsScreen.tsx    # Special moments
 │   ├── DatesScreen.tsx      # Special dates
+│   ├── MilestonesScreen.tsx # Milestones
 │   └── PicturesScreen.tsx   # Memory gallery
 ├── navigation/       # Navigation configuration
 │   └── AppNavigator.tsx

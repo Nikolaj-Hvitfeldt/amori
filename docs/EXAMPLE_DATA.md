@@ -72,3 +72,4 @@ Or directly in Supabase:
 3. Select `journal_entries` table
 4. Click "Insert row"
 5. Fill in the fields with the example data above
+

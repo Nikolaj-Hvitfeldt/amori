@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo, useMemo } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Moment } from "../types/moments";
 import RotatingPhotoBackground from "./RotatingPhotoBackground";
@@ -25,24 +25,36 @@ interface MomentCardProps {
   variant?: "timeline" | "screen";
 }
 
-export default function MomentCard({
+function MomentCard({
   moment,
   onPress,
   onLongPress,
   variant = "timeline",
 }: MomentCardProps) {
-  const momentPhotos = filterValidPhotos(moment.photos || []);
-  const thumbnailPhotos = momentPhotos.map((photo) => getThumbnailUrl(photo));
+  const momentPhotos = useMemo(
+    () => filterValidPhotos(moment.photos || []),
+    [moment.photos]
+  );
+  const thumbnailPhotos = useMemo(
+    () => momentPhotos.map((photo) => getThumbnailUrl(photo)),
+    [momentPhotos]
+  );
 
   // Adjust styling based on variant
-  const cardStyle = variant === "screen" 
-    ? {
-        borderRadius: 24,
-        padding: 20,
-        marginBottom: 20,
-        marginHorizontal: 20,
-      }
-    : styles.card;
+  const cardStyle = useMemo(
+    () =>
+      variant === "screen"
+        ? {
+            borderRadius: 24,
+            padding: 20,
+            marginBottom: 20,
+            marginHorizontal: 20,
+          }
+        : styles.card,
+    [variant]
+  );
+
+  const hasPhotos = momentPhotos.length > 0;
 
   return (
     <TouchableOpacity
@@ -51,18 +63,15 @@ export default function MomentCard({
       activeOpacity={0.7}
       style={[
         cardStyle,
-        {
-          backgroundColor: MOMENT_BG,
-          borderColor: MOMENT_COLOR + "40",
-          ...getBoxShadow(MOMENT_COLOR, { width: 0, height: 6 }, 0.5, 16),
-        },
+        styles.cardBase,
+        getBoxShadow(MOMENT_COLOR, { width: 0, height: 6 }, 0.5, 16),
       ]}
     >
       {/* Decorative heart accent */}
       <DecorativeAccent color={MOMENT_COLOR} size="large" opacity={0.6} />
 
       {/* Rotating Photo Background */}
-      {momentPhotos.length > 0 && (
+      {hasPhotos && (
         <RotatingPhotoBackground
           photos={thumbnailPhotos}
           interval={8000}
@@ -78,9 +87,7 @@ export default function MomentCard({
               <Text
                 style={[
                   styles.title,
-                  {
-                    color: momentPhotos.length > 0 ? "#ffffff" : MOMENT_TEXT,
-                  },
+                  hasPhotos ? styles.titleWithPhotos : styles.titleWithoutPhotos,
                   getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
                 ]}
               >
@@ -91,10 +98,7 @@ export default function MomentCard({
             <Text
               style={[
                 styles.date,
-                {
-                  color:
-                    momentPhotos.length > 0 ? "#f3f4f6" : MOMENT_TEXT + "80",
-                },
+                hasPhotos ? styles.dateWithPhotos : styles.dateWithoutPhotos,
                 getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
               ]}
             >
@@ -105,9 +109,7 @@ export default function MomentCard({
               <Text
                 style={[
                   styles.label,
-                  {
-                    color: momentPhotos.length > 0 ? "#ffffff" : MOMENT_COLOR,
-                  },
+                  hasPhotos ? styles.labelWithPhotos : styles.labelWithoutPhotos,
                   getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
                 ]}
               >
@@ -120,9 +122,7 @@ export default function MomentCard({
         <Text
           style={[
             styles.description,
-            {
-              color: momentPhotos.length > 0 ? "#ffffff" : MOMENT_TEXT + "CC",
-            },
+            hasPhotos ? styles.descriptionWithPhotos : styles.descriptionWithoutPhotos,
             getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
           ]}
           numberOfLines={2}
@@ -146,6 +146,34 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     elevation: 10,
     zIndex: 2,
+  },
+  cardBase: {
+    backgroundColor: MOMENT_BG,
+    borderColor: MOMENT_COLOR + "40",
+  },
+  titleWithPhotos: {
+    color: "#ffffff",
+  },
+  titleWithoutPhotos: {
+    color: MOMENT_TEXT,
+  },
+  dateWithPhotos: {
+    color: "#f3f4f6",
+  },
+  dateWithoutPhotos: {
+    color: MOMENT_TEXT + "80",
+  },
+  labelWithPhotos: {
+    color: "#ffffff",
+  },
+  labelWithoutPhotos: {
+    color: MOMENT_COLOR,
+  },
+  descriptionWithPhotos: {
+    color: "#ffffff",
+  },
+  descriptionWithoutPhotos: {
+    color: MOMENT_TEXT + "CC",
   },
   photoBackground: {
     position: "absolute",
@@ -204,4 +232,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 });
+
+export default memo(MomentCard);
 

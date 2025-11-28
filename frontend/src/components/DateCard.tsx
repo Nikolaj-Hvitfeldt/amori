@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo, useMemo } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { DateEntry } from "../types/dates";
 import RotatingPhotoBackground from "./RotatingPhotoBackground";
@@ -21,30 +21,42 @@ interface DateCardProps {
   variant?: "timeline" | "screen";
 }
 
-export default function DateCard({
+function DateCard({
   dateEntry,
   onPress,
   onLongPress,
   variant = "timeline",
 }: DateCardProps) {
-  const moodInfo = getMoodInfo(dateEntry.mood);
-  const dateMoodColor = MOOD_COLORS[dateEntry.mood];
-  const allDatePhotos =
-    dateEntry.photos && dateEntry.photos.length > 0
-      ? dateEntry.photos
-      : dateEntry.image_url
-      ? [dateEntry.image_url]
-      : [];
-  const datePhotos = filterValidPhotos(allDatePhotos);
+  const moodInfo = useMemo(() => getMoodInfo(dateEntry.mood), [dateEntry.mood]);
+  const dateMoodColor = useMemo(() => MOOD_COLORS[dateEntry.mood], [dateEntry.mood]);
+  const allDatePhotos = useMemo(
+    () =>
+      dateEntry.photos && dateEntry.photos.length > 0
+        ? dateEntry.photos
+        : dateEntry.image_url
+        ? [dateEntry.image_url]
+        : [],
+    [dateEntry.photos, dateEntry.image_url]
+  );
+  const datePhotos = useMemo(
+    () => filterValidPhotos(allDatePhotos),
+    [allDatePhotos]
+  );
 
   // Adjust styling based on variant
-  const cardStyle = variant === "screen" 
-    ? {
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 16,
-      }
-    : styles.card;
+  const cardStyle = useMemo(
+    () =>
+      variant === "screen"
+        ? {
+            borderRadius: 16,
+            padding: 20,
+            marginBottom: 16,
+          }
+        : styles.card,
+    [variant]
+  );
+
+  const hasPhotos = datePhotos.length > 0;
 
   return (
     <TouchableOpacity
@@ -53,18 +65,15 @@ export default function DateCard({
       activeOpacity={0.7}
       style={[
         cardStyle,
-        {
-          backgroundColor: "#0f172a",
-          borderColor: "#374151",
-          ...getBoxShadow(dateMoodColor, { width: 0, height: 4 }, 0.3, 12),
-        },
+        styles.cardBase,
+        getBoxShadow(dateMoodColor, { width: 0, height: 4 }, 0.3, 12),
       ]}
     >
         {/* Decorative calendar accent */}
         <DecorativeAccent color={dateMoodColor} size="default" opacity={0.5} />
 
       {/* Rotating Photo Background */}
-      {datePhotos.length > 0 && (
+      {hasPhotos && (
         <RotatingPhotoBackground
           photos={datePhotos}
           interval={8000}
@@ -80,9 +89,7 @@ export default function DateCard({
               <Text
                 style={[
                   styles.title,
-                  {
-                    color: datePhotos.length > 0 ? "#ffffff" : "#e5d3ff",
-                  },
+                  hasPhotos ? styles.titleWithPhotos : styles.titleWithoutPhotos,
                   getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
                 ]}
               >
@@ -93,9 +100,7 @@ export default function DateCard({
             <Text
               style={[
                 styles.date,
-                {
-                  color: datePhotos.length > 0 ? "#f3f4f6" : "#9ca3af",
-                },
+                hasPhotos ? styles.dateWithPhotos : styles.dateWithoutPhotos,
                 getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
               ]}
             >
@@ -106,9 +111,7 @@ export default function DateCard({
               <Text
                 style={[
                   styles.label,
-                  {
-                    color: datePhotos.length > 0 ? "#ffffff" : "#a78bfa",
-                  },
+                  hasPhotos ? styles.labelWithPhotos : styles.labelWithoutPhotos,
                   getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
                 ]}
               >
@@ -122,9 +125,7 @@ export default function DateCard({
           <Text
             style={[
               styles.location,
-              {
-                color: datePhotos.length > 0 ? "#ffffff" : "#d1d5db",
-              },
+              hasPhotos ? styles.locationWithPhotos : styles.locationWithoutPhotos,
               getTextShadow("rgba(0, 0, 0, 0.75)", { width: 0, height: 1 }, 3),
             ]}
           >
@@ -147,6 +148,34 @@ const styles = StyleSheet.create({
     zIndex: 2,
     borderWidth: 1,
     elevation: 5,
+  },
+  cardBase: {
+    backgroundColor: "#0f172a",
+    borderColor: "#374151",
+  },
+  titleWithPhotos: {
+    color: "#ffffff",
+  },
+  titleWithoutPhotos: {
+    color: "#e5d3ff",
+  },
+  dateWithPhotos: {
+    color: "#f3f4f6",
+  },
+  dateWithoutPhotos: {
+    color: "#9ca3af",
+  },
+  labelWithPhotos: {
+    color: "#ffffff",
+  },
+  labelWithoutPhotos: {
+    color: "#a78bfa",
+  },
+  locationWithPhotos: {
+    color: "#ffffff",
+  },
+  locationWithoutPhotos: {
+    color: "#d1d5db",
   },
   photoBackground: {
     position: "absolute",
@@ -205,4 +234,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 });
+
+export default memo(DateCard);
 
