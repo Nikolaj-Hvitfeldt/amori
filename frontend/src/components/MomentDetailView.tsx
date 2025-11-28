@@ -18,6 +18,7 @@ interface MomentDetailViewProps {
   moment: Moment;
   onClose: () => void;
   onEdit: () => void;
+  allowEdit?: boolean;
 }
 
 // Pink/romantic theme
@@ -30,6 +31,7 @@ export default function MomentDetailView({
   moment,
   onClose,
   onEdit,
+  allowEdit = true,
 }: MomentDetailViewProps) {
   const scrollX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -92,12 +94,14 @@ export default function MomentDetailView({
         >
           <Text style={styles.closeButtonText}>✕</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={onEdit}
-          style={styles.editButton}
-        >
-          <Text style={styles.editButtonText}>Edit</Text>
-        </TouchableOpacity>
+        {allowEdit && (
+          <TouchableOpacity
+            onPress={onEdit}
+            style={styles.editButton}
+          >
+            <Text style={styles.editButtonText}>Edit</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Photo Carousel or Default Placeholder */}

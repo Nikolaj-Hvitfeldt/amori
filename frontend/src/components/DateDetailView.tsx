@@ -21,6 +21,7 @@ interface DateDetailViewProps {
   dateEntry: DateEntry;
   onClose: () => void;
   onEdit: () => void;
+  allowEdit?: boolean;
 }
 
 const MOOD_OPTIONS: { value: DateMood; label: string; icon: string }[] = [
@@ -66,6 +67,7 @@ export default function DateDetailView({
   dateEntry,
   onClose,
   onEdit,
+  allowEdit = true,
 }: DateDetailViewProps) {
   const scrollX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -141,12 +143,14 @@ export default function DateDetailView({
         >
           <Text style={styles.closeButtonText}>✕</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={onEdit}
-          style={styles.editButton}
-        >
-          <Text style={styles.editButtonText}>Edit</Text>
-        </TouchableOpacity>
+        {allowEdit && (
+          <TouchableOpacity
+            onPress={onEdit}
+            style={styles.editButton}
+          >
+            <Text style={styles.editButtonText}>Edit</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Photo Carousel */}
