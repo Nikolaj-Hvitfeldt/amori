@@ -21,9 +21,52 @@ import MomentDetailView from "../components/MomentDetailView";
 import DateDetailView from "../components/DateDetailView";
 import MilestoneDetailView from "../components/MilestoneDetailView";
 import RotatingPhotoBackground from "../components/RotatingPhotoBackground";
-import { getThumbnailUrl } from "../utils/imageUtils";
+import { getThumbnailUrl, filterValidPhotos } from "../utils/imageUtils";
 import { MILESTONE_CONFIG } from "../constants/milestoneConfig";
 import { getCachedData, setCachedData, invalidateCache } from "../utils/cache";
+import { getBoxShadow, getTextShadow } from "../utils/shadows";
+import { formatDateUS, calculateDaysSince } from "../utils/dateUtils";
+import { MOOD_COLORS, MOOD_OPTIONS, getMoodInfo } from "../utils/moodUtils";
+import {
+  MOMENT_COLOR,
+  MOMENT_BG,
+  MOMENT_TEXT,
+  TIMELINE_BG,
+  ROPE_COLOR,
+  ROPE_COLOR_DARK,
+  ROPE_COLOR_LIGHT,
+  GOLD,
+  GOLD_DARK,
+  TEXT_SECONDARY,
+  TEXT_PRIMARY,
+} from "../constants/theme";
+import {
+  CARD_MARGIN_HORIZONTAL,
+  CARD_MARGIN_BOTTOM,
+  CARD_PADDING,
+  CARD_PADDING_LARGE,
+  CARD_BORDER_RADIUS,
+  CARD_BORDER_RADIUS_LARGE,
+  TIMELINE_TOP_PADDING,
+  TIMELINE_BOTTOM_PADDING,
+  TIMELINE_ROPE_EXTENSION_TOP,
+  TIMELINE_ROPE_GAP_BOTTOM,
+  SCROLL_LOAD_MORE_THRESHOLD,
+  ACCENT_CIRCLE_SIZE,
+  ACCENT_CIRCLE_SIZE_LARGE,
+  ACCENT_CIRCLE_OFFSET,
+  ACCENT_CIRCLE_OFFSET_LARGE,
+  ROPE_WIDTH,
+  ROPE_CENTER_OFFSET,
+  CHARM_LOOP_SIZE,
+  CHARM_HEART_SIZE,
+  CHARM_CONTAINER_WIDTH,
+  CHARM_CONTAINER_HEIGHT,
+  CHARM_BOTTOM_OFFSET,
+  JUMP_RING_SIZE,
+  JUMP_RING_CENTER_OFFSET,
+  JUMP_RING_BOTTOM_OFFSET,
+} from "../constants/spacing";
 
 // Unified timeline item type
 type TimelineItemType = "moment" | "date" | "milestone";
@@ -41,115 +84,8 @@ interface TimelineItem {
   milestone?: Milestone;
 }
 
-// Helper function for shadows
-const getBoxShadow = (
-  shadowColor: string,
-  shadowOffset: { width: number; height: number },
-  shadowOpacity: number,
-  shadowRadius: number
-) => {
-  if (Platform.OS === "web") {
-    const color = shadowColor.startsWith("#")
-      ? shadowColor +
-        Math.round(shadowOpacity * 255)
-          .toString(16)
-          .padStart(2, "0")
-      : shadowColor;
-    return {
-      boxShadow: `${shadowOffset.width}px ${shadowOffset.height}px ${shadowRadius}px 0px ${color}`,
-    } as any;
-  }
-  return {
-    shadowColor,
-    shadowOffset,
-    shadowOpacity,
-    shadowRadius,
-  };
-};
-
-// Helper function for text shadows
-const getTextShadow = (
-  textShadowColor: string,
-  textShadowOffset: { width: number; height: number },
-  textShadowRadius: number
-) => {
-  return Platform.select({
-    web: {
-      textShadow: `${textShadowOffset.width}px ${textShadowOffset.height}px ${textShadowRadius}px ${textShadowColor}`,
-    } as any,
-    default: {
-      textShadowColor,
-      textShadowOffset,
-      textShadowRadius,
-    },
-  });
-};
-
-// Filter valid photos
-const filterValidPhotos = (photoUrls: string[]): string[] => {
-  if (!photoUrls || !Array.isArray(photoUrls)) return [];
-  return photoUrls.filter(
-    (url) =>
-      url &&
-      typeof url === "string" &&
-      url.trim() !== "" &&
-      (url.startsWith("http://") || url.startsWith("https://"))
-  );
-};
-
-// Format date
-const formatDate = (dateString: string): string => {
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString;
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  } catch {
-    return dateString;
-  }
-};
-
-// Calculate days since
-const calculateDaysSince = (dateString: string): number => {
-  const milestoneDate = new Date(dateString);
-  const today = new Date();
-  const diffTime = today.getTime() - milestoneDate.getTime();
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
-};
-
-// Mood colors and info
-const MOOD_COLORS: Record<DateMood, string> = {
-  magical: "#DDA0DD",
-  romantic: "#FFB6C1",
-  adventurous: "#FFD700",
-  cozy: "#FFA07A",
-  spontaneous: "#FF69B4",
-  dreamy: "#DDA0DD",
-};
-
-const MOOD_OPTIONS: { value: DateMood; label: string; icon: string }[] = [
-  { value: "magical", label: "Magical", icon: "✨" },
-  { value: "romantic", label: "Romantic", icon: "💕" },
-  { value: "adventurous", label: "Adventurous", icon: "🌟" },
-  { value: "cozy", label: "Cozy", icon: "🕯️" },
-  { value: "spontaneous", label: "Spontaneous", icon: "🎈" },
-  { value: "dreamy", label: "Dreamy", icon: "🌙" },
-];
-
-const getMoodInfo = (moodValue: DateMood) => {
-  return (
-    MOOD_OPTIONS.find((option) => option.value === moodValue) || MOOD_OPTIONS[1]
-  );
-};
-
-// Theme colors
-const MOMENT_COLOR = "#FF6B9D";
-const MOMENT_BG = "#1a0f1a";
-const MOMENT_TEXT = "#ffd1e0";
+// Use formatDateUS for timeline (US format)
+const formatDate = formatDateUS;
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -382,10 +318,9 @@ export default function TimelineScreen() {
 
   const handleScroll = (event: any) => {
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    const paddingToBottom = 100; // Trigger load more 100px before bottom
     const isCloseToBottom =
       layoutMeasurement.height + contentOffset.y >=
-      contentSize.height - paddingToBottom;
+      contentSize.height - SCROLL_LOAD_MORE_THRESHOLD;
 
     if (isCloseToBottom && hasMore && !loadingMore) {
       loadMore();
@@ -416,10 +351,10 @@ export default function TimelineScreen() {
         activeOpacity={0.7}
         style={{
           backgroundColor: MOMENT_BG,
-          borderRadius: 24,
-          padding: 20,
-          marginBottom: 30, // Consistent gap (30px) for rope visibility
-          marginHorizontal: 20,
+          borderRadius: CARD_BORDER_RADIUS_LARGE,
+          padding: CARD_PADDING,
+          marginBottom: CARD_MARGIN_BOTTOM,
+          marginHorizontal: CARD_MARGIN_HORIZONTAL,
           minHeight: 180,
           overflow: "hidden", // Hide line inside card
           position: "relative",
@@ -434,10 +369,10 @@ export default function TimelineScreen() {
         <View
           style={{
             position: "absolute",
-            top: -20,
-            right: -20,
-            width: 120,
-            height: 120,
+            top: ACCENT_CIRCLE_OFFSET_LARGE,
+            right: ACCENT_CIRCLE_OFFSET_LARGE,
+            width: ACCENT_CIRCLE_SIZE_LARGE,
+            height: ACCENT_CIRCLE_SIZE_LARGE,
             borderRadius: 60,
             backgroundColor: MOMENT_COLOR + "15",
             opacity: 0.6,
@@ -573,10 +508,10 @@ export default function TimelineScreen() {
         activeOpacity={0.7}
         style={{
           backgroundColor: "#0f172a",
-          borderRadius: 16,
-          padding: 20,
-          marginBottom: 30, // Consistent gap (30px) for rope visibility
-          marginHorizontal: 20,
+          borderRadius: CARD_BORDER_RADIUS,
+          padding: CARD_PADDING,
+          marginBottom: CARD_MARGIN_BOTTOM,
+          marginHorizontal: CARD_MARGIN_HORIZONTAL,
           overflow: "hidden", // Hide line inside card
           position: "relative",
           zIndex: 2, // Cards above line
@@ -590,10 +525,10 @@ export default function TimelineScreen() {
         <View
           style={{
             position: "absolute",
-            top: -10,
-            right: -10,
-            width: 80,
-            height: 80,
+            top: ACCENT_CIRCLE_OFFSET,
+            right: ACCENT_CIRCLE_OFFSET,
+            width: ACCENT_CIRCLE_SIZE,
+            height: ACCENT_CIRCLE_SIZE,
             borderRadius: 40,
             backgroundColor: dateMoodColor + "15",
             opacity: 0.5,
@@ -722,10 +657,10 @@ export default function TimelineScreen() {
         activeOpacity={0.7}
         style={{
           backgroundColor: "#2d1810",
-          borderRadius: 24,
-          padding: 24,
-          marginBottom: 30, // Consistent gap (30px) for rope visibility
-          marginHorizontal: 20,
+          borderRadius: CARD_BORDER_RADIUS_LARGE,
+          padding: CARD_PADDING_LARGE,
+          marginBottom: CARD_MARGIN_BOTTOM,
+          marginHorizontal: CARD_MARGIN_HORIZONTAL,
           overflow: "hidden", // Hide line inside card
           position: "relative",
           zIndex: 2, // Cards above line
@@ -739,10 +674,10 @@ export default function TimelineScreen() {
         <View
           style={{
             position: "absolute",
-            top: -10,
-            right: -10,
-            width: 80,
-            height: 80,
+            top: ACCENT_CIRCLE_OFFSET,
+            right: ACCENT_CIRCLE_OFFSET,
+            width: ACCENT_CIRCLE_SIZE,
+            height: ACCENT_CIRCLE_SIZE,
             borderRadius: 40,
             backgroundColor: config.color + "15",
             opacity: 0.5,
@@ -1016,24 +951,24 @@ export default function TimelineScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5E6D3", // Warmer beige/cream tone
+    backgroundColor: TIMELINE_BG,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F5E6D3", // Warmer beige/cream tone
+    backgroundColor: TIMELINE_BG,
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: "#666",
+    color: TEXT_SECONDARY,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F5E6D3", // Warmer beige/cream tone
+    backgroundColor: TIMELINE_BG,
     padding: 40,
   },
   emptyIcon: {
@@ -1043,12 +978,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#333",
+    color: TEXT_PRIMARY,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 16,
-    color: "#666",
+    color: TEXT_SECONDARY,
     textAlign: "center",
     lineHeight: 24,
   },
@@ -1056,16 +991,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 30, // Consistent gap (30px) for rope visibility
-    paddingBottom: 40,
+    paddingTop: TIMELINE_TOP_PADDING,
+    paddingBottom: TIMELINE_BOTTOM_PADDING,
   },
   timelineLine: {
     position: "absolute",
-    left: "50%", // Center of screen using percentage
-    marginLeft: -4, // Half of rope width (8px / 2)
-    top: -30, // Extend upward to match top gap (30px)
-    bottom: 40, // Leave space before jump ring (40px gap)
-    width: 8, // Thicker rope
+    left: "50%",
+    marginLeft: ROPE_CENTER_OFFSET,
+    top: -TIMELINE_ROPE_EXTENSION_TOP,
+    bottom: TIMELINE_ROPE_GAP_BOTTOM,
+    width: ROPE_WIDTH,
     zIndex: 0, // Behind cards - visible between cards, hidden inside cards
   },
   timelineLineDecoration: {
@@ -1073,9 +1008,8 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    width: 8,
-    // Golden rope base color
-    backgroundColor: "#FFD700", // Base gold
+    width: ROPE_WIDTH,
+    backgroundColor: ROPE_COLOR,
     opacity: 0.95,
     ...Platform.select({
       ios: {
@@ -1092,14 +1026,14 @@ const styles = StyleSheet.create({
         backgroundImage: `
           repeating-linear-gradient(
             45deg,
-            #FFD700 0px,
-            #FFD700 2px,
-            #FFA500 2px,
-            #FFA500 4px,
-            #FFD700 4px,
-            #FFD700 6px,
-            #FFED4E 6px,
-            #FFED4E 8px
+            ${ROPE_COLOR} 0px,
+            ${ROPE_COLOR} 2px,
+            ${ROPE_COLOR_DARK} 2px,
+            ${ROPE_COLOR_DARK} 4px,
+            ${ROPE_COLOR} 4px,
+            ${ROPE_COLOR} 6px,
+            ${ROPE_COLOR_LIGHT} 6px,
+            ${ROPE_COLOR_LIGHT} 8px
           )
         `,
         boxShadow: `
@@ -1154,13 +1088,13 @@ const styles = StyleSheet.create({
   jumpRing: {
     position: "absolute",
     left: "50%",
-    marginLeft: -6, // Center the 12px ring (12px / 2)
-    bottom: -20, // Position between rope end and charm loop
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    marginLeft: JUMP_RING_CENTER_OFFSET,
+    bottom: JUMP_RING_BOTTOM_OFFSET,
+    width: JUMP_RING_SIZE,
+    height: JUMP_RING_SIZE,
+    borderRadius: JUMP_RING_SIZE / 2,
     borderWidth: 2,
-    borderColor: "#FFD700",
+    borderColor: GOLD,
     backgroundColor: "transparent",
     zIndex: 1, // Above rope, below charm
     ...Platform.select({
@@ -1196,10 +1130,10 @@ const styles = StyleSheet.create({
   ropeCharm: {
     position: "absolute",
     left: "50%",
-    marginLeft: -16, // Center the charm (32px / 2)
-    bottom: -50, // Position below the rope end
-    width: 32,
-    height: 50,
+    marginLeft: -CHARM_CONTAINER_WIDTH / 2,
+    bottom: CHARM_BOTTOM_OFFSET,
+    width: CHARM_CONTAINER_WIDTH,
+    height: CHARM_CONTAINER_HEIGHT,
     zIndex: 2, // Above jump ring
     alignItems: "center",
   },
@@ -1208,11 +1142,11 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
     left: 12,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: CHARM_LOOP_SIZE,
+    height: CHARM_LOOP_SIZE,
+    borderRadius: CHARM_LOOP_SIZE / 2,
     borderWidth: 2,
-    borderColor: "#FFD700",
+    borderColor: GOLD,
     backgroundColor: "#FFA500",
     zIndex: 1,
     ...Platform.select({
@@ -1226,8 +1160,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 10,
     left: 0,
-    width: 32,
-    height: 32,
+    width: CHARM_HEART_SIZE,
+    height: CHARM_HEART_SIZE,
     alignItems: "center",
     justifyContent: "center",
     ...Platform.select({
@@ -1265,7 +1199,7 @@ const styles = StyleSheet.create({
   },
   loadingMoreText: {
     fontSize: 14,
-    color: "#666",
+    color: TEXT_SECONDARY,
     fontStyle: "italic",
   },
 });
