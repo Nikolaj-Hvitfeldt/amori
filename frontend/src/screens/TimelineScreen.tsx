@@ -3,13 +3,10 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   Modal,
   ActivityIndicator,
   StyleSheet,
   Platform,
-  Image,
-  Dimensions,
 } from "react-native";
 import { momentsService } from "../services/moments";
 import { datesService } from "../services/dates";
@@ -20,52 +17,17 @@ import { Milestone } from "../types/milestones";
 import MomentDetailView from "../components/MomentDetailView";
 import DateDetailView from "../components/DateDetailView";
 import MilestoneDetailView from "../components/MilestoneDetailView";
-import RotatingPhotoBackground from "../components/RotatingPhotoBackground";
-import { getThumbnailUrl, filterValidPhotos } from "../utils/imageUtils";
-import { MILESTONE_CONFIG } from "../constants/milestoneConfig";
+import TimelineMomentCard from "../components/timeline/TimelineMomentCard";
+import TimelineDateCard from "../components/timeline/TimelineDateCard";
+import TimelineMilestoneCard from "../components/timeline/TimelineMilestoneCard";
+import TimelineRope from "../components/timeline/TimelineRope";
 import { getCachedData, setCachedData, invalidateCache } from "../utils/cache";
-import { getBoxShadow, getTextShadow } from "../utils/shadows";
-import { formatDateUS, calculateDaysSince } from "../utils/dateUtils";
-import { MOOD_COLORS, MOOD_OPTIONS, getMoodInfo } from "../utils/moodUtils";
+import { TIMELINE_BG, TEXT_SECONDARY, TEXT_PRIMARY } from "../constants/theme";
 import {
-  MOMENT_COLOR,
-  MOMENT_BG,
-  MOMENT_TEXT,
-  TIMELINE_BG,
-  ROPE_COLOR,
-  ROPE_COLOR_DARK,
-  ROPE_COLOR_LIGHT,
-  GOLD,
-  GOLD_DARK,
-  TEXT_SECONDARY,
-  TEXT_PRIMARY,
-} from "../constants/theme";
-import {
-  CARD_MARGIN_HORIZONTAL,
-  CARD_MARGIN_BOTTOM,
-  CARD_PADDING,
-  CARD_PADDING_LARGE,
-  CARD_BORDER_RADIUS,
-  CARD_BORDER_RADIUS_LARGE,
   TIMELINE_TOP_PADDING,
   TIMELINE_BOTTOM_PADDING,
-  TIMELINE_ROPE_EXTENSION_TOP,
-  TIMELINE_ROPE_GAP_BOTTOM,
   SCROLL_LOAD_MORE_THRESHOLD,
-  ACCENT_CIRCLE_SIZE,
-  ACCENT_CIRCLE_SIZE_LARGE,
-  ACCENT_CIRCLE_OFFSET,
-  ACCENT_CIRCLE_OFFSET_LARGE,
-  ROPE_WIDTH,
-  ROPE_CENTER_OFFSET,
-  CHARM_LOOP_SIZE,
-  CHARM_HEART_SIZE,
-  CHARM_CONTAINER_WIDTH,
-  CHARM_CONTAINER_HEIGHT,
-  CHARM_BOTTOM_OFFSET,
-  JUMP_RING_SIZE,
-  JUMP_RING_CENTER_OFFSET,
-  JUMP_RING_BOTTOM_OFFSET,
+  ITEMS_PER_TYPE,
 } from "../constants/spacing";
 
 // Unified timeline item type
@@ -84,13 +46,6 @@ interface TimelineItem {
   milestone?: Milestone;
 }
 
-// Use formatDateUS for timeline (US format)
-const formatDate = formatDateUS;
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-const ITEMS_PER_TYPE = 10; // Load 10 items from each type per page (30 total)
-
 // Cache keys
 const CACHE_KEY_TIMELINE_ITEMS = "timeline_items";
 const CACHE_KEY_TIMELINE_STATE = "timeline_state";
@@ -103,7 +58,6 @@ export default function TimelineScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [selectedItem, setSelectedItem] = useState<TimelineItem | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
-  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
   // Track pagination state for each type
   const [momentsOffset, setMomentsOffset] = useState(0);
@@ -339,484 +293,34 @@ export default function TimelineScreen() {
 
   const renderMomentCard = (item: TimelineItem) => {
     if (!item.moment) return null;
-    const moment = item.moment;
-    const momentPhotos = filterValidPhotos(moment.photos || []);
-    // Use thumbnails for list view performance
-    const thumbnailPhotos = momentPhotos.map((photo) => getThumbnailUrl(photo));
-
     return (
-      <TouchableOpacity
+      <TimelineMomentCard
         key={item.id}
+        moment={item.moment}
         onPress={() => handleItemPress(item)}
-        activeOpacity={0.7}
-        style={{
-          backgroundColor: MOMENT_BG,
-          borderRadius: CARD_BORDER_RADIUS_LARGE,
-          padding: CARD_PADDING,
-          marginBottom: CARD_MARGIN_BOTTOM,
-          marginHorizontal: CARD_MARGIN_HORIZONTAL,
-          minHeight: 180,
-          overflow: "hidden", // Hide line inside card
-          position: "relative",
-          borderWidth: 2,
-          borderColor: MOMENT_COLOR + "40",
-          ...getBoxShadow(MOMENT_COLOR, { width: 0, height: 6 }, 0.5, 16),
-          elevation: 10,
-          zIndex: 2, // Cards above line
-        }}
-      >
-        {/* Decorative heart accent */}
-        <View
-          style={{
-            position: "absolute",
-            top: ACCENT_CIRCLE_OFFSET_LARGE,
-            right: ACCENT_CIRCLE_OFFSET_LARGE,
-            width: ACCENT_CIRCLE_SIZE_LARGE,
-            height: ACCENT_CIRCLE_SIZE_LARGE,
-            borderRadius: 60,
-            backgroundColor: MOMENT_COLOR + "15",
-            opacity: 0.6,
-          }}
-        />
-
-        {/* Rotating Photo Background - using thumbnails for performance */}
-        {momentPhotos.length > 0 && (
-          <RotatingPhotoBackground
-            photos={thumbnailPhotos}
-            interval={8000}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 0,
-            }}
-          />
-        )}
-
-        {/* Content */}
-        <View style={{ position: "relative", zIndex: 1 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              marginBottom: 8,
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 4,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 20,
-                    fontWeight: "600",
-                    color: momentPhotos.length > 0 ? "#ffffff" : MOMENT_TEXT,
-                    marginRight: 8,
-                    ...getTextShadow(
-                      "rgba(0, 0, 0, 0.75)",
-                      { width: 0, height: 1 },
-                      3
-                    ),
-                  }}
-                >
-                  {moment.title}
-                </Text>
-                <Text style={{ fontSize: 20 }}>💕</Text>
-              </View>
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontStyle: "italic",
-                  color:
-                    momentPhotos.length > 0 ? "#f3f4f6" : MOMENT_TEXT + "80",
-                  marginBottom: 8,
-                  ...getTextShadow(
-                    "rgba(0, 0, 0, 0.75)",
-                    { width: 0, height: 1 },
-                    3
-                  ),
-                }}
-              >
-                {formatDate(moment.story_date)}
-              </Text>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text style={{ fontSize: 20, marginRight: 8 }}>💕</Text>
-                <Text
-                  style={{
-                    fontSize: 14,
-                    color: momentPhotos.length > 0 ? "#ffffff" : MOMENT_COLOR,
-                    fontWeight: "500",
-                    ...getTextShadow(
-                      "rgba(0, 0, 0, 0.75)",
-                      { width: 0, height: 1 },
-                      3
-                    ),
-                  }}
-                >
-                  Special Moment
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          <Text
-            style={{
-              fontSize: 16,
-              color: momentPhotos.length > 0 ? "#ffffff" : MOMENT_TEXT + "CC",
-              marginTop: 8,
-              fontWeight: "500",
-              ...getTextShadow(
-                "rgba(0, 0, 0, 0.75)",
-                { width: 0, height: 1 },
-                3
-              ),
-            }}
-            numberOfLines={2}
-          >
-            {moment.description}
-          </Text>
-        </View>
-      </TouchableOpacity>
+      />
     );
   };
 
   const renderDateCard = (item: TimelineItem) => {
     if (!item.dateEntry) return null;
-    const dateEntry = item.dateEntry;
-    const moodInfo = getMoodInfo(dateEntry.mood);
-    const dateMoodColor = MOOD_COLORS[dateEntry.mood];
-    // Get photos array (support both photos and legacy image_url)
-    const allDatePhotos =
-      dateEntry.photos && dateEntry.photos.length > 0
-        ? dateEntry.photos
-        : dateEntry.image_url
-        ? [dateEntry.image_url]
-        : [];
-    const datePhotos = filterValidPhotos(allDatePhotos);
-
     return (
-      <TouchableOpacity
+      <TimelineDateCard
         key={item.id}
+        dateEntry={item.dateEntry}
         onPress={() => handleItemPress(item)}
-        activeOpacity={0.7}
-        style={{
-          backgroundColor: "#0f172a",
-          borderRadius: CARD_BORDER_RADIUS,
-          padding: CARD_PADDING,
-          marginBottom: CARD_MARGIN_BOTTOM,
-          marginHorizontal: CARD_MARGIN_HORIZONTAL,
-          overflow: "hidden", // Hide line inside card
-          position: "relative",
-          zIndex: 2, // Cards above line
-          borderWidth: 1,
-          borderColor: "#374151",
-          ...getBoxShadow(dateMoodColor, { width: 0, height: 4 }, 0.3, 12),
-          elevation: 5,
-        }}
-      >
-        {/* Decorative calendar accent */}
-        <View
-          style={{
-            position: "absolute",
-            top: ACCENT_CIRCLE_OFFSET,
-            right: ACCENT_CIRCLE_OFFSET,
-            width: ACCENT_CIRCLE_SIZE,
-            height: ACCENT_CIRCLE_SIZE,
-            borderRadius: 40,
-            backgroundColor: dateMoodColor + "15",
-            opacity: 0.5,
-          }}
-        />
-
-        {/* Rotating Photo Background */}
-        {datePhotos.length > 0 && (
-          <RotatingPhotoBackground
-            photos={datePhotos}
-            interval={8000}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 0,
-            }}
-          />
-        )}
-
-        {/* Content */}
-        <View style={{ position: "relative", zIndex: 1 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              marginBottom: 8,
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 4,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 20,
-                    fontWeight: "600",
-                    color: datePhotos.length > 0 ? "#ffffff" : "#e5d3ff",
-                    marginRight: 8,
-                    ...getTextShadow(
-                      "rgba(0, 0, 0, 0.75)",
-                      { width: 0, height: 1 },
-                      3
-                    ),
-                  }}
-                >
-                  {dateEntry.title || "Our Special Date"}
-                </Text>
-                <Text style={{ fontSize: 20 }}>📅</Text>
-              </View>
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontStyle: "italic",
-                  color: datePhotos.length > 0 ? "#f3f4f6" : "#9ca3af",
-                  marginBottom: 8,
-                  ...getTextShadow(
-                    "rgba(0, 0, 0, 0.75)",
-                    { width: 0, height: 1 },
-                    3
-                  ),
-                }}
-              >
-                {formatDate(dateEntry.date)}
-              </Text>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text style={{ fontSize: 20, marginRight: 8 }}>
-                  {moodInfo.icon}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 14,
-                    color: datePhotos.length > 0 ? "#ffffff" : "#a78bfa",
-                    fontWeight: "500",
-                    ...getTextShadow(
-                      "rgba(0, 0, 0, 0.75)",
-                      { width: 0, height: 1 },
-                      3
-                    ),
-                  }}
-                >
-                  {moodInfo.label}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          <Text
-            style={{
-              fontSize: 16,
-              color: datePhotos.length > 0 ? "#ffffff" : "#d1d5db",
-              marginBottom: 8,
-              fontWeight: "500",
-              ...getTextShadow(
-                "rgba(0, 0, 0, 0.75)",
-                { width: 0, height: 1 },
-                3
-              ),
-            }}
-          >
-            📍 {dateEntry.location}
-          </Text>
-        </View>
-      </TouchableOpacity>
+      />
     );
   };
 
   const renderMilestoneCard = (item: TimelineItem) => {
     if (!item.milestone) return null;
-    const milestone = item.milestone;
-    const config = MILESTONE_CONFIG[milestone.milestone_type];
-    const daysSince = calculateDaysSince(milestone.date);
-    const milestonePhotos = filterValidPhotos(milestone.photos || []);
-
     return (
-      <TouchableOpacity
+      <TimelineMilestoneCard
         key={item.id}
+        milestone={item.milestone}
         onPress={() => handleItemPress(item)}
-        activeOpacity={0.7}
-        style={{
-          backgroundColor: "#2d1810",
-          borderRadius: CARD_BORDER_RADIUS_LARGE,
-          padding: CARD_PADDING_LARGE,
-          marginBottom: CARD_MARGIN_BOTTOM,
-          marginHorizontal: CARD_MARGIN_HORIZONTAL,
-          overflow: "hidden", // Hide line inside card
-          position: "relative",
-          zIndex: 2, // Cards above line
-          borderWidth: 1,
-          borderColor: "#ffd70040",
-          ...getBoxShadow("#ffd700", { width: 0, height: 4 }, 0.3, 12),
-          elevation: 5,
-        }}
-      >
-        {/* Decorative star accent */}
-        <View
-          style={{
-            position: "absolute",
-            top: ACCENT_CIRCLE_OFFSET,
-            right: ACCENT_CIRCLE_OFFSET,
-            width: ACCENT_CIRCLE_SIZE,
-            height: ACCENT_CIRCLE_SIZE,
-            borderRadius: 40,
-            backgroundColor: config.color + "15",
-            opacity: 0.5,
-          }}
-        />
-
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "flex-start",
-            marginBottom: 16,
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          <View
-            style={{
-              width: 70,
-              height: 70,
-              borderRadius: 35,
-              backgroundColor: config.color + "25",
-              alignItems: "center",
-              justifyContent: "center",
-              marginRight: 16,
-              borderWidth: 2,
-              borderColor: config.color + "50",
-            }}
-          >
-            <Text style={{ fontSize: 36 }}>{config.icon}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text
-              style={{
-                fontSize: 20,
-                fontWeight: "600",
-                color: "#ffd700",
-                marginBottom: 6,
-                ...getTextShadow("#000", { width: 0, height: 1 }, 2),
-              }}
-            >
-              {milestone.title}
-            </Text>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                marginBottom: 6,
-              }}
-            >
-              <Text style={{ fontSize: 16, marginRight: 6 }}>
-                {config.icon}
-              </Text>
-              <Text
-                style={{
-                  fontSize: 14,
-                  color: config.color,
-                  fontWeight: "500",
-                }}
-              >
-                {config.label}
-              </Text>
-            </View>
-            <Text
-              style={{
-                fontSize: 12,
-                color: "#8b7355",
-                fontStyle: "italic",
-              }}
-            >
-              {formatDate(milestone.date)} • {daysSince} days ago
-            </Text>
-          </View>
-        </View>
-
-        {milestone.description && (
-          <Text
-            style={{
-              fontSize: 15,
-              color: "#d4a574",
-              lineHeight: 22,
-              marginBottom: 16,
-              position: "relative",
-              zIndex: 1,
-            }}
-          >
-            {milestone.description}
-          </Text>
-        )}
-
-        {/* Photos */}
-        {(() => {
-          const validDisplayPhotos = milestonePhotos.filter(
-            (photo) => !failedImages.has(photo)
-          );
-          return validDisplayPhotos.length > 0 ? (
-            <View
-              onStartShouldSetResponder={() => true}
-              onMoveShouldSetResponder={() => true}
-            >
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{ marginTop: 8 }}
-                contentContainerStyle={{
-                  gap: 10,
-                  paddingRight: 20,
-                }}
-                nestedScrollEnabled={true}
-              >
-                {validDisplayPhotos.map((photo, photoIndex) => (
-                  <Image
-                    key={photoIndex}
-                    source={{ uri: photo }}
-                    style={{
-                      width: 100,
-                      height: 100,
-                      borderRadius: 16,
-                      borderWidth: 2,
-                      borderColor: config.color + "60",
-                      backgroundColor: "#1a0f00",
-                    }}
-                    resizeMode="cover"
-                    onError={(error) => {
-                      console.warn(
-                        "Failed to load image on card:",
-                        photo,
-                        error
-                      );
-                      setFailedImages((prev: Set<string>) =>
-                        new Set(prev).add(photo)
-                      );
-                    }}
-                  />
-                ))}
-              </ScrollView>
-            </View>
-          ) : null;
-        })()}
-      </TouchableOpacity>
+      />
     );
   };
 
@@ -852,40 +356,7 @@ export default function TimelineScreen() {
         scrollEventThrottle={400}
       >
         {/* Golden Rope Timeline - represents the bond between moments */}
-        <View style={styles.timelineLine}>
-          {/* Base golden rope */}
-          <View style={styles.timelineLineDecoration} />
-          {/* Rope texture overlay */}
-          <View style={styles.timelineRopeTexture} />
-          {/* Shine/highlight for 3D effect */}
-          <View
-            style={{
-              position: "absolute",
-              left: 1,
-              top: 0,
-              bottom: 0,
-              width: 2,
-              backgroundColor: "rgba(255, 255, 255, 0.3)",
-              opacity: 0.6,
-            }}
-          />
-
-          {/* Jump ring connecting rope to charm */}
-          <View style={styles.jumpRing}>
-            {/* Small opening detail (jewelry feature) */}
-            <View style={styles.jumpRingOpening} />
-          </View>
-
-          {/* Golden heart charm hanging at the end of the rope */}
-          <View style={styles.ropeCharm}>
-            {/* Small loop connecting heart to rope */}
-            <View style={styles.charmLoop} />
-            {/* Golden heart charm */}
-            <View style={styles.heartCharm}>
-              <Text style={styles.heartEmoji}>💛</Text>
-            </View>
-          </View>
-        </View>
+        <TimelineRope />
 
         {timelineItems.map((item) => {
           switch (item.type) {
@@ -993,204 +464,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: TIMELINE_TOP_PADDING,
     paddingBottom: TIMELINE_BOTTOM_PADDING,
-  },
-  timelineLine: {
-    position: "absolute",
-    left: "50%",
-    marginLeft: ROPE_CENTER_OFFSET,
-    top: -TIMELINE_ROPE_EXTENSION_TOP,
-    bottom: TIMELINE_ROPE_GAP_BOTTOM,
-    width: ROPE_WIDTH,
-    zIndex: 0, // Behind cards - visible between cards, hidden inside cards
-  },
-  timelineLineDecoration: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: ROPE_WIDTH,
-    backgroundColor: ROPE_COLOR,
-    opacity: 0.95,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#FFD700",
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.5,
-        shadowRadius: 3,
-      },
-      android: {
-        elevation: 2,
-      },
-      web: {
-        // Rope texture with gradient and shadows for 3D effect
-        backgroundImage: `
-          repeating-linear-gradient(
-            45deg,
-            ${ROPE_COLOR} 0px,
-            ${ROPE_COLOR} 2px,
-            ${ROPE_COLOR_DARK} 2px,
-            ${ROPE_COLOR_DARK} 4px,
-            ${ROPE_COLOR} 4px,
-            ${ROPE_COLOR} 6px,
-            ${ROPE_COLOR_LIGHT} 6px,
-            ${ROPE_COLOR_LIGHT} 8px
-          )
-        `,
-        boxShadow: `
-          inset -1px 0 2px rgba(184, 134, 11, 0.7),
-          inset 1px 0 2px rgba(255, 255, 255, 0.5),
-          inset 0 -1px 2px rgba(184, 134, 11, 0.5),
-          inset 0 1px 2px rgba(255, 255, 255, 0.4),
-          0 0 6px rgba(255, 215, 0, 0.4),
-          0 0 12px rgba(255, 215, 0, 0.2)
-        `,
-      },
-    }),
-  },
-  // Rope texture overlay for braided effect
-  timelineRopeTexture: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 8,
-    backgroundColor: "transparent",
-    ...Platform.select({
-      web: {
-        // Braided rope pattern
-        backgroundImage: `
-          repeating-linear-gradient(
-            0deg,
-            transparent 0px,
-            transparent 1px,
-            rgba(184, 134, 11, 0.4) 1px,
-            rgba(184, 134, 11, 0.4) 2px,
-            transparent 2px,
-            transparent 3px
-          ),
-          repeating-linear-gradient(
-            90deg,
-            rgba(255, 255, 255, 0.1) 0px,
-            rgba(255, 255, 255, 0.1) 1px,
-            transparent 1px,
-            transparent 2px
-          )
-        `,
-        opacity: 0.6,
-      },
-      default: {
-        opacity: 0.2,
-        backgroundColor: "rgba(184, 134, 11, 0.3)",
-      },
-    }),
-  },
-  // Jump ring connecting rope to charm (jewelry-style connector)
-  jumpRing: {
-    position: "absolute",
-    left: "50%",
-    marginLeft: JUMP_RING_CENTER_OFFSET,
-    bottom: JUMP_RING_BOTTOM_OFFSET,
-    width: JUMP_RING_SIZE,
-    height: JUMP_RING_SIZE,
-    borderRadius: JUMP_RING_SIZE / 2,
-    borderWidth: 2,
-    borderColor: GOLD,
-    backgroundColor: "transparent",
-    zIndex: 1, // Above rope, below charm
-    ...Platform.select({
-      web: {
-        boxShadow: `
-          0 0 2px rgba(255, 215, 0, 0.8),
-          inset 0 0 4px rgba(184, 134, 11, 0.5),
-          inset 1px 1px 2px rgba(255, 255, 255, 0.3)
-        `,
-      },
-      ios: {
-        shadowColor: "#FFD700",
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.6,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-  // Small opening in the jump ring (jewelry detail)
-  jumpRingOpening: {
-    position: "absolute",
-    right: -1,
-    top: 4,
-    width: 2,
-    height: 4,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
-    borderRadius: 1,
-  },
-  // Golden heart charm hanging at the end of the rope
-  ropeCharm: {
-    position: "absolute",
-    left: "50%",
-    marginLeft: -CHARM_CONTAINER_WIDTH / 2,
-    bottom: CHARM_BOTTOM_OFFSET,
-    width: CHARM_CONTAINER_WIDTH,
-    height: CHARM_CONTAINER_HEIGHT,
-    zIndex: 2, // Above jump ring
-    alignItems: "center",
-  },
-  // Small loop connecting heart to rope
-  charmLoop: {
-    position: "absolute",
-    top: 0,
-    left: 12,
-    width: CHARM_LOOP_SIZE,
-    height: CHARM_LOOP_SIZE,
-    borderRadius: CHARM_LOOP_SIZE / 2,
-    borderWidth: 2,
-    borderColor: GOLD,
-    backgroundColor: "#FFA500",
-    zIndex: 1,
-    ...Platform.select({
-      web: {
-        boxShadow: "inset 0 0 3px rgba(184, 134, 11, 0.7)",
-      },
-    }),
-  },
-  // Golden heart charm
-  heartCharm: {
-    position: "absolute",
-    top: 10,
-    left: 0,
-    width: CHARM_HEART_SIZE,
-    height: CHARM_HEART_SIZE,
-    alignItems: "center",
-    justifyContent: "center",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#FFD700",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.6,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 4,
-      },
-      web: {
-        filter: "drop-shadow(0 2px 8px rgba(255, 215, 0, 0.6))",
-      },
-    }),
-  },
-  heartEmoji: {
-    fontSize: 32,
-    ...Platform.select({
-      web: {
-        textShadow: "0px 0px 6px rgba(255, 215, 0, 0.8)",
-      } as any,
-      default: {
-        textShadowColor: "rgba(255, 215, 0, 0.8)",
-        textShadowOffset: { width: 0, height: 0 },
-        textShadowRadius: 6,
-      },
-    }),
   },
   loadingMoreContainer: {
     padding: 20,

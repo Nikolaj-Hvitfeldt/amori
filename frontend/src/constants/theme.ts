@@ -43,3 +43,55 @@ export const TEXT_SECONDARY = "#666";
 export const TEXT_LIGHT = "#f3f4f6";
 export const TEXT_DARK = "#1a0f1a";
 
+// Date screen time-based themes
+export type TimeOfDay = "morning" | "afternoon" | "evening" | "night";
+
+export interface TimeTheme {
+  gradient: string[];
+  text: string;
+  bg: string;
+}
+
+export const TIME_THEMES: Record<TimeOfDay, TimeTheme> = {
+  morning: {
+    gradient: ["#FFE5B4", "#FFD89B", "#FFC65D"],
+    text: "#8B4513",
+    bg: "#FFF8E7",
+  },
+  afternoon: {
+    gradient: ["#87CEEB", "#B0E0E6", "#E0F6FF"],
+    text: "#1E3A5F",
+    bg: "#E8F4F8",
+  },
+  evening: {
+    gradient: ["#FFB6C1", "#FFA07A", "#FF8C69"],
+    text: "#8B0000",
+    bg: "#FFE8E0",
+  },
+  night: {
+    gradient: ["#1a1a2e", "#16213e", "#0f172a"],
+    text: "#e5d3ff",
+    bg: "#0f172a",
+  },
+};
+
+// Additional date screen colors
+export const DATE_SCREEN_BG = "#1a1a2e";
+export const DATE_SCREEN_HEADER_GRADIENT = "linear-gradient(135deg, #16213e 0%, #0f172a 100%)";
+export const DATE_SCREEN_BORDER_LIGHT = "#e5d3ff20";
+export const DATE_SCREEN_PURPLE = "#7c3aed";
+export const DATE_SCREEN_PURPLE_LIGHT = "#8b5cf6";
+export const DATE_SCREEN_GRAY = "#6b7280";
+export const DATE_SCREEN_GRAY_DARK = "#374151";
+export const DATE_SCREEN_WHITE = "#ffffff";
+export const DATE_SCREEN_TEXT_LIGHT = "#d1d5db";
+
+// Milestone screen colors
+export const MILESTONE_SCREEN_BG = "#1a0f00";
+export const MILESTONE_BROWN_TEXT = "#8b7355";
+export const MILESTONE_LIGHT_BROWN = "#d4a574";
+export const MILESTONE_LIGHT_GOLD = "#ffb84d";
+export const MILESTONE_BORDER_LIGHT = "#ffed4e";
+export const MILESTONE_BORDER_OPACITY_30 = "#ffd70030";
+export const MILESTONE_BORDER_OPACITY_40 = "#ffd70040";
+

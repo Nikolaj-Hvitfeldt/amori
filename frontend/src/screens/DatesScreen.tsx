@@ -24,108 +24,33 @@ import { datesService } from "../services/dates";
 import { API_BASE_URL } from "../services/api";
 import DateDetailView from "../components/DateDetailView";
 import RotatingPhotoBackground from "../components/RotatingPhotoBackground";
-import { getThumbnailUrl } from "../utils/imageUtils";
+import { getThumbnailUrl, filterValidPhotos } from "../utils/imageUtils";
+import { getBoxShadow, getTextShadow } from "../utils/shadows";
+import { formatDateEU } from "../utils/dateUtils";
+import { MOOD_COLORS, MOOD_OPTIONS, getMoodInfo } from "../utils/moodUtils";
+import { ITEMS_PER_PAGE } from "../constants/spacing";
+import {
+  TIME_THEMES,
+  TimeOfDay,
+  DATE_SCREEN_BG,
+  DATE_SCREEN_HEADER_GRADIENT,
+  DATE_SCREEN_BORDER_LIGHT,
+  DATE_SCREEN_PURPLE,
+  DATE_SCREEN_PURPLE_LIGHT,
+  DATE_SCREEN_GRAY,
+  DATE_SCREEN_GRAY_DARK,
+  DATE_SCREEN_WHITE,
+  DATE_SCREEN_TEXT_LIGHT,
+  DATE_BG,
+  DATE_BORDER,
+  DATE_TEXT,
+  DATE_TEXT_SECONDARY,
+  GRAY_LIGHT,
+  GRAY_MEDIUM,
+} from "../constants/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const ITEMS_PER_PAGE = 10;
 
-type TimeOfDay = "morning" | "afternoon" | "evening" | "night";
-
-// Helper function to convert shadow props to web-compatible boxShadow
-const getBoxShadow = (
-  shadowColor: string,
-  shadowOffset: { width: number; height: number },
-  shadowOpacity: number,
-  shadowRadius: number
-) => {
-  if (Platform.OS === "web") {
-    const color = shadowColor.startsWith("#")
-      ? shadowColor +
-        Math.round(shadowOpacity * 255)
-          .toString(16)
-          .padStart(2, "0")
-      : shadowColor.replace(/rgba?\(([^)]+)\)/, (_, values) => {
-          const parts = values.split(",").map((v: string) => v.trim());
-          if (parts.length === 3) {
-            return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, ${shadowOpacity})`;
-          }
-          return shadowColor;
-        });
-    return {
-      boxShadow: `${shadowOffset.width}px ${shadowOffset.height}px ${shadowRadius}px 0px ${color}`,
-    };
-  }
-  return {
-    shadowColor,
-    shadowOffset,
-    shadowOpacity,
-    shadowRadius,
-  };
-};
-
-// Helper function to convert textShadow props to web-compatible textShadow
-const getTextShadow = (
-  textShadowColor: string,
-  textShadowOffset: { width: number; height: number },
-  textShadowRadius: number
-) => {
-  if (Platform.OS === "web") {
-    return {
-      textShadow: `${textShadowOffset.width}px ${textShadowOffset.height}px ${textShadowRadius}px ${textShadowColor}`,
-    };
-  }
-  return {
-    textShadowColor,
-    textShadowOffset,
-    textShadowRadius,
-  };
-};
-
-// Time-based color themes (matching DateDetailView)
-const TIME_THEMES: Record<
-  TimeOfDay,
-  { gradient: string[]; text: string; bg: string }
-> = {
-  morning: {
-    gradient: ["#FFE5B4", "#FFD89B", "#FFC65D"],
-    text: "#8B4513",
-    bg: "#FFF8E7",
-  },
-  afternoon: {
-    gradient: ["#87CEEB", "#B0E0E6", "#E0F6FF"],
-    text: "#1E3A5F",
-    bg: "#E8F4F8",
-  },
-  evening: {
-    gradient: ["#FFB6C1", "#FFA07A", "#FF8C69"],
-    text: "#8B0000",
-    bg: "#FFE8E0",
-  },
-  night: {
-    gradient: ["#1a1a2e", "#16213e", "#0f172a"],
-    text: "#e5d3ff",
-    bg: "#0f172a",
-  },
-};
-
-// Mood-based accent colors
-const MOOD_COLORS: Record<DateMood, string> = {
-  magical: "#DDA0DD",
-  romantic: "#FFB6C1",
-  adventurous: "#FFD700",
-  cozy: "#DEB887",
-  spontaneous: "#FF69B4",
-  dreamy: "#B0C4DE",
-};
-
-const MOOD_OPTIONS: { value: DateMood; label: string; icon: string }[] = [
-  { value: "magical", label: "Magical", icon: "✨" },
-  { value: "romantic", label: "Romantic", icon: "💕" },
-  { value: "adventurous", label: "Adventurous", icon: "🌟" },
-  { value: "cozy", label: "Cozy", icon: "🕯️" },
-  { value: "spontaneous", label: "Spontaneous", icon: "🎈" },
-  { value: "dreamy", label: "Dreamy", icon: "🌙" },
-];
 
 export default function DatesScreen() {
   const [dates, setDates] = useState<DateEntry[]>([]);
@@ -272,12 +197,12 @@ export default function DatesScreen() {
     return (
       <TouchableOpacity
         style={{
-          backgroundColor: "#0f172a",
+          backgroundColor: DATE_BG,
           borderRadius: 16,
           padding: 20,
           marginBottom: 16,
           borderWidth: 1,
-          borderColor: "#374151",
+          borderColor: DATE_BORDER,
           ...getBoxShadow(
             dateMoodColor,
             { width: 0, height: 4 },
@@ -339,7 +264,7 @@ export default function DatesScreen() {
                 style={{
                   fontSize: 20,
                   fontWeight: "600",
-                  color: datePhotos.length > 0 ? "#ffffff" : "#e5d3ff",
+                  color: datePhotos.length > 0 ? DATE_SCREEN_WHITE : DATE_TEXT,
                   marginBottom: 4,
                   ...getTextShadow(
                     "rgba(0, 0, 0, 0.75)",
@@ -355,7 +280,7 @@ export default function DatesScreen() {
                 style={{
                   fontSize: 12,
                   fontStyle: "italic",
-                  color: datePhotos.length > 0 ? "#f3f4f6" : "#9ca3af",
+                  color: datePhotos.length > 0 ? GRAY_LIGHT : GRAY_MEDIUM,
                   marginBottom: 8,
                   ...getTextShadow(
                     "rgba(0, 0, 0, 0.75)",
@@ -376,7 +301,7 @@ export default function DatesScreen() {
                   style={{
                     fontSize: 14,
                     color:
-                      datePhotos.length > 0 ? "#ffffff" : "#a78bfa",
+                      datePhotos.length > 0 ? DATE_SCREEN_WHITE : DATE_TEXT_SECONDARY,
                     fontWeight: "500",
                     ...getTextShadow(
                       "rgba(0, 0, 0, 0.75)",
@@ -394,7 +319,7 @@ export default function DatesScreen() {
                   <Text
                     style={{
                       fontSize: 16,
-                      color: datePhotos.length > 0 ? "#ffffff" : "#d1d5db",
+                      color: datePhotos.length > 0 ? DATE_SCREEN_WHITE : DATE_SCREEN_TEXT_LIGHT,
                       marginBottom: 8,
                       fontWeight: "500",
                       ...getTextShadow(
@@ -423,7 +348,7 @@ export default function DatesScreen() {
       <Text
         style={{
           fontSize: 18,
-          color: "#6b7280",
+          color: DATE_SCREEN_GRAY,
           textAlign: "center",
           fontStyle: "italic",
           lineHeight: 24,
@@ -439,7 +364,7 @@ export default function DatesScreen() {
     if (!loadingMore) return null;
     return (
       <View style={{ padding: 20, alignItems: "center" }}>
-        <ActivityIndicator size="small" color="#7c3aed" />
+        <ActivityIndicator size="small" color={DATE_SCREEN_PURPLE} />
       </View>
     );
   };
@@ -461,17 +386,6 @@ export default function DatesScreen() {
   };
 
   // Helper function to filter out invalid/blob URLs
-  const filterValidPhotos = (photoUrls: string[]): string[] => {
-    return photoUrls.filter((url) => {
-      // Only keep URLs that start with http:// or https:// (valid web URLs)
-      // Filter out blob: URLs and other invalid formats
-      return (
-        url &&
-        typeof url === "string" &&
-        (url.startsWith("http://") || url.startsWith("https://"))
-      );
-    });
-  };
 
   const openModal = (dateEntry?: DateEntry) => {
     if (dateEntry) {
@@ -828,42 +742,27 @@ export default function DatesScreen() {
     setPhotos(newPhotos);
   };
 
-  const formatDate = (dateString: string): string => {
-    // European format: dd-mm-yyyy
-    const dateObj = new Date(dateString);
-    if (isNaN(dateObj.getTime())) return "";
-
-    const day = String(dateObj.getDate()).padStart(2, "0");
-    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-    const year = dateObj.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
-
-  const getMoodInfo = (moodValue: DateMood) => {
-    return (
-      MOOD_OPTIONS.find((option) => option.value === moodValue) ||
-      MOOD_OPTIONS[1]
-    );
-  };
+  // Use formatDateEU for display (European format: dd-mm-yyyy)
+  const formatDate = formatDateEU;
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#1a1a2e" }}>
+    <View style={{ flex: 1, backgroundColor: DATE_SCREEN_BG }}>
       {/* Elegant Header */}
       <View
         style={{
           paddingTop: 60,
           paddingBottom: 20,
           paddingHorizontal: 20,
-          backgroundColor: "linear-gradient(135deg, #16213e 0%, #0f172a 100%)",
+          backgroundColor: DATE_SCREEN_HEADER_GRADIENT,
           borderBottomWidth: 1,
-          borderBottomColor: "#e5d3ff20",
+          borderBottomColor: DATE_SCREEN_BORDER_LIGHT,
         }}
       >
         <Text
           style={{
             fontSize: 28,
             fontWeight: "300",
-            color: "#e5d3ff",
+            color: DATE_TEXT,
             textAlign: "center",
             letterSpacing: 2,
             fontFamily: Platform.select({ ios: "Georgia", android: "serif" }),
@@ -874,7 +773,7 @@ export default function DatesScreen() {
         <Text
           style={{
             fontSize: 14,
-            color: "#a78bfa",
+            color: DATE_TEXT_SECONDARY,
             textAlign: "center",
             marginTop: 5,
             fontStyle: "italic",
@@ -908,13 +807,13 @@ export default function DatesScreen() {
           width: 64,
           height: 64,
           borderRadius: 32,
-          backgroundColor: "#7c3aed",
+          backgroundColor: DATE_SCREEN_PURPLE,
           alignItems: "center",
           justifyContent: "center",
-          ...getBoxShadow("#7c3aed", { width: 0, height: 6 }, 0.5, 16),
+          ...getBoxShadow(DATE_SCREEN_PURPLE, { width: 0, height: 6 }, 0.5, 16),
           elevation: 10,
           borderWidth: 2,
-          borderColor: "#8b5cf6",
+          borderColor: DATE_SCREEN_PURPLE_LIGHT,
         }}
         onPress={() => openModal()}
       >
@@ -947,10 +846,10 @@ export default function DatesScreen() {
                 paddingBottom: 20,
                 paddingHorizontal: 20,
                 backgroundColor:
-                  timeOfDay === "night" ? "#16213e" : theme.gradient[0] + "40",
+                  timeOfDay === "night" ? TIME_THEMES.night.gradient[1] : theme.gradient[0] + "40",
                 borderBottomWidth: 1,
                 borderBottomColor:
-                  timeOfDay === "night" ? "#374151" : theme.gradient[0] + "60",
+                  timeOfDay === "night" ? DATE_SCREEN_GRAY_DARK : theme.gradient[0] + "60",
               }}
             >
               <View

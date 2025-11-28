@@ -23,61 +23,18 @@ import { Moment, CreateMomentDto } from "../types/moments";
 import { API_BASE_URL } from "../services/api";
 import RotatingPhotoBackground from "../components/RotatingPhotoBackground";
 import MomentDetailView from "../components/MomentDetailView";
-import { getThumbnailUrl } from "../utils/imageUtils";
-
-// Helper function for shadows
-const getBoxShadow = (
-  shadowColor: string,
-  shadowOffset: { width: number; height: number },
-  shadowOpacity: number,
-  shadowRadius: number
-) => {
-  if (Platform.OS === "web") {
-    const color = shadowColor.startsWith("#")
-      ? shadowColor +
-        Math.round(shadowOpacity * 255)
-          .toString(16)
-          .padStart(2, "0")
-      : shadowColor;
-    return {
-      boxShadow: `${shadowOffset.width}px ${shadowOffset.height}px ${shadowRadius}px 0px ${color}`,
-    } as any;
-  }
-  return {
-    shadowColor,
-    shadowOffset,
-    shadowOpacity,
-    shadowRadius,
-  };
-};
-
-// Helper function for text shadows
-const getTextShadow = (
-  textShadowColor: string,
-  textShadowOffset: { width: number; height: number },
-  textShadowRadius: number
-) => {
-  if (Platform.OS === "web") {
-    return {
-      textShadow: `${textShadowOffset.width}px ${textShadowOffset.height}px ${textShadowRadius}px ${textShadowColor}`,
-    };
-  }
-  return {
-    textShadowColor,
-    textShadowOffset,
-    textShadowRadius,
-  };
-};
-
-// Pink/romantic theme color
-const MOMENT_COLOR = "#FF6B9D";
-const MOMENT_BG = "#1a0f1a";
-const MOMENT_TEXT = "#ffd1e0";
-const MOMENT_GRADIENT = ["#FF6B9D", "#FF8E9D", "#FFB3C1"];
+import { getThumbnailUrl, filterValidPhotos } from "../utils/imageUtils";
+import { getBoxShadow, getTextShadow } from "../utils/shadows";
+import { formatDateUS } from "../utils/dateUtils";
+import {
+  MOMENT_COLOR,
+  MOMENT_BG,
+  MOMENT_TEXT,
+  MOMENT_GRADIENT,
+} from "../constants/theme";
+import { ITEMS_PER_PAGE } from "../constants/spacing";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-const ITEMS_PER_PAGE = 10;
 
 export default function MomentsScreen() {
   const [moments, setMoments] = useState<Moment[]>([]);
@@ -115,15 +72,16 @@ export default function MomentsScreen() {
 
       const offset = reset ? 0 : moments.length;
       const result = await momentsService.getAllMoments(ITEMS_PER_PAGE, offset);
-      
+
       // Safety check: ensure result and result.data exist
       if (!result || !result.data || !Array.isArray(result.data)) {
         console.error("Invalid API response:", result);
         throw new Error("Invalid response from server");
       }
-      
+
       const sortedMoments = result.data.sort(
-        (a, b) => new Date(b.story_date).getTime() - new Date(a.story_date).getTime()
+        (a, b) =>
+          new Date(b.story_date).getTime() - new Date(a.story_date).getTime()
       );
 
       if (reset) {
@@ -261,7 +219,9 @@ export default function MomentsScreen() {
               reader.onloadend = async () => {
                 try {
                   const dataUrl = reader.result as string;
-                  const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+                  const matches = dataUrl.match(
+                    /^data:([A-Za-z-+\/]+);base64,(.+)$/
+                  );
                   if (matches && matches.length === 3) {
                     mimeType = matches[1];
                     base64 = matches[2];
@@ -286,7 +246,9 @@ export default function MomentsScreen() {
             reader.onloadend = async () => {
               try {
                 const dataUrl = reader.result as string;
-                const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+                const matches = dataUrl.match(
+                  /^data:([A-Za-z-+\/]+);base64,(.+)$/
+                );
                 if (matches && matches.length === 3) {
                   mimeType = matches[1];
                   base64 = matches[2];
@@ -365,7 +327,7 @@ export default function MomentsScreen() {
             uploadImage(asset.uri)
           );
           const uploadedUrls = await Promise.all(uploadPromises);
-          
+
           // Use functional update to avoid stale closure
           setPhotos((prevPhotos) => [...prevPhotos, ...uploadedUrls]);
         } catch (uploadError) {
@@ -419,7 +381,7 @@ export default function MomentsScreen() {
   const formatDate = (dateString: string): string => {
     const dateObj = new Date(dateString);
     if (isNaN(dateObj.getTime())) return "";
-    
+
     const day = String(dateObj.getDate()).padStart(2, "0");
     const month = String(dateObj.getMonth() + 1).padStart(2, "0");
     const year = dateObj.getFullYear();
@@ -427,23 +389,27 @@ export default function MomentsScreen() {
   };
 
   const handleDeleteMoment = async (id: string, title: string) => {
-    Alert.alert("Delete Moment", `Are you sure you want to delete "${title}"?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await momentsService.deleteMoment(id);
-            closeModal();
-            loadMoments();
-          } catch (error) {
-            console.error("Error deleting moment:", error);
-            Alert.alert("Error", "Failed to delete moment");
-          }
+    Alert.alert(
+      "Delete Moment",
+      `Are you sure you want to delete "${title}"?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await momentsService.deleteMoment(id);
+              closeModal();
+              loadMoments();
+            } catch (error) {
+              console.error("Error deleting moment:", error);
+              Alert.alert("Error", "Failed to delete moment");
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   if (loading) {
@@ -485,12 +451,7 @@ export default function MomentsScreen() {
           position: "relative",
           borderWidth: 2,
           borderColor: MOMENT_COLOR + "40",
-          ...getBoxShadow(
-            MOMENT_COLOR,
-            { width: 0, height: 6 },
-            0.5,
-            16
-          ),
+          ...getBoxShadow(MOMENT_COLOR, { width: 0, height: 6 }, 0.5, 16),
           elevation: 10,
         }}
       >
@@ -540,8 +501,7 @@ export default function MomentsScreen() {
                 style={{
                   fontSize: 20,
                   fontWeight: "600",
-                  color:
-                    momentPhotos.length > 0 ? "#ffffff" : MOMENT_TEXT,
+                  color: momentPhotos.length > 0 ? "#ffffff" : MOMENT_TEXT,
                   marginBottom: 4,
                   ...getTextShadow(
                     "rgba(0, 0, 0, 0.75)",
@@ -569,17 +529,12 @@ export default function MomentsScreen() {
               >
                 {formatDate(moment.story_date)}
               </Text>
-              <View
-                style={{ flexDirection: "row", alignItems: "center" }}
-              >
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Text style={{ fontSize: 20, marginRight: 8 }}>💕</Text>
                 <Text
                   style={{
                     fontSize: 14,
-                    color:
-                      momentPhotos.length > 0
-                        ? "#ffffff"
-                        : MOMENT_COLOR,
+                    color: momentPhotos.length > 0 ? "#ffffff" : MOMENT_COLOR,
                     fontWeight: "500",
                     ...getTextShadow(
                       "rgba(0, 0, 0, 0.75)",
@@ -597,8 +552,7 @@ export default function MomentsScreen() {
           <Text
             style={{
               fontSize: 16,
-              color:
-                momentPhotos.length > 0 ? "#ffffff" : MOMENT_TEXT + "CC",
+              color: momentPhotos.length > 0 ? "#ffffff" : MOMENT_TEXT + "CC",
               marginTop: 8,
               fontWeight: "500",
               ...getTextShadow(
@@ -625,9 +579,7 @@ export default function MomentsScreen() {
         paddingVertical: 100,
       }}
     >
-      <Text style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>
-        💕
-      </Text>
+      <Text style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>💕</Text>
       <Text
         style={{
           fontSize: 18,
@@ -862,7 +814,11 @@ export default function MomentsScreen() {
               >
                 <Text style={{ fontSize: 20, marginRight: 8 }}>💕</Text>
                 <Text
-                  style={{ fontSize: 16, fontWeight: "600", color: MOMENT_COLOR }}
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: MOMENT_COLOR,
+                  }}
                 >
                   Special Moment
                 </Text>
@@ -982,7 +938,8 @@ export default function MomentsScreen() {
                       </Text>
                       <TouchableOpacity
                         onPress={() => {
-                          const formattedDate = formatDateForDatabase(datePickerValue);
+                          const formattedDate =
+                            formatDateForDatabase(datePickerValue);
                           setStoryDate(formattedDate);
                           setShowDatePicker(false);
                         }}
@@ -1034,12 +991,17 @@ export default function MomentsScreen() {
                           setWebDateInput(cleaned);
                         } else if (cleaned.length <= 5) {
                           if (cleaned.length === 3 && !cleaned.includes("-")) {
-                            cleaned = cleaned.slice(0, 2) + "-" + cleaned.slice(2);
+                            cleaned =
+                              cleaned.slice(0, 2) + "-" + cleaned.slice(2);
                           }
                           setWebDateInput(cleaned);
                         } else {
-                          if (cleaned.length === 6 && cleaned.split("-").length === 2) {
-                            cleaned = cleaned.slice(0, 5) + "-" + cleaned.slice(5);
+                          if (
+                            cleaned.length === 6 &&
+                            cleaned.split("-").length === 2
+                          ) {
+                            cleaned =
+                              cleaned.slice(0, 5) + "-" + cleaned.slice(5);
                           }
                           cleaned = cleaned.slice(0, 10);
                           setWebDateInput(cleaned);

@@ -30,54 +30,24 @@ import {
   getMilestoneConfig,
 } from "../constants/milestoneConfig";
 import MilestoneDetailView from "../components/MilestoneDetailView";
-
-// Helper function for shadows
-const getBoxShadow = (
-  shadowColor: string,
-  shadowOffset: { width: number; height: number },
-  shadowOpacity: number,
-  shadowRadius: number
-) => {
-  if (Platform.OS === "web") {
-    const color = shadowColor.startsWith("#")
-      ? shadowColor +
-        Math.round(shadowOpacity * 255)
-          .toString(16)
-          .padStart(2, "0")
-      : shadowColor;
-    // On web, only return boxShadow to avoid React Native Web warnings
-    return {
-      boxShadow: `${shadowOffset.width}px ${shadowOffset.height}px ${shadowRadius}px 0px ${color}`,
-    } as any;
-  }
-  // On native platforms, use shadow props
-  return {
-    shadowColor,
-    shadowOffset,
-    shadowOpacity,
-    shadowRadius,
-  };
-};
-
-// Helper function for text shadows
-const getTextShadow = (
-  textShadowColor: string,
-  textShadowOffset: { width: number; height: number },
-  textShadowRadius: number
-) => {
-  if (Platform.OS === "web") {
-    return {
-      textShadow: `${textShadowOffset.width}px ${textShadowOffset.height}px ${textShadowRadius}px ${textShadowColor}`,
-    };
-  }
-  return {
-    textShadowColor,
-    textShadowOffset,
-    textShadowRadius,
-  };
-};
-
-const ITEMS_PER_PAGE = 10;
+import { getThumbnailUrl, filterValidPhotos } from "../utils/imageUtils";
+import { getBoxShadow, getTextShadow } from "../utils/shadows";
+import { formatDateEU, calculateDaysSince } from "../utils/dateUtils";
+import { ITEMS_PER_PAGE } from "../constants/spacing";
+import {
+  MILESTONE_BG,
+  MILESTONE_COLOR,
+  MILESTONE_TEXT,
+  MILESTONE_TEXT_SECONDARY,
+  MILESTONE_SCREEN_BG,
+  MILESTONE_BROWN_TEXT,
+  MILESTONE_LIGHT_BROWN,
+  MILESTONE_LIGHT_GOLD,
+  MILESTONE_BORDER_LIGHT,
+  MILESTONE_BORDER_OPACITY_30,
+  MILESTONE_BORDER_OPACITY_40,
+  BLACK,
+} from "../constants/theme";
 
 export default function MilestonesScreen() {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
@@ -214,14 +184,14 @@ export default function MilestonesScreen() {
     return (
       <TouchableOpacity
         style={{
-          backgroundColor: "#2d1810",
+          backgroundColor: MILESTONE_BG,
           borderRadius: 24,
           padding: 24,
           marginBottom: 20,
           borderWidth: 1,
-          borderColor: "#ffd70040",
+          borderColor: MILESTONE_BORDER_OPACITY_40,
           ...getBoxShadow(
-            "#ffd700",
+            MILESTONE_COLOR,
             { width: 0, height: 4 },
             0.3,
             12
@@ -276,7 +246,7 @@ export default function MilestonesScreen() {
               style={{
                 fontSize: 20,
                 fontWeight: "600",
-                color: "#ffd700",
+                color: MILESTONE_COLOR,
                 marginBottom: 6,
                 ...getTextShadow("#000", { width: 0, height: 1 }, 2),
               }}
@@ -306,7 +276,7 @@ export default function MilestonesScreen() {
             <Text
               style={{
                 fontSize: 12,
-                color: "#8b7355",
+                color: MILESTONE_BROWN_TEXT,
                 fontStyle: "italic",
               }}
             >
@@ -319,7 +289,7 @@ export default function MilestonesScreen() {
           <Text
             style={{
               fontSize: 15,
-              color: "#d4a574",
+              color: MILESTONE_LIGHT_BROWN,
               lineHeight: 22,
               marginBottom: 16,
               position: "relative",
@@ -360,7 +330,7 @@ export default function MilestonesScreen() {
                       borderRadius: 16,
                       borderWidth: 2,
                       borderColor: config.color + "60",
-                      backgroundColor: "#1a0f00", // Prevent white flash
+                      backgroundColor: MILESTONE_SCREEN_BG, // Prevent white flash
                     }}
                     resizeMode="cover"
                     onError={(error) => {
@@ -415,7 +385,7 @@ export default function MilestonesScreen() {
     if (!loadingMore) return null;
     return (
       <View style={{ padding: 20, alignItems: "center" }}>
-        <ActivityIndicator size="small" color="#ffd700" />
+        <ActivityIndicator size="small" color={MILESTONE_COLOR} />
       </View>
     );
   };
@@ -432,16 +402,6 @@ export default function MilestonesScreen() {
     setWebDateInput("");
   };
 
-  const filterValidPhotos = (photoUrls: string[]): string[] => {
-    if (!photoUrls || !Array.isArray(photoUrls)) return [];
-    return photoUrls.filter(
-      (url) =>
-        url &&
-        typeof url === "string" &&
-        url.trim() !== "" &&
-        (url.startsWith("http://") || url.startsWith("https://"))
-    );
-  };
 
   const handleViewMilestone = (milestone: Milestone) => {
     setSelectedMilestone(milestone);
@@ -728,37 +688,23 @@ export default function MilestonesScreen() {
     setPhotos(newPhotos);
   };
 
-  const formatDate = (dateString: string): string => {
-    const dateObj = new Date(dateString);
-    if (isNaN(dateObj.getTime())) return "";
-
-    const day = String(dateObj.getDate()).padStart(2, "0");
-    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-    const year = dateObj.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
-
-  const calculateDaysSince = (dateString: string): number => {
-    const milestoneDate = new Date(dateString);
-    const today = new Date();
-    const diffTime = today.getTime() - milestoneDate.getTime();
-    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  };
+  // Use formatDateEU for display (European format: dd-mm-yyyy)
+  const formatDate = formatDateEU;
 
   const milestoneConfig = getMilestoneConfig(milestoneType);
   const milestoneColor = milestoneConfig.color;
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#1a0f00" }}>
+    <View style={{ flex: 1, backgroundColor: MILESTONE_SCREEN_BG }}>
       {/* Elegant Header */}
       <View
         style={{
           paddingTop: 60,
           paddingBottom: 20,
           paddingHorizontal: 20,
-          backgroundColor: "#2d1810",
+          backgroundColor: MILESTONE_BG,
           borderBottomWidth: 1,
-          borderBottomColor: "#ffd70030",
+          borderBottomColor: MILESTONE_BORDER_OPACITY_30,
         }}
       >
         <Text
@@ -776,7 +722,7 @@ export default function MilestonesScreen() {
         <Text
           style={{
             fontSize: 14,
-            color: "#ffb84d",
+            color: MILESTONE_LIGHT_GOLD,
             textAlign: "center",
             marginTop: 5,
             fontStyle: "italic",
@@ -831,11 +777,11 @@ export default function MilestonesScreen() {
           ...getBoxShadow("#ffd700", { width: 0, height: 6 }, 0.5, 16),
           elevation: 10,
           borderWidth: 2,
-          borderColor: "#ffed4e",
+          borderColor: MILESTONE_BORDER_LIGHT,
         }}
         onPress={() => openModal()}
       >
-        <Text style={{ fontSize: 32, color: "#1a0f00", fontWeight: "600" }}>
+        <Text style={{ fontSize: 32, color: MILESTONE_SCREEN_BG, fontWeight: "600" }}>
           ⭐
         </Text>
       </TouchableOpacity>
@@ -863,9 +809,9 @@ export default function MilestonesScreen() {
                 paddingTop: Platform.OS === "ios" ? 60 : 40,
                 paddingBottom: 20,
                 paddingHorizontal: 20,
-                backgroundColor: "#2d1810",
+                backgroundColor: MILESTONE_BG,
                 borderBottomWidth: 1,
-                borderBottomColor: "#ffd70030",
+                borderBottomColor: MILESTONE_BORDER_OPACITY_30,
               }}
             >
               <View
@@ -885,13 +831,13 @@ export default function MilestonesScreen() {
                     alignItems: "center",
                     justifyContent: "center",
                     borderWidth: 1,
-                    borderColor: "#ffd70040",
+                    borderColor: MILESTONE_BORDER_OPACITY_40,
                   }}
                 >
                   <Text
                     style={{
                       fontSize: 20,
-                      color: "#ffd700",
+                      color: MILESTONE_COLOR,
                       fontWeight: "600",
                     }}
                   >
@@ -902,7 +848,7 @@ export default function MilestonesScreen() {
                   style={{
                     fontSize: 22,
                     fontWeight: "300",
-                    color: "#ffd700",
+                    color: MILESTONE_COLOR,
                     letterSpacing: 1,
                     fontFamily: Platform.select({
                       ios: "Georgia",
@@ -943,7 +889,7 @@ export default function MilestonesScreen() {
                 <Text
                   style={{
                     fontSize: 18,
-                    color: "#ffd700",
+                    color: MILESTONE_COLOR,
                     marginBottom: 12,
                     fontWeight: "600",
                   }}
@@ -990,7 +936,7 @@ export default function MilestonesScreen() {
                           <Text style={{ fontSize: 20 }}>{config.icon}</Text>
                           <Text
                             style={{
-                              color: isSelected ? "#1a0f00" : config.color,
+                              color: isSelected ? MILESTONE_SCREEN_BG : config.color,
                               fontSize: 15,
                               fontWeight: isSelected ? "600" : "500",
                             }}
@@ -1009,7 +955,7 @@ export default function MilestonesScreen() {
                 <Text
                   style={{
                     fontSize: 18,
-                    color: "#ffd700",
+                    color: MILESTONE_COLOR,
                     marginBottom: 12,
                     fontWeight: "600",
                   }}
@@ -1023,14 +969,14 @@ export default function MilestonesScreen() {
                     borderRadius: 16,
                     padding: 18,
                     fontSize: 17,
-                    backgroundColor: "#2d1810",
-                    color: "#ffd700",
+                    backgroundColor: MILESTONE_BG,
+                    color: MILESTONE_COLOR,
                     fontWeight: "500",
                   }}
                   value={title}
                   onChangeText={setTitle}
                   placeholder="Enter milestone title..."
-                  placeholderTextColor="#8b7355"
+                  placeholderTextColor={MILESTONE_BROWN_TEXT}
                 />
               </View>
 
@@ -1039,7 +985,7 @@ export default function MilestonesScreen() {
                 <Text
                   style={{
                     fontSize: 18,
-                    color: "#ffd700",
+                    color: MILESTONE_COLOR,
                     marginBottom: 12,
                     fontWeight: "600",
                   }}
@@ -1064,7 +1010,7 @@ export default function MilestonesScreen() {
                     borderColor: milestoneColor + "60",
                     borderRadius: 16,
                     padding: 18,
-                    backgroundColor: "#2d1810",
+                    backgroundColor: MILESTONE_BG,
                     flexDirection: "row",
                     alignItems: "center",
                     justifyContent: "space-between",
@@ -1091,7 +1037,7 @@ export default function MilestonesScreen() {
                     style={{
                       marginTop: 16,
                       padding: 20,
-                      backgroundColor: "#2d1810",
+                      backgroundColor: MILESTONE_BG,
                       borderRadius: 16,
                       borderWidth: 2,
                       borderColor: milestoneColor + "60",
@@ -1109,7 +1055,7 @@ export default function MilestonesScreen() {
                         style={{
                           fontSize: 18,
                           fontWeight: "600",
-                          color: "#ffd700",
+                          color: MILESTONE_COLOR,
                         }}
                       >
                         Select Date
@@ -1230,7 +1176,7 @@ export default function MilestonesScreen() {
                         padding: 12,
                         fontSize: 16,
                         backgroundColor: "#1a0f00",
-                        color: "#ffd700",
+                        color: MILESTONE_COLOR,
                       }}
                     />
                     <TouchableOpacity
@@ -1284,7 +1230,7 @@ export default function MilestonesScreen() {
                 <Text
                   style={{
                     fontSize: 18,
-                    color: "#ffd700",
+                    color: MILESTONE_COLOR,
                     marginBottom: 12,
                     fontWeight: "600",
                   }}
@@ -1298,8 +1244,8 @@ export default function MilestonesScreen() {
                     borderRadius: 16,
                     padding: 18,
                     fontSize: 17,
-                    backgroundColor: "#2d1810",
-                    color: "#d4a574",
+                    backgroundColor: MILESTONE_BG,
+                    color: MILESTONE_LIGHT_BROWN,
                     minHeight: 120,
                     textAlignVertical: "top",
                     lineHeight: 24,
@@ -1307,7 +1253,7 @@ export default function MilestonesScreen() {
                   value={description}
                   onChangeText={setDescription}
                   placeholder="Describe this milestone..."
-                  placeholderTextColor="#8b7355"
+                  placeholderTextColor={MILESTONE_BROWN_TEXT}
                   multiline
                 />
               </View>
@@ -1325,7 +1271,7 @@ export default function MilestonesScreen() {
                   <Text
                     style={{
                       fontSize: 18,
-                      color: "#ffd700",
+                      color: MILESTONE_COLOR,
                       fontWeight: "600",
                     }}
                   >
@@ -1414,7 +1360,7 @@ export default function MilestonesScreen() {
                       borderStyle: "dashed",
                       borderRadius: 16,
                       padding: 24,
-                      backgroundColor: "#2d1810",
+                      backgroundColor: MILESTONE_BG,
                       alignItems: "center",
                       minHeight: 120,
                       justifyContent: "center",
@@ -1432,7 +1378,7 @@ export default function MilestonesScreen() {
                     </Text>
                     <Text
                       style={{
-                        color: "#8b7355",
+                        color: MILESTONE_BROWN_TEXT,
                         fontSize: 17,
                         fontWeight: "500",
                       }}

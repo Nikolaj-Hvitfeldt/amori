@@ -20,6 +20,10 @@ export const TIMELINE_CARD_GAP = 30; // Space between cards
 // Scroll detection
 export const SCROLL_LOAD_MORE_THRESHOLD = 100; // px before bottom to trigger load more
 
+// Pagination
+export const ITEMS_PER_PAGE = 10; // Items to load per page for list views
+export const ITEMS_PER_TYPE = 10; // Items to load per type for timeline (30 total per page)
+
 // Decorative elements
 export const ACCENT_CIRCLE_SIZE = 80;
 export const ACCENT_CIRCLE_SIZE_LARGE = 120;
