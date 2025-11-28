@@ -19,6 +19,7 @@ interface MilestoneDetailViewProps {
   milestone: Milestone;
   onClose: () => void;
   onEdit: () => void;
+  allowEdit?: boolean;
 }
 
 const GOLD = "#ffd700";
@@ -56,6 +57,7 @@ export default function MilestoneDetailView({
   milestone,
   onClose,
   onEdit,
+  allowEdit = true,
 }: MilestoneDetailViewProps) {
   const scrollX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -80,9 +82,11 @@ export default function MilestoneDetailView({
         <TouchableOpacity onPress={onClose} style={styles.headerButton}>
           <Text style={styles.headerButtonText}>✕</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={onEdit} style={styles.editButton}>
-          <Text style={styles.editButtonText}>Edit</Text>
-        </TouchableOpacity>
+        {allowEdit && (
+          <TouchableOpacity onPress={onEdit} style={styles.editButton}>
+            <Text style={styles.editButtonText}>Edit</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Photo Carousel */}
