@@ -12,7 +12,6 @@ import { MilestonesModule } from "./milestones/milestones.module";
       envFilePath: ".env",
     }),
     SupabaseModule,
-    // JournalModule removed - legacy system replaced by Dates/Moments/Milestones modules
     MomentsModule,
     DatesModule,
     MilestonesModule,

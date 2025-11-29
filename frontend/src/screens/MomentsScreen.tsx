@@ -421,16 +421,6 @@ export default function MomentsScreen() {
     );
   };
 
-  if (loading) {
-    return (
-      <LoadingState
-        message="Loading your moments..."
-        color={MOMENT_COLOR}
-        backgroundColor={MOMENT_BG}
-      />
-    );
-  }
-
   const renderMoment = useCallback(
     ({ item: moment }: { item: Moment }) => {
       return (
@@ -445,6 +435,16 @@ export default function MomentsScreen() {
     },
     [handleViewMoment, openModal]
   );
+
+  if (loading) {
+    return (
+      <LoadingState
+        message="Loading your moments..."
+        color={MOMENT_COLOR}
+        backgroundColor={MOMENT_BG}
+      />
+    );
+  }
 
   const renderEmpty = () => (
     <EmptyState

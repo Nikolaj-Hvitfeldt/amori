@@ -45,13 +45,26 @@ export class ImageUploadService {
 
       const mimeType = matches[1];
       const base64Data = matches[2];
+
+      // Validate MIME type
+      if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
+        throw new HttpException(
+          `Unsupported image type: ${mimeType}. Allowed types are: ${ALLOWED_MIME_TYPES.join(
+            ", "
+          )}`,
+          HttpStatus.BAD_REQUEST
+        );
+      }
+
       let buffer = Buffer.from(base64Data, "base64");
 
       // Compress image with progressive compression
       const compressedBuffer = await this.compressImageWithFallback(buffer);
 
       // Generate thumbnail
-      const thumbnailBuffer = await this.generateThumbnailSafe(compressedBuffer);
+      const thumbnailBuffer = await this.generateThumbnailSafe(
+        compressedBuffer
+      );
 
       // Ensure bucket exists
       await this.ensureBucketExists(bucketName);
@@ -179,9 +192,7 @@ export class ImageUploadService {
   /**
    * Generate thumbnail safely (catches errors and returns null)
    */
-  private async generateThumbnailSafe(
-    buffer: Buffer
-  ): Promise<Buffer | null> {
+  private async generateThumbnailSafe(buffer: Buffer): Promise<Buffer | null> {
     try {
       return await generateThumbnail(
         buffer,
@@ -255,4 +266,3 @@ export class ImageUploadService {
     return publicUrl;
   }
 }
-

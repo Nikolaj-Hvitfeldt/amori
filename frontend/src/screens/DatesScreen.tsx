@@ -188,6 +188,29 @@ export default function DatesScreen() {
     setIsDetailVisible(true);
   }, []);
 
+  const handleDeleteDate = useCallback(async (id: string) => {
+    Alert.alert(
+      "Delete Date",
+      "Are you sure you want to delete this special date?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await datesService.delete(id);
+              loadDates();
+            } catch (error) {
+              console.error("Error deleting date:", error);
+              Alert.alert("Error", "Failed to delete date entry");
+            }
+          },
+        },
+      ]
+    );
+  }, []);
+
   const renderDateItem = useCallback(
     ({ item: dateEntry }: { item: DateEntry }) => {
       return (
@@ -369,29 +392,6 @@ export default function DatesScreen() {
       console.error("Error saving date:", error);
       Alert.alert("Error", "Failed to save date entry");
     }
-  };
-
-  const handleDeleteDate = async (id: string) => {
-    Alert.alert(
-      "Delete Date",
-      "Are you sure you want to delete this special date?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await datesService.delete(id);
-              loadDates();
-            } catch (error) {
-              console.error("Error deleting date:", error);
-              Alert.alert("Error", "Failed to delete date entry");
-            }
-          },
-        },
-      ]
-    );
   };
 
   const addHighlight = () => {

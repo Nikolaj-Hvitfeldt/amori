@@ -1,6 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { SupabaseService } from "../supabase/supabase.service";
 import { CreateMomentDto, UpdateMomentDto } from "./moments.dto";
+import { PAGINATION_DEFAULTS } from "../constants/app.constants";
+import {
+  NotFoundException,
+  BadRequestException,
+  InternalServerErrorException,
+} from "../common/exceptions";
 
 export interface Moment {
   id: string;
@@ -27,7 +33,9 @@ export class MomentsService {
         .select("*", { count: "exact", head: true });
 
       if (countError) {
-        throw new Error(`Failed to count moments: ${countError.message}`);
+        throw new InternalServerErrorException(
+          `Failed to count moments: ${countError.message}`
+        );
       }
 
       // Build query
@@ -41,14 +49,19 @@ export class MomentsService {
         query = query.limit(limit);
       }
       if (offset !== undefined) {
-        query = query.range(offset, offset + (limit || 1000) - 1);
+        query = query.range(
+          offset,
+          offset + (limit || PAGINATION_DEFAULTS.DEFAULT_LIMIT) - 1
+        );
       }
 
       const { data, error } = await query;
 
       if (error) {
         console.error("Supabase error:", error);
-        throw new Error(`Failed to fetch moments: ${error.message}`);
+        throw new InternalServerErrorException(
+          `Failed to fetch moments: ${error.message}`
+        );
       }
 
       console.log(`Successfully fetched ${data?.length || 0} moments`);
@@ -71,11 +84,13 @@ export class MomentsService {
       .single();
 
     if (error) {
-      throw new Error(`Failed to fetch moment: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Failed to fetch moment: ${error.message}`
+      );
     }
 
     if (!data) {
-      throw new Error("Moment not found");
+      throw new NotFoundException("Moment not found");
     }
 
     return data;
@@ -97,7 +112,9 @@ export class MomentsService {
       .single();
 
     if (error) {
-      throw new Error(`Failed to create moment: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to create moment: ${error.message}`
+      );
     }
 
     return data;
@@ -124,11 +141,13 @@ export class MomentsService {
       .single();
 
     if (error) {
-      throw new Error(`Failed to update moment: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to update moment: ${error.message}`
+      );
     }
 
     if (!data) {
-      throw new Error("Moment not found");
+      throw new NotFoundException("Moment not found");
     }
 
     return data;
@@ -142,7 +161,9 @@ export class MomentsService {
       .eq("id", id);
 
     if (error) {
-      throw new Error(`Failed to delete moment: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to delete moment: ${error.message}`
+      );
     }
   }
 }

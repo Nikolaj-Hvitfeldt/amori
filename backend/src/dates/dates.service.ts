@@ -1,6 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { SupabaseService } from "../supabase/supabase.service";
 import { CreateDateEntryDto, UpdateDateEntryDto, DateMood } from "./dates.dto";
+import { PAGINATION_DEFAULTS } from "../constants/app.constants";
+import {
+  NotFoundException,
+  BadRequestException,
+  InternalServerErrorException,
+} from "../common/exceptions";
 
 export interface DateEntry {
   id: string;
@@ -30,7 +36,9 @@ export class DatesService {
       .select("*", { count: "exact", head: true });
 
     if (countError) {
-      throw new Error(`Failed to count date entries: ${countError.message}`);
+      throw new InternalServerErrorException(
+        `Failed to count date entries: ${countError.message}`
+      );
     }
 
     // Build query
@@ -44,13 +52,18 @@ export class DatesService {
       query = query.limit(limit);
     }
     if (offset !== undefined) {
-      query = query.range(offset, offset + (limit || 1000) - 1);
+      query = query.range(
+        offset,
+        offset + (limit || PAGINATION_DEFAULTS.DEFAULT_LIMIT) - 1
+      );
     }
 
     const { data, error } = await query;
 
     if (error) {
-      throw new Error(`Failed to fetch date entries: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Failed to fetch date entries: ${error.message}`
+      );
     }
 
     return {
@@ -68,11 +81,13 @@ export class DatesService {
       .single();
 
     if (error) {
-      throw new Error(`Failed to fetch date entry: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Failed to fetch date entry: ${error.message}`
+      );
     }
 
     if (!data) {
-      throw new Error("Date entry not found");
+      throw new NotFoundException("Date entry not found");
     }
 
     return data;
@@ -99,7 +114,9 @@ export class DatesService {
       .single();
 
     if (error) {
-      throw new Error(`Failed to create date entry: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to create date entry: ${error.message}`
+      );
     }
 
     return data;
@@ -139,11 +156,13 @@ export class DatesService {
       .single();
 
     if (error) {
-      throw new Error(`Failed to update date entry: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to update date entry: ${error.message}`
+      );
     }
 
     if (!data) {
-      throw new Error("Date entry not found");
+      throw new NotFoundException("Date entry not found");
     }
 
     return data;
@@ -157,7 +176,9 @@ export class DatesService {
       .eq("id", id);
 
     if (error) {
-      throw new Error(`Failed to delete date entry: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to delete date entry: ${error.message}`
+      );
     }
   }
 }

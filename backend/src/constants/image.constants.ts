@@ -1,7 +1,3 @@
-/**
- * Image processing constants
- */
-
 // Compression settings
 export const COMPRESSION_SETTINGS = {
   // Initial compression (high quality)
@@ -32,4 +28,3 @@ export const THUMBNAIL_SETTINGS = {
 
 // File extension (always JPEG after compression)
 export const IMAGE_EXTENSION = "jpg" as const;
-

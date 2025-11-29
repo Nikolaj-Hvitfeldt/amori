@@ -1,6 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { SupabaseService } from "../supabase/supabase.service";
 import { CreateMilestoneDto, UpdateMilestoneDto, MilestoneType } from "./milestones.dto";
+import { PAGINATION_DEFAULTS } from "../constants/app.constants";
+import {
+  NotFoundException,
+  BadRequestException,
+  InternalServerErrorException,
+} from "../common/exceptions";
 
 export interface Milestone {
   id: string;
@@ -26,7 +32,9 @@ export class MilestonesService {
       .select("*", { count: "exact", head: true });
 
     if (countError) {
-      throw new Error(`Failed to count milestones: ${countError.message}`);
+      throw new InternalServerErrorException(
+        `Failed to count milestones: ${countError.message}`
+      );
     }
 
     // Build query
@@ -40,13 +48,18 @@ export class MilestonesService {
       query = query.limit(limit);
     }
     if (offset !== undefined) {
-      query = query.range(offset, offset + (limit || 1000) - 1);
+      query = query.range(
+        offset,
+        offset + (limit || PAGINATION_DEFAULTS.DEFAULT_LIMIT) - 1
+      );
     }
 
     const { data, error } = await query;
 
     if (error) {
-      throw new Error(`Failed to fetch milestones: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Failed to fetch milestones: ${error.message}`
+      );
     }
 
     return {
@@ -64,11 +77,13 @@ export class MilestonesService {
       .single();
 
     if (error) {
-      throw new Error(`Failed to fetch milestone: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Failed to fetch milestone: ${error.message}`
+      );
     }
 
     if (!data) {
-      throw new Error("Milestone not found");
+      throw new NotFoundException("Milestone not found");
     }
 
     return data;
@@ -91,7 +106,9 @@ export class MilestonesService {
       .single();
 
     if (error) {
-      throw new Error(`Failed to create milestone: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to create milestone: ${error.message}`
+      );
     }
 
     return data;
@@ -121,11 +138,13 @@ export class MilestonesService {
       .single();
 
     if (error) {
-      throw new Error(`Failed to update milestone: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to update milestone: ${error.message}`
+      );
     }
 
     if (!data) {
-      throw new Error("Milestone not found");
+      throw new NotFoundException("Milestone not found");
     }
 
     return data;
@@ -139,7 +158,9 @@ export class MilestonesService {
       .eq("id", id);
 
     if (error) {
-      throw new Error(`Failed to delete milestone: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to delete milestone: ${error.message}`
+      );
     }
   }
 }

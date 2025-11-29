@@ -184,6 +184,29 @@ export default function MilestonesScreen() {
     setIsDetailVisible(true);
   }, []);
 
+  const handleDeleteMilestone = useCallback(async (id: string) => {
+    Alert.alert(
+      "Delete Milestone",
+      "Are you sure you want to delete this milestone?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await milestonesService.delete(id);
+              loadMilestones();
+            } catch (error) {
+              console.error("Error deleting milestone:", error);
+              Alert.alert("Error", "Failed to delete milestone");
+            }
+          },
+        },
+      ]
+    );
+  }, []);
+
   const renderMilestoneItem = useCallback(
     ({ item: milestone }: { item: Milestone }) => {
       return (
@@ -223,12 +246,6 @@ export default function MilestonesScreen() {
     setEditingMilestone(null);
     setShowDatePicker(false);
     setWebDateInput("");
-  };
-
-
-  const handleViewMilestone = (milestone: Milestone) => {
-    setSelectedMilestone(milestone);
-    setIsDetailVisible(true);
   };
 
   const closeDetailView = () => {
@@ -336,29 +353,6 @@ export default function MilestonesScreen() {
       console.error("Error saving milestone:", error);
       Alert.alert("Error", "Failed to save milestone");
     }
-  };
-
-  const handleDeleteMilestone = async (id: string) => {
-    Alert.alert(
-      "Delete Milestone",
-      "Are you sure you want to delete this milestone?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await milestonesService.delete(id);
-              loadMilestones();
-            } catch (error) {
-              console.error("Error deleting milestone:", error);
-              Alert.alert("Error", "Failed to delete milestone");
-            }
-          },
-        },
-      ]
-    );
   };
 
   const uploadImage = async (uri: string): Promise<string> => {

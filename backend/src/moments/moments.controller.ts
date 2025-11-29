@@ -14,6 +14,7 @@ import { MomentsService } from "./moments.service";
 import { CreateMomentDto, UpdateMomentDto } from "./moments.dto";
 import { ImageUploadService } from "../utils/image-upload.service";
 import { BUCKET_NAMES } from "../constants/storage.constants";
+import { PAGINATION_DEFAULTS } from "../constants/app.constants";
 
 @Controller("moments")
 export class MomentsController {
@@ -40,8 +41,12 @@ export class MomentsController {
     @Query("offset") offset?: string
   ) {
     try {
-      const limitNum = limit ? parseInt(limit, 10) : undefined;
-      const offsetNum = offset ? parseInt(offset, 10) : undefined;
+      const limitNum = limit
+        ? parseInt(limit, PAGINATION_DEFAULTS.PARSE_BASE)
+        : undefined;
+      const offsetNum = offset
+        ? parseInt(offset, PAGINATION_DEFAULTS.PARSE_BASE)
+        : undefined;
       return await this.momentsService.findAll(limitNum, offsetNum);
     } catch (error) {
       throw new HttpException(

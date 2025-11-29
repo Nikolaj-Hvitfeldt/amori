@@ -14,6 +14,7 @@ import { DatesService } from "./dates.service";
 import { CreateDateEntryDto, UpdateDateEntryDto } from "./dates.dto";
 import { ImageUploadService } from "../utils/image-upload.service";
 import { BUCKET_NAMES } from "../constants/storage.constants";
+import { PAGINATION_DEFAULTS } from "../constants/app.constants";
 
 @Controller("dates")
 export class DatesController {
@@ -37,8 +38,12 @@ export class DatesController {
   @Get()
   async findAll(@Query("limit") limit?: string, @Query("offset") offset?: string) {
     try {
-      const limitNum = limit ? parseInt(limit, 10) : undefined;
-      const offsetNum = offset ? parseInt(offset, 10) : undefined;
+      const limitNum = limit
+        ? parseInt(limit, PAGINATION_DEFAULTS.PARSE_BASE)
+        : undefined;
+      const offsetNum = offset
+        ? parseInt(offset, PAGINATION_DEFAULTS.PARSE_BASE)
+        : undefined;
       return await this.datesService.findAll(limitNum, offsetNum);
     } catch (error) {
       throw new HttpException(
