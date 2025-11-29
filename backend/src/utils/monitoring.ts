@@ -1,8 +1,3 @@
-/**
- * Database monitoring queries
- * Run these queries periodically to monitor database size and storage usage
- */
-
 export const MONITORING_QUERIES = {
   // Get total database size
   databaseSize: `
@@ -108,18 +103,18 @@ export async function executeMonitoringQuery(
   supabaseClient: any
 ) {
   try {
-    const { data, error } = await supabaseClient.rpc('exec_sql', {
+    const { data, error } = await supabaseClient.rpc("exec_sql", {
       query_text: query,
     });
 
     if (error) {
       // Fallback: execute via direct query if RPC doesn't exist
       const { data: directData, error: directError } = await supabaseClient
-        .from('_monitoring')
-        .select('*');
+        .from("_monitoring")
+        .select("*");
 
       if (directError) {
-        console.error('Monitoring query error:', directError);
+        console.error("Monitoring query error:", directError);
         return null;
       }
 
@@ -128,8 +123,7 @@ export async function executeMonitoringQuery(
 
     return data;
   } catch (error) {
-    console.error('Error executing monitoring query:', error);
+    console.error("Error executing monitoring query:", error);
     return null;
   }
 }
-

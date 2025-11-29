@@ -1,12 +1,15 @@
 import { Injectable } from "@nestjs/common";
 import { SupabaseService } from "../supabase/supabase.service";
 import { CreateMilestoneDto, UpdateMilestoneDto, MilestoneType } from "./milestones.dto";
-import { PAGINATION_DEFAULTS } from "../constants/app.constants";
 import {
   NotFoundException,
   BadRequestException,
-  InternalServerErrorException,
 } from "../common/exceptions";
+import {
+  findAllWithPagination,
+  findOneById,
+  handleSupabaseError,
+} from "../utils/supabase-helpers";
 
 export interface Milestone {
   id: string;
@@ -24,69 +27,25 @@ export class MilestonesService {
   constructor(private readonly supabase: SupabaseService) {}
 
   async findAll(limit?: number, offset?: number): Promise<{ data: Milestone[]; total: number }> {
-    const client = this.supabase.getClient();
-    
-    // Get total count
-    const { count, error: countError } = await client
-      .from("milestones")
-      .select("*", { count: "exact", head: true });
-
-    if (countError) {
-      throw new InternalServerErrorException(
-        `Failed to count milestones: ${countError.message}`
-      );
-    }
-
-    // Build query
-    let query = client
-      .from("milestones")
-      .select("*")
-      .order("date", { ascending: false });
-
-    // Apply pagination if provided
-    if (limit !== undefined) {
-      query = query.limit(limit);
-    }
-    if (offset !== undefined) {
-      query = query.range(
+    return findAllWithPagination<Milestone>(
+      this.supabase.getClient(),
+      "milestones",
+      {
+        limit,
         offset,
-        offset + (limit || PAGINATION_DEFAULTS.DEFAULT_LIMIT) - 1
-      );
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      throw new InternalServerErrorException(
-        `Failed to fetch milestones: ${error.message}`
-      );
-    }
-
-    return {
-      data: data || [],
-      total: count || 0,
-    };
+        orderBy: "date",
+        ascending: false,
+      }
+    );
   }
 
   async findOne(id: string): Promise<Milestone> {
-    const { data, error } = await this.supabase
-      .getClient()
-      .from("milestones")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (error) {
-      throw new InternalServerErrorException(
-        `Failed to fetch milestone: ${error.message}`
-      );
-    }
-
-    if (!data) {
-      throw new NotFoundException("Milestone not found");
-    }
-
-    return data;
+    return findOneById<Milestone>(
+      this.supabase.getClient(),
+      "milestones",
+      id,
+      "Milestone"
+    );
   }
 
   async create(createMilestoneDto: CreateMilestoneDto): Promise<Milestone> {
@@ -106,9 +65,7 @@ export class MilestonesService {
       .single();
 
     if (error) {
-      throw new BadRequestException(
-        `Failed to create milestone: ${error.message}`
-      );
+      handleSupabaseError(error, "create", "milestone");
     }
 
     return data;
@@ -138,9 +95,7 @@ export class MilestonesService {
       .single();
 
     if (error) {
-      throw new BadRequestException(
-        `Failed to update milestone: ${error.message}`
-      );
+      handleSupabaseError(error, "update", "milestone");
     }
 
     if (!data) {
@@ -158,9 +113,7 @@ export class MilestonesService {
       .eq("id", id);
 
     if (error) {
-      throw new BadRequestException(
-        `Failed to delete milestone: ${error.message}`
-      );
+      handleSupabaseError(error, "delete", "milestone");
     }
   }
 }

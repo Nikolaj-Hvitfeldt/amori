@@ -1,12 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { SupabaseService } from "../supabase/supabase.service";
 import { CreateMomentDto, UpdateMomentDto } from "./moments.dto";
-import { PAGINATION_DEFAULTS } from "../constants/app.constants";
+import { NotFoundException } from "../common/exceptions";
 import {
-  NotFoundException,
-  BadRequestException,
-  InternalServerErrorException,
-} from "../common/exceptions";
+  findAllWithPagination,
+  findOneById,
+  handleSupabaseError,
+} from "../utils/supabase-helpers";
 
 export interface Moment {
   id: string;
@@ -23,77 +23,28 @@ export class MomentsService {
   constructor(private readonly supabase: SupabaseService) {}
 
   async findAll(limit?: number, offset?: number): Promise<{ data: Moment[]; total: number }> {
-    try {
-      console.log("Fetching moments from moments table...");
-      const client = this.supabase.getClient();
-      
-      // Get total count
-      const { count, error: countError } = await client
-        .from("moments")
-        .select("*", { count: "exact", head: true });
-
-      if (countError) {
-        throw new InternalServerErrorException(
-          `Failed to count moments: ${countError.message}`
-        );
+    console.log("Fetching moments from moments table...");
+    const result = await findAllWithPagination<Moment>(
+      this.supabase.getClient(),
+      "moments",
+      {
+        limit,
+        offset,
+        orderBy: "story_date",
+        ascending: false,
       }
-
-      // Build query
-      let query = client
-        .from("moments")
-        .select("*")
-        .order("story_date", { ascending: false });
-
-      // Apply pagination if provided
-      if (limit !== undefined) {
-        query = query.limit(limit);
-      }
-      if (offset !== undefined) {
-        query = query.range(
-          offset,
-          offset + (limit || PAGINATION_DEFAULTS.DEFAULT_LIMIT) - 1
-        );
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error("Supabase error:", error);
-        throw new InternalServerErrorException(
-          `Failed to fetch moments: ${error.message}`
-        );
-      }
-
-      console.log(`Successfully fetched ${data?.length || 0} moments`);
-      return {
-        data: data || [],
-        total: count || 0,
-      };
-    } catch (error) {
-      console.error("Error in findAll:", error);
-      throw error;
-    }
+    );
+    console.log(`Successfully fetched ${result.data.length} moments`);
+    return result;
   }
 
   async findOne(id: string): Promise<Moment> {
-    const { data, error } = await this.supabase
-      .getClient()
-      .from("moments")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (error) {
-      throw new InternalServerErrorException(
-        `Failed to fetch moment: ${error.message}`
-      );
-    }
-
-    if (!data) {
-      throw new NotFoundException("Moment not found");
-    }
-
-    return data;
+    return findOneById<Moment>(
+      this.supabase.getClient(),
+      "moments",
+      id,
+      "Moment"
+    );
   }
 
   async create(createMomentDto: CreateMomentDto): Promise<Moment> {
@@ -112,9 +63,7 @@ export class MomentsService {
       .single();
 
     if (error) {
-      throw new BadRequestException(
-        `Failed to create moment: ${error.message}`
-      );
+      handleSupabaseError(error, "create", "moment");
     }
 
     return data;
@@ -141,9 +90,7 @@ export class MomentsService {
       .single();
 
     if (error) {
-      throw new BadRequestException(
-        `Failed to update moment: ${error.message}`
-      );
+      handleSupabaseError(error, "update", "moment");
     }
 
     if (!data) {
@@ -161,9 +108,7 @@ export class MomentsService {
       .eq("id", id);
 
     if (error) {
-      throw new BadRequestException(
-        `Failed to delete moment: ${error.message}`
-      );
+      handleSupabaseError(error, "delete", "moment");
     }
   }
 }
