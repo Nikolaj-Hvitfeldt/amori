@@ -1,6 +1,15 @@
 import { Injectable } from "@nestjs/common";
 import { SupabaseService } from "../supabase/supabase.service";
 import { CreateDateEntryDto, UpdateDateEntryDto, DateMood } from "./dates.dto";
+import {
+  NotFoundException,
+  BadRequestException,
+} from "../common/exceptions";
+import {
+  findAllWithPagination,
+  findOneById,
+  handleSupabaseError,
+} from "../utils/supabase-helpers";
 
 export interface DateEntry {
   id: string;
@@ -22,60 +31,25 @@ export class DatesService {
   constructor(private readonly supabase: SupabaseService) {}
 
   async findAll(limit?: number, offset?: number): Promise<{ data: DateEntry[]; total: number }> {
-    const client = this.supabase.getClient();
-    
-    // Get total count
-    const { count, error: countError } = await client
-      .from("date_entries")
-      .select("*", { count: "exact", head: true });
-
-    if (countError) {
-      throw new Error(`Failed to count date entries: ${countError.message}`);
-    }
-
-    // Build query
-    let query = client
-      .from("date_entries")
-      .select("*")
-      .order("date", { ascending: false });
-
-    // Apply pagination if provided
-    if (limit !== undefined) {
-      query = query.limit(limit);
-    }
-    if (offset !== undefined) {
-      query = query.range(offset, offset + (limit || 1000) - 1);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      throw new Error(`Failed to fetch date entries: ${error.message}`);
-    }
-
-    return {
-      data: data || [],
-      total: count || 0,
-    };
+    return findAllWithPagination<DateEntry>(
+      this.supabase.getClient(),
+      "date_entries",
+      {
+        limit,
+        offset,
+        orderBy: "date",
+        ascending: false,
+      }
+    );
   }
 
   async findOne(id: string): Promise<DateEntry> {
-    const { data, error } = await this.supabase
-      .getClient()
-      .from("date_entries")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to fetch date entry: ${error.message}`);
-    }
-
-    if (!data) {
-      throw new Error("Date entry not found");
-    }
-
-    return data;
+    return findOneById<DateEntry>(
+      this.supabase.getClient(),
+      "date_entries",
+      id,
+      "Date entry"
+    );
   }
 
   async create(createDateEntryDto: CreateDateEntryDto): Promise<DateEntry> {
@@ -99,7 +73,7 @@ export class DatesService {
       .single();
 
     if (error) {
-      throw new Error(`Failed to create date entry: ${error.message}`);
+      handleSupabaseError(error, "create", "date entry");
     }
 
     return data;
@@ -139,11 +113,11 @@ export class DatesService {
       .single();
 
     if (error) {
-      throw new Error(`Failed to update date entry: ${error.message}`);
+      handleSupabaseError(error, "update", "date entry");
     }
 
     if (!data) {
-      throw new Error("Date entry not found");
+      throw new NotFoundException("Date entry not found");
     }
 
     return data;
@@ -157,7 +131,7 @@ export class DatesService {
       .eq("id", id);
 
     if (error) {
-      throw new Error(`Failed to delete date entry: ${error.message}`);
+      handleSupabaseError(error, "delete", "date entry");
     }
   }
 }

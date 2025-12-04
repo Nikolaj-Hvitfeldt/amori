@@ -185,3 +185,4 @@ Here are some ideas:
 By contributing, you agree that your contributions will be licensed under the ISC License.
 
 Thank you for making Amori better! 💕
+

@@ -290,3 +290,4 @@ Need help with deployment?
 - Supabase Docs: https://supabase.com/docs
 
 Happy deploying! 🚀
+

@@ -1,8 +1,3 @@
-/**
- * Database monitoring queries
- * Run these queries periodically to monitor database size and storage usage
- */
-
 export const MONITORING_QUERIES = {
   // Get total database size
   databaseSize: `
@@ -34,10 +29,7 @@ export const MONITORING_QUERIES = {
       'milestones', COUNT(*) FROM milestones
     UNION ALL
     SELECT 
-      'moments', COUNT(*) FROM moments
-    UNION ALL
-    SELECT 
-      'journal_entries', COUNT(*) FROM journal_entries;
+      'moments', COUNT(*) FROM moments;
   `,
 
   // Get storage usage by user (if user_id is populated)
@@ -51,8 +43,6 @@ export const MONITORING_QUERIES = {
         SELECT COUNT(*) FROM milestones WHERE user_id = u.user_id
       ) + (
         SELECT COUNT(*) FROM moments WHERE user_id = u.user_id
-      ) + (
-        SELECT COUNT(*) FROM journal_entries WHERE user_id = u.user_id
       ) as total_entries
     FROM (
       SELECT DISTINCT user_id FROM date_entries WHERE user_id IS NOT NULL
@@ -60,8 +50,6 @@ export const MONITORING_QUERIES = {
       SELECT DISTINCT user_id FROM milestones WHERE user_id IS NOT NULL
       UNION
       SELECT DISTINCT user_id FROM moments WHERE user_id IS NOT NULL
-      UNION
-      SELECT DISTINCT user_id FROM journal_entries WHERE user_id IS NOT NULL
     ) u
     GROUP BY user_id
     ORDER BY total_entries DESC;
@@ -88,14 +76,7 @@ export const MONITORING_QUERIES = {
       COUNT(*),
       SUM(array_length(photos, 1))
     FROM moments
-    WHERE photos IS NOT NULL AND array_length(photos, 1) > 0
-    UNION ALL
-    SELECT 
-      'journal_entries',
-      COUNT(*),
-      SUM(array_length(images, 1))
-    FROM journal_entries
-    WHERE images IS NOT NULL AND array_length(images, 1) > 0;
+    WHERE photos IS NOT NULL AND array_length(photos, 1) > 0;
   `,
 
   // Get largest tables
@@ -122,18 +103,18 @@ export async function executeMonitoringQuery(
   supabaseClient: any
 ) {
   try {
-    const { data, error } = await supabaseClient.rpc('exec_sql', {
+    const { data, error } = await supabaseClient.rpc("exec_sql", {
       query_text: query,
     });
 
     if (error) {
       // Fallback: execute via direct query if RPC doesn't exist
       const { data: directData, error: directError } = await supabaseClient
-        .from('_monitoring')
-        .select('*');
+        .from("_monitoring")
+        .select("*");
 
       if (directError) {
-        console.error('Monitoring query error:', directError);
+        console.error("Monitoring query error:", directError);
         return null;
       }
 
@@ -142,8 +123,7 @@ export async function executeMonitoringQuery(
 
     return data;
   } catch (error) {
-    console.error('Error executing monitoring query:', error);
+    console.error("Error executing monitoring query:", error);
     return null;
   }
 }
-

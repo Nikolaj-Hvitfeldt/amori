@@ -65,7 +65,7 @@ if (ip) {
   console.log(`   1. Your phone and laptop are on the same WiFi network`);
   console.log(`   2. Your backend is running: npm run start:dev`);
   console.log(`   3. Your Windows Firewall allows connections on port 3000`);
-  console.log(`   4. Test the connection: http://${ip}:3000/journal`);
+  console.log(`   4. Test the connection: http://${ip}:3000/moments`);
 } else {
   console.log('\n❌ Could not detect local IP address');
   console.log('\n💡 Manual steps:');

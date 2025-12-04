@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -23,61 +23,22 @@ import { Moment, CreateMomentDto } from "../types/moments";
 import { API_BASE_URL } from "../services/api";
 import RotatingPhotoBackground from "../components/RotatingPhotoBackground";
 import MomentDetailView from "../components/MomentDetailView";
-import { getThumbnailUrl } from "../utils/imageUtils";
-
-// Helper function for shadows
-const getBoxShadow = (
-  shadowColor: string,
-  shadowOffset: { width: number; height: number },
-  shadowOpacity: number,
-  shadowRadius: number
-) => {
-  if (Platform.OS === "web") {
-    const color = shadowColor.startsWith("#")
-      ? shadowColor +
-        Math.round(shadowOpacity * 255)
-          .toString(16)
-          .padStart(2, "0")
-      : shadowColor;
-    return {
-      boxShadow: `${shadowOffset.width}px ${shadowOffset.height}px ${shadowRadius}px 0px ${color}`,
-    } as any;
-  }
-  return {
-    shadowColor,
-    shadowOffset,
-    shadowOpacity,
-    shadowRadius,
-  };
-};
-
-// Helper function for text shadows
-const getTextShadow = (
-  textShadowColor: string,
-  textShadowOffset: { width: number; height: number },
-  textShadowRadius: number
-) => {
-  if (Platform.OS === "web") {
-    return {
-      textShadow: `${textShadowOffset.width}px ${textShadowOffset.height}px ${textShadowRadius}px ${textShadowColor}`,
-    };
-  }
-  return {
-    textShadowColor,
-    textShadowOffset,
-    textShadowRadius,
-  };
-};
-
-// Pink/romantic theme color
-const MOMENT_COLOR = "#FF6B9D";
-const MOMENT_BG = "#1a0f1a";
-const MOMENT_TEXT = "#ffd1e0";
-const MOMENT_GRADIENT = ["#FF6B9D", "#FF8E9D", "#FFB3C1"];
+import MomentCard from "../components/MomentCard";
+import LoadingState from "../components/common/LoadingState";
+import EmptyState from "../components/common/EmptyState";
+import LoadingMore from "../components/common/LoadingMore";
+import { getThumbnailUrl, filterValidPhotos } from "../utils/imageUtils";
+import { getBoxShadow, getTextShadow } from "../utils/shadows";
+import { formatDateUS } from "../utils/dateUtils";
+import {
+  MOMENT_COLOR,
+  MOMENT_BG,
+  MOMENT_TEXT,
+  MOMENT_GRADIENT,
+} from "../constants/theme";
+import { ITEMS_PER_PAGE } from "../constants/spacing";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-const ITEMS_PER_PAGE = 10;
 
 export default function MomentsScreen() {
   const [moments, setMoments] = useState<Moment[]>([]);
@@ -115,15 +76,16 @@ export default function MomentsScreen() {
 
       const offset = reset ? 0 : moments.length;
       const result = await momentsService.getAllMoments(ITEMS_PER_PAGE, offset);
-      
+
       // Safety check: ensure result and result.data exist
       if (!result || !result.data || !Array.isArray(result.data)) {
         console.error("Invalid API response:", result);
         throw new Error("Invalid response from server");
       }
-      
+
       const sortedMoments = result.data.sort(
-        (a, b) => new Date(b.story_date).getTime() - new Date(a.story_date).getTime()
+        (a, b) =>
+          new Date(b.story_date).getTime() - new Date(a.story_date).getTime()
       );
 
       if (reset) {
@@ -158,7 +120,7 @@ export default function MomentsScreen() {
     }
   };
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setTitle("");
     setStoryDate("");
     setDatePickerValue(new Date());
@@ -167,7 +129,7 @@ export default function MomentsScreen() {
     setEditingMoment(null);
     setShowDatePicker(false);
     setWebDateInput("");
-  };
+  }, []);
 
   const filterValidPhotos = (photoUrls: string[]): string[] => {
     return photoUrls.filter(
@@ -207,36 +169,41 @@ export default function MomentsScreen() {
     }
   };
 
-  const openModal = (moment?: Moment) => {
-    if (moment) {
-      setEditingMoment(moment);
-      setTitle(moment.title);
-      setStoryDate(moment.story_date);
-      const parsedDate = new Date(moment.story_date);
-      setDatePickerValue(isNaN(parsedDate.getTime()) ? new Date() : parsedDate);
-      setDescription(moment.description || "");
-      setPhotos(filterValidPhotos(moment.photos || []));
-    } else {
-      resetForm();
-    }
-    setIsModalVisible(true);
-    fadeAnim.setValue(0);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: Platform.OS !== "web",
-    }).start();
-  };
+  const openModal = useCallback(
+    (moment?: Moment) => {
+      if (moment) {
+        setEditingMoment(moment);
+        setTitle(moment.title);
+        setStoryDate(moment.story_date);
+        const parsedDate = new Date(moment.story_date);
+        setDatePickerValue(
+          isNaN(parsedDate.getTime()) ? new Date() : parsedDate
+        );
+        setDescription(moment.description || "");
+        setPhotos(filterValidPhotos(moment.photos || []));
+      } else {
+        resetForm();
+      }
+      setIsModalVisible(true);
+      fadeAnim.setValue(0);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: Platform.OS !== "web",
+      }).start();
+    },
+    [fadeAnim]
+  );
 
   const closeModal = () => {
     setIsModalVisible(false);
     setTimeout(resetForm, 300);
   };
 
-  const handleViewMoment = (moment: Moment) => {
+  const handleViewMoment = useCallback((moment: Moment) => {
     setSelectedMoment(moment);
     setIsDetailVisible(true);
-  };
+  }, []);
 
   const uploadImage = async (uri: string): Promise<string> => {
     try {
@@ -261,7 +228,9 @@ export default function MomentsScreen() {
               reader.onloadend = async () => {
                 try {
                   const dataUrl = reader.result as string;
-                  const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+                  const matches = dataUrl.match(
+                    /^data:([A-Za-z-+\/]+);base64,(.+)$/
+                  );
                   if (matches && matches.length === 3) {
                     mimeType = matches[1];
                     base64 = matches[2];
@@ -286,7 +255,9 @@ export default function MomentsScreen() {
             reader.onloadend = async () => {
               try {
                 const dataUrl = reader.result as string;
-                const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+                const matches = dataUrl.match(
+                  /^data:([A-Za-z-+\/]+);base64,(.+)$/
+                );
                 if (matches && matches.length === 3) {
                   mimeType = matches[1];
                   base64 = matches[2];
@@ -365,7 +336,7 @@ export default function MomentsScreen() {
             uploadImage(asset.uri)
           );
           const uploadedUrls = await Promise.all(uploadPromises);
-          
+
           // Use functional update to avoid stale closure
           setPhotos((prevPhotos) => [...prevPhotos, ...uploadedUrls]);
         } catch (uploadError) {
@@ -419,7 +390,7 @@ export default function MomentsScreen() {
   const formatDate = (dateString: string): string => {
     const dateObj = new Date(dateString);
     if (isNaN(dateObj.getTime())) return "";
-    
+
     const day = String(dateObj.getDate()).padStart(2, "0");
     const month = String(dateObj.getMonth() + 1).padStart(2, "0");
     const year = dateObj.getFullYear();
@@ -427,229 +398,66 @@ export default function MomentsScreen() {
   };
 
   const handleDeleteMoment = async (id: string, title: string) => {
-    Alert.alert("Delete Moment", `Are you sure you want to delete "${title}"?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await momentsService.deleteMoment(id);
-            closeModal();
-            loadMoments();
-          } catch (error) {
-            console.error("Error deleting moment:", error);
-            Alert.alert("Error", "Failed to delete moment");
-          }
+    Alert.alert(
+      "Delete Moment",
+      `Are you sure you want to delete "${title}"?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await momentsService.deleteMoment(id);
+              closeModal();
+              loadMoments();
+            } catch (error) {
+              console.error("Error deleting moment:", error);
+              Alert.alert("Error", "Failed to delete moment");
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
+
+  const renderMoment = useCallback(
+    ({ item: moment }: { item: Moment }) => {
+      return (
+        <MomentCard
+          key={moment.id}
+          moment={moment}
+          onPress={() => handleViewMoment(moment)}
+          onLongPress={() => openModal(moment)}
+          variant="screen"
+        />
+      );
+    },
+    [handleViewMoment, openModal]
+  );
 
   if (loading) {
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: MOMENT_BG,
-        }}
-      >
-        <Text style={{ fontSize: 48, marginBottom: 16 }}>💕</Text>
-        <Text style={{ fontSize: 18, color: MOMENT_TEXT + "80" }}>
-          Loading your moments...
-        </Text>
-      </View>
+      <LoadingState
+        message="Loading your moments..."
+        color={MOMENT_COLOR}
+        backgroundColor={MOMENT_BG}
+      />
     );
   }
 
-  const renderMoment = ({ item: moment }: { item: Moment }) => {
-    const momentPhotos = filterValidPhotos(moment.photos || []);
-    // Use thumbnails for list view performance
-    const thumbnailPhotos = momentPhotos.map((photo) => getThumbnailUrl(photo));
-
-    return (
-      <TouchableOpacity
-        key={moment.id}
-        onPress={() => handleViewMoment(moment)}
-        onLongPress={() => openModal(moment)}
-        style={{
-          backgroundColor: MOMENT_BG,
-          borderRadius: 24,
-          padding: 20,
-          marginBottom: 20,
-          marginHorizontal: 20,
-          minHeight: 180,
-          overflow: "hidden",
-          position: "relative",
-          borderWidth: 2,
-          borderColor: MOMENT_COLOR + "40",
-          ...getBoxShadow(
-            MOMENT_COLOR,
-            { width: 0, height: 6 },
-            0.5,
-            16
-          ),
-          elevation: 10,
-        }}
-      >
-        {/* Decorative heart accent */}
-        <View
-          style={{
-            position: "absolute",
-            top: -20,
-            right: -20,
-            width: 120,
-            height: 120,
-            borderRadius: 60,
-            backgroundColor: MOMENT_COLOR + "15",
-            opacity: 0.6,
-          }}
-        />
-
-        {/* Rotating Photo Background - using thumbnails for performance */}
-        {momentPhotos.length > 0 && (
-          <RotatingPhotoBackground
-            photos={thumbnailPhotos}
-            interval={8000}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 0,
-            }}
-          />
-        )}
-
-        {/* Content with relative positioning to appear above background */}
-        <View style={{ position: "relative", zIndex: 1 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              marginBottom: 8,
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              {/* Title */}
-              <Text
-                style={{
-                  fontSize: 20,
-                  fontWeight: "600",
-                  color:
-                    momentPhotos.length > 0 ? "#ffffff" : MOMENT_TEXT,
-                  marginBottom: 4,
-                  ...getTextShadow(
-                    "rgba(0, 0, 0, 0.75)",
-                    { width: 0, height: 1 },
-                    3
-                  ),
-                }}
-              >
-                {moment.title}
-              </Text>
-              {/* Date below title - italic small font */}
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontStyle: "italic",
-                  color:
-                    momentPhotos.length > 0 ? "#f3f4f6" : MOMENT_TEXT + "80",
-                  marginBottom: 8,
-                  ...getTextShadow(
-                    "rgba(0, 0, 0, 0.75)",
-                    { width: 0, height: 1 },
-                    3
-                  ),
-                }}
-              >
-                {formatDate(moment.story_date)}
-              </Text>
-              <View
-                style={{ flexDirection: "row", alignItems: "center" }}
-              >
-                <Text style={{ fontSize: 20, marginRight: 8 }}>💕</Text>
-                <Text
-                  style={{
-                    fontSize: 14,
-                    color:
-                      momentPhotos.length > 0
-                        ? "#ffffff"
-                        : MOMENT_COLOR,
-                    fontWeight: "500",
-                    ...getTextShadow(
-                      "rgba(0, 0, 0, 0.75)",
-                      { width: 0, height: 1 },
-                      3
-                    ),
-                  }}
-                >
-                  Special Moment
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          <Text
-            style={{
-              fontSize: 16,
-              color:
-                momentPhotos.length > 0 ? "#ffffff" : MOMENT_TEXT + "CC",
-              marginTop: 8,
-              fontWeight: "500",
-              ...getTextShadow(
-                "rgba(0, 0, 0, 0.75)",
-                { width: 0, height: 1 },
-                3
-              ),
-            }}
-            numberOfLines={2}
-          >
-            {moment.description}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
   const renderEmpty = () => (
-    <View
-      style={{
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        paddingVertical: 100,
-      }}
-    >
-      <Text style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>
-        💕
-      </Text>
-      <Text
-        style={{
-          fontSize: 18,
-          color: MOMENT_TEXT + "80",
-          textAlign: "center",
-          fontStyle: "italic",
-          lineHeight: 24,
-        }}
-      >
-        No special moments yet.{"\n"}
-        Capture your first moment to begin!
-      </Text>
-    </View>
+    <EmptyState
+      icon="💕"
+      title="No special moments yet"
+      message="Capture your first moment to begin!"
+      backgroundColor={MOMENT_BG}
+    />
   );
 
   const renderFooter = () => {
     if (!loadingMore) return null;
-    return (
-      <View style={{ padding: 20, alignItems: "center" }}>
-        <ActivityIndicator size="small" color={MOMENT_COLOR} />
-      </View>
-    );
+    return <LoadingMore color={MOMENT_COLOR} />;
   };
 
   return (
@@ -862,7 +670,11 @@ export default function MomentsScreen() {
               >
                 <Text style={{ fontSize: 20, marginRight: 8 }}>💕</Text>
                 <Text
-                  style={{ fontSize: 16, fontWeight: "600", color: MOMENT_COLOR }}
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: MOMENT_COLOR,
+                  }}
                 >
                   Special Moment
                 </Text>
@@ -982,7 +794,8 @@ export default function MomentsScreen() {
                       </Text>
                       <TouchableOpacity
                         onPress={() => {
-                          const formattedDate = formatDateForDatabase(datePickerValue);
+                          const formattedDate =
+                            formatDateForDatabase(datePickerValue);
                           setStoryDate(formattedDate);
                           setShowDatePicker(false);
                         }}
@@ -1034,12 +847,17 @@ export default function MomentsScreen() {
                           setWebDateInput(cleaned);
                         } else if (cleaned.length <= 5) {
                           if (cleaned.length === 3 && !cleaned.includes("-")) {
-                            cleaned = cleaned.slice(0, 2) + "-" + cleaned.slice(2);
+                            cleaned =
+                              cleaned.slice(0, 2) + "-" + cleaned.slice(2);
                           }
                           setWebDateInput(cleaned);
                         } else {
-                          if (cleaned.length === 6 && cleaned.split("-").length === 2) {
-                            cleaned = cleaned.slice(0, 5) + "-" + cleaned.slice(5);
+                          if (
+                            cleaned.length === 6 &&
+                            cleaned.split("-").length === 2
+                          ) {
+                            cleaned =
+                              cleaned.slice(0, 5) + "-" + cleaned.slice(5);
                           }
                           cleaned = cleaned.slice(0, 10);
                           setWebDateInput(cleaned);

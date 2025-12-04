@@ -239,3 +239,4 @@ This is a starter template. Feel free to:
 ---
 
 Built with ❤️ using React Native, NestJS, and Supabase
+

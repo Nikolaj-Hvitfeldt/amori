@@ -54,6 +54,20 @@ export function isThumbnail(url: string): boolean {
  * @param thumbnailUrl - Thumbnail URL
  * @returns Full-size URL
  */
+/**
+ * Filter valid photo URLs from an array
+ */
+export function filterValidPhotos(photoUrls: string[]): string[] {
+  if (!photoUrls || !Array.isArray(photoUrls)) return [];
+  return photoUrls.filter(
+    (url) =>
+      url &&
+      typeof url === "string" &&
+      url.trim() !== "" &&
+      (url.startsWith("http://") || url.startsWith("https://"))
+  );
+}
+
 export function getFullSizeUrl(thumbnailUrl: string): string {
   if (!thumbnailUrl) return thumbnailUrl;
   

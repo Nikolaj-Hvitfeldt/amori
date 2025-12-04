@@ -181,7 +181,5 @@ You can:
 2. Test locally: `npm run web`
 3. Deploy to Netlify/Vercel
 4. Share the URL with your girlfriend!
-5. Both of you can "install" it on your phones
 
 Enjoy your free, beautiful app! 💕
-

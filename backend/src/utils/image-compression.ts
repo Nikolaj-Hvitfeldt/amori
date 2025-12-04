@@ -1,7 +1,12 @@
-const sharp = require('sharp');
+import sharp from "sharp";
+import {
+  COMPRESSION_SETTINGS,
+  THUMBNAIL_SETTINGS,
+} from "../constants/image.constants";
+
 let heicConvert: any = null;
 try {
-  heicConvert = require('heic-convert');
+  heicConvert = require("heic-convert");
 } catch (e) {
   // heic-convert not available, will use Sharp fallback
 }
@@ -16,52 +21,57 @@ try {
  */
 export async function compressImage(
   buffer: Buffer | Uint8Array,
-  maxWidth: number = 1920,
-  maxHeight: number = 1920,
-  quality: number = 85
+  maxWidth: number = COMPRESSION_SETTINGS.INITIAL.maxWidth,
+  maxHeight: number = COMPRESSION_SETTINGS.INITIAL.maxHeight,
+  quality: number = COMPRESSION_SETTINGS.INITIAL.quality
 ): Promise<Buffer> {
   try {
-    let image = sharp(buffer, { failOn: 'none' });
+    let image = sharp(buffer, { failOn: "none" });
     let metadata;
-    
+
     try {
       metadata = await image.metadata();
     } catch (metadataError) {
       // Try with more permissive settings
-      image = sharp(buffer, { failOn: 'none', limitInputPixels: false });
+      image = sharp(buffer, { failOn: "none", limitInputPixels: false });
       metadata = await image.metadata();
     }
 
     // If it's HEIC/HEIF, convert to JPEG first
-    if (metadata.format === 'heic' || metadata.format === 'heif') {
-      console.log('Detected HEIC/HEIF format, converting to JPEG...');
-      
+    if (metadata.format === "heic" || metadata.format === "heif") {
+      console.log("Detected HEIC/HEIF format, converting to JPEG...");
+
       // Try using heic-convert if available
       if (heicConvert) {
         try {
           const jpegBuffer = await heicConvert({
             buffer: buffer,
-            format: 'JPEG',
-            quality: 0.9
+            format: "JPEG",
+            quality: 0.9,
           });
           image = sharp(jpegBuffer);
           metadata = await image.metadata();
         } catch (heicError) {
-          console.warn('heic-convert failed, trying Sharp fallback...', heicError);
+          console.warn(
+            "heic-convert failed, trying Sharp fallback...",
+            heicError
+          );
           // Fall through to Sharp attempt
         }
       }
-      
+
       // If heic-convert not available or failed, try Sharp
-      if (metadata.format === 'heic' || metadata.format === 'heif') {
+      if (metadata.format === "heic" || metadata.format === "heif") {
         try {
-          const jpegBuffer = await sharp(buffer, { failOn: 'none' })
+          const jpegBuffer = await sharp(buffer, { failOn: "none" })
             .jpeg({ quality: 90 })
             .toBuffer();
           image = sharp(jpegBuffer);
           metadata = await image.metadata();
         } catch (sharpHeicError) {
-          throw new Error('HEIC conversion failed. Please convert HEIC images to JPEG before uploading.');
+          throw new Error(
+            "HEIC conversion failed. Please convert HEIC images to JPEG before uploading."
+          );
         }
       }
     }
@@ -84,7 +94,7 @@ export async function compressImage(
     // Resize and compress
     const compressed = await image
       .resize(width, height, {
-        fit: 'inside',
+        fit: "inside",
         withoutEnlargement: true,
       })
       .jpeg({ quality, mozjpeg: true })
@@ -92,22 +102,27 @@ export async function compressImage(
 
     return compressed;
   } catch (error) {
-    console.error('Error compressing image:', error);
+    console.error("Error compressing image:", error);
     // Try fallback with more permissive settings
     try {
-      const compressed = await sharp(buffer, { 
-        failOn: 'none',
-        limitInputPixels: false 
+      const compressed = await sharp(buffer, {
+        failOn: "none",
+        limitInputPixels: false,
       })
         .resize(maxWidth, maxHeight, {
-          fit: 'inside',
+          fit: "inside",
           withoutEnlargement: true,
         })
         .jpeg({ quality, mozjpeg: true })
         .toBuffer();
       return compressed;
     } catch (fallbackError) {
-      throw new Error('Failed to compress image: ' + (fallbackError instanceof Error ? fallbackError.message : String(fallbackError)));
+      throw new Error(
+        "Failed to compress image: " +
+          (fallbackError instanceof Error
+            ? fallbackError.message
+            : String(fallbackError))
+      );
     }
   }
 }
@@ -121,60 +136,65 @@ export async function compressImage(
  */
 export async function generateThumbnail(
   buffer: Buffer | Uint8Array,
-  size: number = 300,
-  quality: number = 75
+  size: number = THUMBNAIL_SETTINGS.size,
+  quality: number = THUMBNAIL_SETTINGS.quality
 ): Promise<Buffer> {
   try {
     // First, try to detect the format
     let image = sharp(buffer);
     let metadata;
-    
+
     try {
       metadata = await image.metadata();
     } catch (metadataError) {
       // If metadata fails, try to force format detection
-      console.warn('Metadata detection failed, trying format conversion...');
+      console.warn("Metadata detection failed, trying format conversion...");
       // Try to convert as HEIC first, then fall back to auto-detect
       try {
-        image = sharp(buffer, { failOn: 'none' });
+        image = sharp(buffer, { failOn: "none" });
         metadata = await image.metadata();
       } catch (heicError) {
         // Last resort: try to process as JPEG
-        image = sharp(buffer, { failOn: 'none', limitInputPixels: false });
+        image = sharp(buffer, { failOn: "none", limitInputPixels: false });
         metadata = await image.metadata();
       }
     }
 
     // If it's HEIC/HEIF, convert to JPEG first
-    if (metadata.format === 'heic' || metadata.format === 'heif') {
-      console.log('Detected HEIC/HEIF format, converting to JPEG...');
-      
+    if (metadata.format === "heic" || metadata.format === "heif") {
+      console.log("Detected HEIC/HEIF format, converting to JPEG...");
+
       // Try using heic-convert if available
       if (heicConvert) {
         try {
           const jpegBuffer = await heicConvert({
             buffer: buffer,
-            format: 'JPEG',
-            quality: 0.9
+            format: "JPEG",
+            quality: 0.9,
           });
           image = sharp(jpegBuffer);
           metadata = await image.metadata();
         } catch (heicError) {
-          console.warn('heic-convert failed, trying Sharp fallback...', heicError);
+          console.warn(
+            "heic-convert failed, trying Sharp fallback...",
+            heicError
+          );
           // Fall through to Sharp attempt
         }
       }
-      
+
       // If heic-convert not available or failed, try Sharp
-      if (metadata.format === 'heic' || metadata.format === 'heif') {
+      if (metadata.format === "heic" || metadata.format === "heif") {
         try {
-          const jpegBuffer = await sharp(buffer, { failOn: 'none' })
+          const jpegBuffer = await sharp(buffer, { failOn: "none" })
             .jpeg({ quality: 90 })
             .toBuffer();
           image = sharp(jpegBuffer);
           metadata = await image.metadata();
         } catch (sharpHeicError) {
-          throw new Error('HEIC conversion failed. Please convert HEIC images to JPEG before uploading.');
+          throw new Error(
+            "HEIC conversion failed. Please convert HEIC images to JPEG before uploading."
+          );
         }
       }
     }
@@ -182,8 +202,8 @@ export async function generateThumbnail(
     // Generate thumbnail
     const thumbnail = await image
       .resize(size, size, {
-        fit: 'cover',
-        position: 'center',
+        fit: "cover",
+        position: "center",
       })
       .jpeg({ quality, mozjpeg: true })
       .toBuffer();
@@ -191,25 +211,36 @@ export async function generateThumbnail(
     return thumbnail;
   } catch (error) {
     // If all else fails, try a more permissive approach
-    console.warn('Standard thumbnail generation failed, trying fallback method...', error);
-    
+    console.warn(
+      "Standard thumbnail generation failed, trying fallback method...",
+      error
+    );
+
     try {
       // Fallback: try with failOn: 'none' and no format restrictions
-      const thumbnail = await sharp(buffer, { 
-        failOn: 'none',
-        limitInputPixels: false 
+      const thumbnail = await sharp(buffer, {
+        failOn: "none",
+        limitInputPixels: false,
       })
         .resize(size, size, {
-          fit: 'cover',
-          position: 'center',
+          fit: "cover",
+          position: "center",
         })
         .jpeg({ quality, mozjpeg: true })
         .toBuffer();
-      
+
       return thumbnail;
     } catch (fallbackError) {
-      console.error('Error generating thumbnail (all methods failed):', fallbackError);
-      throw new Error('Failed to generate thumbnail: ' + (fallbackError instanceof Error ? fallbackError.message : String(fallbackError)));
+      console.error(
+        "Error generating thumbnail (all methods failed):",
+        fallbackError
+      );
+      throw new Error(
+        "Failed to generate thumbnail: " +
+          (fallbackError instanceof Error
+            ? fallbackError.message
+            : String(fallbackError))
+      );
     }
   }
 }
@@ -229,8 +260,7 @@ export async function getImageMetadata(buffer: Buffer | Uint8Array) {
       size: buffer.length,
     };
   } catch (error) {
-    console.error('Error getting image metadata:', error);
-    throw new Error('Failed to get image metadata');
+    console.error("Error getting image metadata:", error);
+    throw new Error("Failed to get image metadata");
   }
 }
-

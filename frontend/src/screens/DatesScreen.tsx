@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -23,109 +23,36 @@ import { DateEntry, CreateDateEntryDto, DateMood } from "../types/dates";
 import { datesService } from "../services/dates";
 import { API_BASE_URL } from "../services/api";
 import DateDetailView from "../components/DateDetailView";
-import RotatingPhotoBackground from "../components/RotatingPhotoBackground";
-import { getThumbnailUrl } from "../utils/imageUtils";
+import DateCard from "../components/DateCard";
+import EmptyState from "../components/common/EmptyState";
+import LoadingMore from "../components/common/LoadingMore";
+import { getThumbnailUrl, filterValidPhotos } from "../utils/imageUtils";
+import { getBoxShadow, getTextShadow } from "../utils/shadows";
+import { formatDateEU } from "../utils/dateUtils";
+import { MOOD_COLORS, MOOD_OPTIONS, getMoodInfo } from "../utils/moodUtils";
+import { ITEMS_PER_PAGE } from "../constants/spacing";
+import {
+  TIME_THEMES,
+  TimeOfDay,
+  DATE_SCREEN_BG,
+  DATE_SCREEN_HEADER_GRADIENT,
+  DATE_SCREEN_BORDER_LIGHT,
+  DATE_SCREEN_PURPLE,
+  DATE_SCREEN_PURPLE_LIGHT,
+  DATE_SCREEN_GRAY,
+  DATE_SCREEN_GRAY_DARK,
+  DATE_SCREEN_WHITE,
+  DATE_SCREEN_TEXT_LIGHT,
+  DATE_BG,
+  DATE_BORDER,
+  DATE_TEXT,
+  DATE_TEXT_SECONDARY,
+  GRAY_LIGHT,
+  GRAY_MEDIUM,
+} from "../constants/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const ITEMS_PER_PAGE = 10;
 
-type TimeOfDay = "morning" | "afternoon" | "evening" | "night";
-
-// Helper function to convert shadow props to web-compatible boxShadow
-const getBoxShadow = (
-  shadowColor: string,
-  shadowOffset: { width: number; height: number },
-  shadowOpacity: number,
-  shadowRadius: number
-) => {
-  if (Platform.OS === "web") {
-    const color = shadowColor.startsWith("#")
-      ? shadowColor +
-        Math.round(shadowOpacity * 255)
-          .toString(16)
-          .padStart(2, "0")
-      : shadowColor.replace(/rgba?\(([^)]+)\)/, (_, values) => {
-          const parts = values.split(",").map((v: string) => v.trim());
-          if (parts.length === 3) {
-            return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, ${shadowOpacity})`;
-          }
-          return shadowColor;
-        });
-    return {
-      boxShadow: `${shadowOffset.width}px ${shadowOffset.height}px ${shadowRadius}px 0px ${color}`,
-    };
-  }
-  return {
-    shadowColor,
-    shadowOffset,
-    shadowOpacity,
-    shadowRadius,
-  };
-};
-
-// Helper function to convert textShadow props to web-compatible textShadow
-const getTextShadow = (
-  textShadowColor: string,
-  textShadowOffset: { width: number; height: number },
-  textShadowRadius: number
-) => {
-  if (Platform.OS === "web") {
-    return {
-      textShadow: `${textShadowOffset.width}px ${textShadowOffset.height}px ${textShadowRadius}px ${textShadowColor}`,
-    };
-  }
-  return {
-    textShadowColor,
-    textShadowOffset,
-    textShadowRadius,
-  };
-};
-
-// Time-based color themes (matching DateDetailView)
-const TIME_THEMES: Record<
-  TimeOfDay,
-  { gradient: string[]; text: string; bg: string }
-> = {
-  morning: {
-    gradient: ["#FFE5B4", "#FFD89B", "#FFC65D"],
-    text: "#8B4513",
-    bg: "#FFF8E7",
-  },
-  afternoon: {
-    gradient: ["#87CEEB", "#B0E0E6", "#E0F6FF"],
-    text: "#1E3A5F",
-    bg: "#E8F4F8",
-  },
-  evening: {
-    gradient: ["#FFB6C1", "#FFA07A", "#FF8C69"],
-    text: "#8B0000",
-    bg: "#FFE8E0",
-  },
-  night: {
-    gradient: ["#1a1a2e", "#16213e", "#0f172a"],
-    text: "#e5d3ff",
-    bg: "#0f172a",
-  },
-};
-
-// Mood-based accent colors
-const MOOD_COLORS: Record<DateMood, string> = {
-  magical: "#DDA0DD",
-  romantic: "#FFB6C1",
-  adventurous: "#FFD700",
-  cozy: "#DEB887",
-  spontaneous: "#FF69B4",
-  dreamy: "#B0C4DE",
-};
-
-const MOOD_OPTIONS: { value: DateMood; label: string; icon: string }[] = [
-  { value: "magical", label: "Magical", icon: "✨" },
-  { value: "romantic", label: "Romantic", icon: "💕" },
-  { value: "adventurous", label: "Adventurous", icon: "🌟" },
-  { value: "cozy", label: "Cozy", icon: "🕯️" },
-  { value: "spontaneous", label: "Spontaneous", icon: "🎈" },
-  { value: "dreamy", label: "Dreamy", icon: "🌙" },
-];
 
 export default function DatesScreen() {
   const [dates, setDates] = useState<DateEntry[]>([]);
@@ -256,192 +183,61 @@ export default function DatesScreen() {
     }
   };
 
-  const renderDateItem = ({ item: dateEntry }: { item: DateEntry }) => {
-    const moodInfo = getMoodInfo(dateEntry.mood);
-    const dateMoodColor = MOOD_COLORS[dateEntry.mood];
-    // Get photos array (support both photos and legacy image_url)
-    // Filter out blob URLs and invalid URLs
-    const allDatePhotos =
-      dateEntry.photos && dateEntry.photos.length > 0
-        ? dateEntry.photos
-        : dateEntry.image_url
-        ? [dateEntry.image_url]
-        : [];
-    const datePhotos = filterValidPhotos(allDatePhotos);
+  const handleViewDate = useCallback((dateEntry: DateEntry) => {
+    setSelectedDate(dateEntry);
+    setIsDetailVisible(true);
+  }, []);
 
-    return (
-      <TouchableOpacity
-        style={{
-          backgroundColor: "#0f172a",
-          borderRadius: 16,
-          padding: 20,
-          marginBottom: 16,
-          borderWidth: 1,
-          borderColor: "#374151",
-          ...getBoxShadow(
-            dateMoodColor,
-            { width: 0, height: 4 },
-            0.3,
-            12
-          ),
-          elevation: 5,
-          overflow: "hidden",
-          position: "relative",
-        }}
-        onPress={() => {
-          setSelectedDate(dateEntry);
-          setIsDetailVisible(true);
-        }}
-        onLongPress={() => handleDeleteDate(dateEntry.id)}
-      >
-        {/* Decorative calendar accent */}
-        <View
-          style={{
-            position: "absolute",
-            top: -10,
-            right: -10,
-            width: 80,
-            height: 80,
-            borderRadius: 40,
-            backgroundColor: dateMoodColor + "15",
-            opacity: 0.5,
-          }}
-        />
-
-        {/* Rotating Photo Background */}
-        {datePhotos.length > 0 && (
-          <RotatingPhotoBackground
-            photos={datePhotos}
-            interval={8000}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 0,
-            }}
-          />
-        )}
-        {/* Content with relative positioning to appear above background */}
-        <View style={{ position: "relative", zIndex: 1 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              marginBottom: 8,
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              {/* Title */}
-              <Text
-                style={{
-                  fontSize: 20,
-                  fontWeight: "600",
-                  color: datePhotos.length > 0 ? "#ffffff" : "#e5d3ff",
-                  marginBottom: 4,
-                  ...getTextShadow(
-                    "rgba(0, 0, 0, 0.75)",
-                    { width: 0, height: 1 },
-                    3
-                  ),
-                }}
-              >
-                {dateEntry.title || "Our Special Date"}
-              </Text>
-              {/* Date below title - italic small font */}
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontStyle: "italic",
-                  color: datePhotos.length > 0 ? "#f3f4f6" : "#9ca3af",
-                  marginBottom: 8,
-                  ...getTextShadow(
-                    "rgba(0, 0, 0, 0.75)",
-                    { width: 0, height: 1 },
-                    3
-                  ),
-                }}
-              >
-                {formatDate(dateEntry.date)}
-              </Text>
-              <View
-                style={{ flexDirection: "row", alignItems: "center" }}
-              >
-                <Text style={{ fontSize: 20, marginRight: 8 }}>
-                  {moodInfo.icon}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 14,
-                    color:
-                      datePhotos.length > 0 ? "#ffffff" : "#a78bfa",
-                    fontWeight: "500",
-                    ...getTextShadow(
-                      "rgba(0, 0, 0, 0.75)",
-                      { width: 0, height: 1 },
-                      3
-                    ),
-                  }}
-                >
-                  {moodInfo.label}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      color: datePhotos.length > 0 ? "#ffffff" : "#d1d5db",
-                      marginBottom: 8,
-                      fontWeight: "500",
-                      ...getTextShadow(
-                        "rgba(0, 0, 0, 0.75)",
-                        { width: 0, height: 1 },
-                        3
-                      ),
-                    }}
-                  >
-                    📍 {dateEntry.location}
-                  </Text>
-        </View>
-      </TouchableOpacity>
+  const handleDeleteDate = useCallback(async (id: string) => {
+    Alert.alert(
+      "Delete Date",
+      "Are you sure you want to delete this special date?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await datesService.delete(id);
+              loadDates();
+            } catch (error) {
+              console.error("Error deleting date:", error);
+              Alert.alert("Error", "Failed to delete date entry");
+            }
+          },
+        },
+      ]
     );
-  };
+  }, []);
+
+  const renderDateItem = useCallback(
+    ({ item: dateEntry }: { item: DateEntry }) => {
+      return (
+        <DateCard
+          key={dateEntry.id}
+          dateEntry={dateEntry}
+          onPress={() => handleViewDate(dateEntry)}
+          onLongPress={() => handleDeleteDate(dateEntry.id)}
+          variant="screen"
+        />
+      );
+    },
+    [handleViewDate, handleDeleteDate]
+  );
 
   const renderEmpty = () => (
-    <View
-      style={{
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        paddingVertical: 100,
-      }}
-    >
-      <Text
-        style={{
-          fontSize: 18,
-          color: "#6b7280",
-          textAlign: "center",
-          fontStyle: "italic",
-          lineHeight: 24,
-        }}
-      >
-        No special dates recorded yet.{"\n"}
-        Create your first memory to begin the journey.
-      </Text>
-    </View>
+    <EmptyState
+      icon="📅"
+      title="No special dates recorded yet"
+      message="Create your first memory to begin the journey."
+      backgroundColor={DATE_SCREEN_BG}
+    />
   );
 
   const renderFooter = () => {
     if (!loadingMore) return null;
-    return (
-      <View style={{ padding: 20, alignItems: "center" }}>
-        <ActivityIndicator size="small" color="#7c3aed" />
-      </View>
-    );
+    return <LoadingMore color={DATE_SCREEN_PURPLE} />;
   };
 
   const resetForm = () => {
@@ -461,17 +257,6 @@ export default function DatesScreen() {
   };
 
   // Helper function to filter out invalid/blob URLs
-  const filterValidPhotos = (photoUrls: string[]): string[] => {
-    return photoUrls.filter((url) => {
-      // Only keep URLs that start with http:// or https:// (valid web URLs)
-      // Filter out blob: URLs and other invalid formats
-      return (
-        url &&
-        typeof url === "string" &&
-        (url.startsWith("http://") || url.startsWith("https://"))
-      );
-    });
-  };
 
   const openModal = (dateEntry?: DateEntry) => {
     if (dateEntry) {
@@ -607,29 +392,6 @@ export default function DatesScreen() {
       console.error("Error saving date:", error);
       Alert.alert("Error", "Failed to save date entry");
     }
-  };
-
-  const handleDeleteDate = async (id: string) => {
-    Alert.alert(
-      "Delete Date",
-      "Are you sure you want to delete this special date?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await datesService.delete(id);
-              loadDates();
-            } catch (error) {
-              console.error("Error deleting date:", error);
-              Alert.alert("Error", "Failed to delete date entry");
-            }
-          },
-        },
-      ]
-    );
   };
 
   const addHighlight = () => {
@@ -828,42 +590,27 @@ export default function DatesScreen() {
     setPhotos(newPhotos);
   };
 
-  const formatDate = (dateString: string): string => {
-    // European format: dd-mm-yyyy
-    const dateObj = new Date(dateString);
-    if (isNaN(dateObj.getTime())) return "";
-
-    const day = String(dateObj.getDate()).padStart(2, "0");
-    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-    const year = dateObj.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
-
-  const getMoodInfo = (moodValue: DateMood) => {
-    return (
-      MOOD_OPTIONS.find((option) => option.value === moodValue) ||
-      MOOD_OPTIONS[1]
-    );
-  };
+  // Use formatDateEU for display (European format: dd-mm-yyyy)
+  const formatDate = formatDateEU;
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#1a1a2e" }}>
+    <View style={{ flex: 1, backgroundColor: DATE_SCREEN_BG }}>
       {/* Elegant Header */}
       <View
         style={{
           paddingTop: 60,
           paddingBottom: 20,
           paddingHorizontal: 20,
-          backgroundColor: "linear-gradient(135deg, #16213e 0%, #0f172a 100%)",
+          backgroundColor: DATE_SCREEN_HEADER_GRADIENT,
           borderBottomWidth: 1,
-          borderBottomColor: "#e5d3ff20",
+          borderBottomColor: DATE_SCREEN_BORDER_LIGHT,
         }}
       >
         <Text
           style={{
             fontSize: 28,
             fontWeight: "300",
-            color: "#e5d3ff",
+            color: DATE_TEXT,
             textAlign: "center",
             letterSpacing: 2,
             fontFamily: Platform.select({ ios: "Georgia", android: "serif" }),
@@ -874,7 +621,7 @@ export default function DatesScreen() {
         <Text
           style={{
             fontSize: 14,
-            color: "#a78bfa",
+            color: DATE_TEXT_SECONDARY,
             textAlign: "center",
             marginTop: 5,
             fontStyle: "italic",
@@ -908,13 +655,13 @@ export default function DatesScreen() {
           width: 64,
           height: 64,
           borderRadius: 32,
-          backgroundColor: "#7c3aed",
+          backgroundColor: DATE_SCREEN_PURPLE,
           alignItems: "center",
           justifyContent: "center",
-          ...getBoxShadow("#7c3aed", { width: 0, height: 6 }, 0.5, 16),
+          ...getBoxShadow(DATE_SCREEN_PURPLE, { width: 0, height: 6 }, 0.5, 16),
           elevation: 10,
           borderWidth: 2,
-          borderColor: "#8b5cf6",
+          borderColor: DATE_SCREEN_PURPLE_LIGHT,
         }}
         onPress={() => openModal()}
       >
@@ -947,10 +694,10 @@ export default function DatesScreen() {
                 paddingBottom: 20,
                 paddingHorizontal: 20,
                 backgroundColor:
-                  timeOfDay === "night" ? "#16213e" : theme.gradient[0] + "40",
+                  timeOfDay === "night" ? TIME_THEMES.night.gradient[1] : theme.gradient[0] + "40",
                 borderBottomWidth: 1,
                 borderBottomColor:
-                  timeOfDay === "night" ? "#374151" : theme.gradient[0] + "60",
+                  timeOfDay === "night" ? DATE_SCREEN_GRAY_DARK : theme.gradient[0] + "60",
               }}
             >
               <View
