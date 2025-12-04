@@ -186,28 +186,36 @@ export default function MilestonesScreen() {
     setIsDetailVisible(true);
   }, []);
 
-  const handleDeleteMilestone = useCallback(async (id: string) => {
-    Alert.alert(
-      "Delete Milestone",
-      "Are you sure you want to delete this milestone?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await milestonesService.delete(id);
-              loadMilestones();
-            } catch (error) {
-              console.error("Error deleting milestone:", error);
-              Alert.alert("Error", "Failed to delete milestone");
-            }
-          },
-        },
-      ]
-    );
-  }, []);
+  const handleDeleteMilestone = useCallback(async (id: string, title?: string) => {
+    const displayTitle = title || 'this milestone';
+    const confirmDelete = Platform.OS === "web"
+      ? window.confirm(`Are you sure you want to delete "${displayTitle}"?`)
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            "Delete Milestone",
+            `Are you sure you want to delete "${displayTitle}"?`,
+            [
+              { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+              { text: "Delete", style: "destructive", onPress: () => resolve(true) },
+            ]
+          );
+        });
+
+    if (confirmDelete) {
+      try {
+        await milestonesService.delete(id);
+        setIsModalVisible(false);
+        loadMilestones();
+      } catch (error) {
+        console.error("Error deleting milestone:", error);
+        if (Platform.OS === "web") {
+          window.alert("Failed to delete milestone");
+        } else {
+          Alert.alert("Error", "Failed to delete milestone");
+        }
+      }
+    }
+  }, [loadMilestones]);
 
   const renderMilestoneItem = useCallback(
     ({ item: milestone, index }: { item: Milestone; index: number }) => {
@@ -1173,6 +1181,34 @@ export default function MilestonesScreen() {
                   </TouchableOpacity>
                 )}
               </View>
+
+              {/* Delete Button for Editing */}
+              {editingMilestone && (
+                <TouchableOpacity
+                  onPress={() =>
+                    editingMilestone.id &&
+                    handleDeleteMilestone(editingMilestone.id, editingMilestone.title)
+                  }
+                  style={{
+                    backgroundColor: "#ef4444",
+                    padding: 16,
+                    borderRadius: 20,
+                    alignItems: "center",
+                    marginTop: 20,
+                    marginBottom: 20,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "#fff",
+                      fontSize: 18,
+                      fontWeight: "600",
+                    }}
+                  >
+                    Delete Milestone
+                  </Text>
+                </TouchableOpacity>
+              )}
             </ScrollView>
           </Animated.View>
         </KeyboardAvoidingView>
