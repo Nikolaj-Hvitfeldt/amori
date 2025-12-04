@@ -67,11 +67,15 @@ export default function MomentDetailView({
     return `${day}-${month}-${year}`;
   };
 
-  const getDaysAgo = (dateString: string) => {
+  const calculateDaysSince = (dateString: string): number => {
     const date = new Date(dateString);
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const getDaysAgo = (dateString: string) => {
+    const diffDays = calculateDaysSince(dateString);
     
     if (diffDays === 0) return "Today";
     if (diffDays === 1) return "Yesterday";
@@ -224,9 +228,9 @@ export default function MomentDetailView({
               </Text>
             </View>
             <View style={[styles.metaCard, { borderColor: MOMENT_COLOR + "60" }]}>
-              <Text style={styles.metaLabel}>Since</Text>
+              <Text style={styles.metaLabel}>Days since</Text>
               <Text style={[styles.metaValue, { color: MOMENT_TEXT }]}>
-                {getDaysAgo(moment.story_date)}
+                {calculateDaysSince(moment.story_date)}
               </Text>
             </View>
           </View>

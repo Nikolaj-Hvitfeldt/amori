@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { View, StyleSheet } from "react-native";
-import { Image } from "expo-image";
+import ThumbnailImage from "./ThumbnailImage";
 
 interface RotatingPhotoBackgroundProps {
-  photos: string[];
+  photos: string[]; // Full-size URLs (ThumbnailImage handles thumbnail loading)
   interval?: number; // Time in ms between photo changes
   style?: any;
 }
@@ -36,7 +36,7 @@ export default function RotatingPhotoBackground({
 
   return (
     <View style={[styles.container, style]}>
-      <Image
+      <ThumbnailImage
         source={validPhotos[currentIndex]}
         style={styles.image}
         contentFit="cover"

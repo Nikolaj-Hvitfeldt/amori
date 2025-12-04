@@ -116,11 +116,15 @@ export default function DateDetailView({
     return `${day}-${month}-${year}`;
   };
 
-  const getDaysAgo = (dateString: string) => {
+  const calculateDaysSince = (dateString: string): number => {
     const date = new Date(dateString);
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const getDaysAgo = (dateString: string) => {
+    const diffDays = calculateDaysSince(dateString);
     
     if (diffDays === 0) return "Today";
     if (diffDays === 1) return "Yesterday";
@@ -264,9 +268,18 @@ export default function DateDetailView({
               </Text>
             </View>
             <View style={[styles.metaCard, { borderColor: moodColor + "50" }]}>
+              <Text style={styles.metaLabel}>Days since</Text>
+              <Text style={[styles.metaValue, { color: theme.text }]}>
+                {calculateDaysSince(dateEntry.date)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.metaGrid}>
+            <View style={[styles.metaCard, { borderColor: moodColor + "50" }]}>
               <Text style={styles.metaLabel}>Mood</Text>
               <Text style={[styles.metaValue, { color: theme.text }]}>
-                {moodInfo.label}
+                {moodInfo.icon} {moodInfo.label}
               </Text>
             </View>
           </View>
