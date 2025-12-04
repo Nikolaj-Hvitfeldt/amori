@@ -3,7 +3,6 @@ import { SupabaseService } from "../supabase/supabase.service";
 import { CreateDateEntryDto, UpdateDateEntryDto, DateMood } from "./dates.dto";
 import {
   NotFoundException,
-  BadRequestException,
 } from "../common/exceptions";
 import {
   findAllWithPagination,

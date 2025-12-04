@@ -13,7 +13,7 @@ If you find a bug:
    - Steps to reproduce
    - Expected vs actual behavior
    - Screenshots if applicable
-   - Your environment (OS, Node version, etc.)
+   - Your environment (OS, Node version, platform - web/iOS/Android)
 
 ### Suggesting Features
 
@@ -40,7 +40,7 @@ We'd love to hear your ideas! To suggest a feature:
    - Follow the existing code style
    - Add TypeScript types
    - Update documentation if needed
-   - Test your changes
+   - Test your changes on all platforms (web, iOS, Android)
 
 4. **Commit your changes**
    ```bash
@@ -65,6 +65,7 @@ We'd love to hear your ideas! To suggest a feature:
    - Describe your changes
    - Link related issues
    - Add screenshots for UI changes
+   - Test on multiple platforms if applicable
 
 ## Development Setup
 
@@ -75,8 +76,7 @@ See `QUICKSTART.md` for detailed setup instructions.
 # Backend
 cd backend
 npm install
-cp .env.example .env
-# Add your Supabase credentials to .env
+# Create .env with Supabase credentials
 npm run start:dev
 
 # Frontend (in new terminal)
@@ -87,11 +87,13 @@ npm start
 
 ## Code Style
 
+### General
 - Use TypeScript for all new code
 - Follow existing patterns in the codebase
 - Use meaningful variable and function names
 - Add comments for complex logic
 - Keep functions small and focused
+- Remove unused imports
 
 ### Backend (NestJS)
 - Use decorators for routing
@@ -99,21 +101,28 @@ npm start
 - Business logic in services
 - DTOs for data validation
 - Use dependency injection
+- Handle errors with custom exceptions
+- Use service role key (never anon key)
 
 ### Frontend (React Native)
 - Functional components with hooks
 - TypeScript interfaces for props
-- StyleSheet for styling (NativeWind)
+- StyleSheet for styling
 - Meaningful component names
 - Extract reusable components
+- Use React Native Reanimated for animations
+- Test on web, iOS, and Android
 
 ## Testing
 
 Before submitting:
 - Ensure TypeScript compiles: `npm run build` (backend) or `npx tsc --noEmit` (frontend)
 - Test on actual devices/emulators when possible
+- Test on web browser
 - Check for console errors
 - Verify API endpoints work
+- Test image upload functionality
+- Verify animations work smoothly
 
 ## Documentation
 
@@ -122,12 +131,15 @@ Update documentation when you:
 - Change API endpoints
 - Modify configuration
 - Add dependencies
+- Change database schema
 
 Files to update:
 - `README.md` - Main documentation
 - `backend/README.md` - API changes
 - `frontend/README.md` - UI changes
-- `ARCHITECTURE.md` - Architecture changes
+- `docs/ARCHITECTURE.md` - Architecture changes
+- `docs/QUICKSTART.md` - Setup changes
+- `docs/DEPLOYMENT.md` - Deployment changes
 
 ## Areas for Contribution
 
@@ -135,36 +147,43 @@ Here are some ideas:
 
 ### Features
 - [ ] User authentication (Supabase Auth)
-- [ ] Image upload and storage
 - [ ] Search functionality
 - [ ] Export data to PDF
 - [ ] Calendar view
 - [ ] Reminders for anniversaries
-- [ ] Photo albums
-- [ ] Mood tracking
+- [ ] Photo albums organization
 - [ ] Multiple journals (for different relationships)
 - [ ] Sharing entries (read-only links)
+- [ ] Dark mode toggle
+- [ ] Offline support
 
 ### Improvements
-- [ ] Dark mode
-- [ ] Offline support
 - [ ] Push notifications
-- [ ] Animation improvements
+- [ ] More animation options
 - [ ] Performance optimization
 - [ ] Better error handling
-- [ ] Form validation
-- [ ] Loading skeletons
-- [ ] Accessibility improvements
+- [ ] Form validation improvements
+- [ ] Accessibility improvements (screen readers, etc.)
+- [ ] Internationalization (i18n)
+- [ ] Unit and E2E tests
 
 ### Technical
-- [ ] Unit tests
-- [ ] E2E tests
 - [ ] CI/CD pipeline
 - [ ] Docker setup
 - [ ] API rate limiting
-- [ ] Caching layer
-- [ ] GraphQL option
+- [ ] Caching improvements
 - [ ] Real-time updates
+- [ ] GraphQL option
+- [ ] Image optimization improvements
+
+## Code Review Guidelines
+
+When reviewing PRs:
+- Be respectful and constructive
+- Focus on code quality and functionality
+- Test the changes if possible
+- Ask questions if something is unclear
+- Suggest improvements, don't just point out issues
 
 ## Community Guidelines
 
@@ -179,10 +198,10 @@ Here are some ideas:
 - Open an issue for questions
 - Check existing documentation
 - Look at closed issues for similar questions
+- Review the codebase for examples
 
 ## License
 
 By contributing, you agree that your contributions will be licensed under the ISC License.
 
 Thank you for making Amori better! 💕
-

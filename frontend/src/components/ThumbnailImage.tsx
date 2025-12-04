@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react";
 import { Image, ImageProps, ImageSource } from "expo-image";
-import { getThumbnailUrl, getFullSizeUrl } from "../utils/imageUtils";
+import { getThumbnailUrl } from "../utils/imageUtils";
 
 interface ThumbnailImageProps extends Omit<ImageProps, "source"> {
   /**

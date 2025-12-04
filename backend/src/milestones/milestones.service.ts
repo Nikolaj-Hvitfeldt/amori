@@ -3,7 +3,6 @@ import { SupabaseService } from "../supabase/supabase.service";
 import { CreateMilestoneDto, UpdateMilestoneDto, MilestoneType } from "./milestones.dto";
 import {
   NotFoundException,
-  BadRequestException,
 } from "../common/exceptions";
 import {
   findAllWithPagination,

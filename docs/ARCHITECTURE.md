@@ -4,24 +4,26 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    React Native Frontend                     │
-│                      (TypeScript)                            │
+│              React Native Frontend (Expo)                    │
+│                      (TypeScript)                             │
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │   Home       │  │   Stories    │  │    Dates     │      │
-│  │  Timeline    │  │  Love Stories│  │ Special Dates│      │
-│  │     🏠       │  │      💕      │  │      📅      │      │
+│  │   Home        │  │   Moments    │  │    Dates     │      │
+│  │  Timeline     │  │  Love Stories│  │ Special Dates│      │
+│  │     🏠        │  │      💕      │  │      📅      │      │
 │  └──────────────┘  └──────────────┘  └──────────────┘      │
 │                                                               │
-│  ┌──────────────┐                                           │
-│  │  Pictures    │                                           │
-│  │  Memories    │  Bottom Tab Navigation                    │
-│  │     📸       │                                           │
-│  └──────────────┘                                           │
+│  ┌──────────────┐  ┌──────────────┐                          │
+│  │  Milestones  │  │  Pictures    │                          │
+│  │      🏆      │  │  Memory Wall │                          │
+│  │              │  │     📸       │                          │
+│  └──────────────┘  └──────────────┘                          │
 │                                                               │
-│  Navigation: React Navigation (Bottom Tabs)                  │
-│  Styling: NativeWind (Tailwind CSS)                         │
+│  Navigation: Custom Animated Tab Bar                         │
+│  Animations: React Native Reanimated                          │
+│  Images: Expo Image (with caching)                            │
+│  Date Picker: React DatePicker (web) / Native (mobile)        │
 └─────────────────────────────────────────────────────────────┘
                             │
                             │ HTTP REST API
@@ -32,39 +34,94 @@
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
 │  ┌────────────────────────────────────────────────────┐     │
-│  │            Journal Module                          │     │
-│  │                                                      │     │
-│  │  • JournalController (REST endpoints)              │     │
-│  │  • JournalService (Business logic)                 │     │
-│  │  • DTOs (Data Transfer Objects)                    │     │
+│  │            Moments Module                           │     │
+│  │  • MomentsController (REST endpoints)               │     │
+│  │  • MomentsService (Business logic)                  │     │
+│  │  • DTOs (Data Transfer Objects)                     │     │
+│  └────────────────────────────────────────────────────┘     │
+│                                                               │
+│  ┌────────────────────────────────────────────────────┐     │
+│  │            Dates Module                              │     │
+│  │  • DatesController (REST endpoints)                │     │
+│  │  • DatesService (Business logic)                   │     │
+│  │  • DTOs with mood validation                       │     │
+│  └────────────────────────────────────────────────────┘     │
+│                                                               │
+│  ┌────────────────────────────────────────────────────┐     │
+│  │            Milestones Module                        │     │
+│  │  • MilestonesController (REST endpoints)          │     │
+│  │  • MilestonesService (Business logic)             │     │
+│  │  • DTOs with milestone type validation             │     │
+│  └────────────────────────────────────────────────────┘     │
+│                                                               │
+│  ┌────────────────────────────────────────────────────┐     │
+│  │            Image Upload Service                     │     │
+│  │  • Image compression (Sharp)                        │     │
+│  │  • Thumbnail generation                            │     │
+│  │  • HEIC/HEIF conversion                           │     │
+│  │  • Supabase Storage upload                         │     │
 │  └────────────────────────────────────────────────────┘     │
 │                            │                                 │
 │  ┌────────────────────────────────────────────────────┐     │
-│  │            Supabase Module                         │     │
-│  │                                                      │     │
-│  │  • SupabaseService (Database client)               │     │
+│  │            Supabase Module                          │     │
+│  │  • SupabaseService (Database client)              │     │
+│  │  • Service role key (bypasses RLS)                │     │
 │  └────────────────────────────────────────────────────┘     │
 │                                                               │
 └─────────────────────────────────────────────────────────────┘
                             │
-                            │ Supabase Client
+                            │ Supabase Client (Service Role)
                             │
 ┌─────────────────────────────────────────────────────────────┐
-│                      Supabase Database                      │
-│                      (PostgreSQL)                           │
+│                      Supabase                                │
+│              (PostgreSQL + Storage)                          │
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
-│  Table: journal_entries                                      │
+│  Tables:                                                     │
 │  ┌──────────────────────────────────────────────────┐       │
+│  │ moments                                          │       │
 │  │ • id (UUID)                                       │       │
-│  │ • title (TEXT)                                     │       │
-│  │ • content (TEXT)                                  │       │
-│  │ • entry_type (TEXT) - lovestory|date|milestone    │       │
-│  │ • entry_date (DATE)                               │       │
-│  │ • images (TEXT[])                                 │       │
-│  │ • created_at (TIMESTAMP)                          │       │
-│  │ • updated_at (TIMESTAMP)                          │       │
+│  │ • title (VARCHAR)                                 │       │
+│  │ • story_date (DATE)                               │       │
+│  │ • description (TEXT)                                │       │
+│  │ • photos (TEXT[])                                 │       │
+│  │ • created_at, updated_at (TIMESTAMP)              │       │
 │  └──────────────────────────────────────────────────┘       │
+│                                                               │
+│  ┌──────────────────────────────────────────────────┐       │
+│  │ date_entries                                     │       │
+│  │ • id (UUID)                                       │       │
+│  │ • title (VARCHAR, optional)                       │       │
+│  │ • date (DATE)                                     │       │
+│  │ • location (VARCHAR)                              │       │
+│  │ • description (TEXT)                              │       │
+│  │ • mood (VARCHAR) - magical/romantic/etc.          │       │
+│  │ • highlights (TEXT[])                             │       │
+│  │ • photos (TEXT[])                                 │       │
+│  │ • weather, favorite_moment (TEXT, optional)       │       │
+│  │ • created_at, updated_at (TIMESTAMP)              │       │
+│  └──────────────────────────────────────────────────┘       │
+│                                                               │
+│  ┌──────────────────────────────────────────────────┐       │
+│  │ milestones                                       │       │
+│  │ • id (UUID)                                       │       │
+│  │ • milestone_type (VARCHAR) - met/first_date/etc. │       │
+│  │ • title (VARCHAR)                                 │       │
+│  │ • date (DATE)                                     │       │
+│  │ • description (TEXT, optional)                     │       │
+│  │ • photos (TEXT[])                                 │       │
+│  │ • created_at, updated_at (TIMESTAMP)              │       │
+│  └──────────────────────────────────────────────────┘       │
+│                                                               │
+│  Storage Buckets:                                            │
+│  • moments-photos                                            │
+│  • date-photos                                               │
+│  • milestone-photos                                           │
+│                                                               │
+│  Security:                                                   │
+│  • Row Level Security (RLS) enabled                          │
+│  • Service role key bypasses RLS                             │
+│  • Policies allow all operations (defense-in-depth)          │
 │                                                               │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -72,54 +129,109 @@
 ## Data Flow
 
 ### Reading Entries
-1. User opens app → HomeScreen component loads
-2. Component calls `journalService.getAll()` from frontend
-3. Frontend makes HTTP GET request to `http://localhost:3000/journal`
-4. Backend JournalController receives request
-5. JournalService queries Supabase database
+1. User opens app → Screen component loads
+2. Component calls service (e.g., `momentsService.getAllMoments()`)
+3. Frontend makes HTTP GET request to backend API
+4. Backend Controller receives request
+5. Service queries Supabase database using service role key
 6. Data flows back through the stack to the UI
-7. React Native renders the timeline with entries
+7. React Native renders with animations and optimized images
 
 ### Creating an Entry
 1. User fills form and submits
-2. Frontend calls `journalService.create(entry)`
-3. HTTP POST to `http://localhost:3000/journal`
-4. Backend validates data with DTOs
-5. JournalService inserts into Supabase
-6. New entry returned to frontend
-7. UI updates with new entry
+2. If images: Frontend compresses and uploads to backend
+3. Backend processes images (compression, thumbnail generation)
+4. Backend uploads to Supabase Storage
+5. Frontend calls service (e.g., `momentsService.createMoment()`)
+6. HTTP POST to backend API with entry data + photo URLs
+7. Backend validates data with DTOs
+8. Service inserts into Supabase
+9. New entry returned to frontend
+10. UI updates with success animation
+
+### Image Upload Flow
+1. User selects image(s) from camera/gallery
+2. Frontend compresses image (web) or uses ImagePicker quality (native)
+3. Image converted to base64
+4. POST to `/moments/upload-image` (or dates/milestones)
+5. Backend extracts base64, validates MIME type
+6. Backend compresses with Sharp (progressive fallback)
+7. Backend generates thumbnail (300x300)
+8. Both uploaded to Supabase Storage
+9. URLs returned to frontend
+10. Frontend includes URLs in entry creation
 
 ## Key Technologies
 
 ### Frontend
-- **React Native**: Cross-platform mobile framework
+- **React Native with Expo**: Cross-platform mobile framework
 - **TypeScript**: Static typing for JavaScript
-- **NativeWind**: Tailwind CSS implementation for React Native
-- **React Navigation**: Navigation library with bottom tabs
-- **Supabase JS Client**: Direct database access (optional)
+- **React Native Reanimated**: Smooth, performant animations
+- **Expo Image**: Optimized image loading and caching
+- **React DatePicker**: Custom themed date picker for web
+- **AsyncStorage / localStorage**: Local caching
+- **Expo ImagePicker**: Camera and photo library access
+- **Expo FileSystem**: File handling
 
 ### Backend
 - **NestJS**: Progressive Node.js framework
 - **TypeScript**: Type-safe backend development
 - **Supabase JS**: PostgreSQL database client
+- **Sharp**: Image processing and thumbnail generation
+- **HEIC Convert**: iOS image format support
 - **Express**: HTTP server (bundled with NestJS)
 
 ### Database
 - **Supabase**: PostgreSQL database with REST API
 - **PostgreSQL**: Relational database
-- **Row Level Security**: Built-in Supabase security
+- **Row Level Security**: Enabled for defense-in-depth
+- **Supabase Storage**: Image storage with public buckets
 
 ## Color Scheme
 
-The app uses a romantic pink theme:
+The app uses theme-based colors:
+
+### Moments
 - **Primary**: #FF6B9D (Pink)
-- **Secondary**: #FEC7D7 (Light Pink)
-- **Accent**: #A0E7E5 (Teal)
-- **Background**: #FFF5F7 (Off-white)
+- **Background**: #1a0f1a (Dark)
+- **Text**: #ffd1e0 (Light Pink)
+
+### Dates
+- **Mood-based**: Magical (Purple), Romantic (Pink), Adventurous (Gold), etc.
+- **Time-based**: Morning (Warm), Afternoon (Blue), Evening (Sunset), Night (Dark Purple)
+
+### Milestones
+- **Primary**: #ffd700 (Gold)
+- **Background**: #2d1810 (Dark Brown)
+- **Text**: #ffd700 (Gold)
+
+### Timeline
+- **Background**: #F5E6D3 (Warm Beige)
+- **Rope**: #FFD700 (Gold)
 
 ## Entry Types
 
-1. **Love Story** (💕): Romantic moments and memories
-2. **Date** (📅): Special dates and anniversaries
-3. **Milestone** (⭐): Important relationship milestones
-4. **General** (📝): Day-to-day entries
+1. **Moments** (💕): Special romantic moments and stories
+2. **Dates** (📅): Memorable dates with mood, location, and highlights
+3. **Milestones** (🏆): Relationship milestones (met, first date, engagement, etc.)
+4. **Pictures** (📸): Gallery view of all photos across entries
+
+## Security Architecture
+
+### Row Level Security (RLS)
+- RLS enabled on all tables
+- Policies allow all operations (service role bypasses anyway)
+- Provides defense-in-depth if service role key is compromised
+- Protects against direct database access with anon/authenticated keys
+
+### Backend Security
+- Service role key stored in environment variables
+- Never exposed to frontend
+- Bypasses RLS for all operations
+- Validates all inputs with DTOs
+
+### Image Security
+- File size limits (10MB max)
+- MIME type validation
+- Automatic compression
+- Thumbnail generation for performance

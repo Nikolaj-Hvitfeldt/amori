@@ -37,7 +37,10 @@
       "startUrl": "/",
       "description": "A beautiful journal app for couples to capture and cherish their special moments together",
       "dir": "ltr",
-      "preferRelatedApplications": false
+      "preferRelatedApplications": false,
+      "apple": {
+        "appleTouchIcon": "./assets/icon.png"
+      }
     },
     "plugins": [],
     "experiments": {

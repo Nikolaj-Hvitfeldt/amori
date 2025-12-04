@@ -1,7 +1,15 @@
 import React, { forwardRef, useEffect } from "react";
 import { Platform } from "react-native";
 import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
+
+// Import CSS for react-datepicker (warning is harmless - falls back to file-based resolution)
+// This warning occurs because react-datepicker doesn't export the CSS path in package.json exports
+// but it still works correctly via file-based resolution
+if (Platform.OS === "web") {
+  // Use require to avoid TypeScript/module resolution issues
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require("react-datepicker/dist/react-datepicker.css");
+}
 
 interface WebDateInputProps {
   value: Date;
