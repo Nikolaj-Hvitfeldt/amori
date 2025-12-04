@@ -23,6 +23,7 @@ import DateDetailView from "../components/DateDetailView";
 import DateCard from "../components/DateCard";
 import AnimatedCard from "../components/AnimatedCard";
 import AnimatedFAB from "../components/AnimatedFAB";
+import { SkeletonList } from "../components/SkeletonLoader";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import { filterValidPhotos } from "../utils/imageUtils";
@@ -580,10 +581,16 @@ export default function DatesScreen() {
   // Use formatDateEU for display (European format: dd-mm-yyyy)
   const formatDate = formatDateEU;
 
+  if (loading && dates.length === 0) {
+    return (
+      <View style={{ flex: 1, backgroundColor: DATE_SCREEN_BG }}>
+        <SkeletonList variant="date" count={3} />
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: DATE_SCREEN_BG }}>
-
-
       <FlatList
         data={dates}
         renderItem={renderDateItem}

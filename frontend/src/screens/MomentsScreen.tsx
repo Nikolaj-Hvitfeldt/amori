@@ -23,7 +23,7 @@ import MomentDetailView from "../components/MomentDetailView";
 import MomentCard from "../components/MomentCard";
 import AnimatedCard from "../components/AnimatedCard";
 import AnimatedFAB from "../components/AnimatedFAB";
-import LoadingState from "../components/common/LoadingState";
+import { SkeletonList } from "../components/SkeletonLoader";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import { getThumbnailUrl } from "../utils/imageUtils";
@@ -423,13 +423,11 @@ export default function MomentsScreen() {
     [handleViewMoment]
   );
 
-  if (loading) {
+  if (loading && moments.length === 0) {
     return (
-      <LoadingState
-        message="Loading your moments..."
-        color={MOMENT_COLOR}
-        backgroundColor={MOMENT_BG}
-      />
+      <View style={{ flex: 1, backgroundColor: MOMENT_BG }}>
+        <SkeletonList variant="moment" count={3} />
+      </View>
     );
   }
 

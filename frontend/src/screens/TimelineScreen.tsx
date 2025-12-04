@@ -19,7 +19,7 @@ import DateCard from "../components/DateCard";
 import MilestoneCard from "../components/MilestoneCard";
 import AnimatedCard from "../components/AnimatedCard";
 import TimelineRope from "../components/TimelineRope";
-import LoadingState from "../components/common/LoadingState";
+import { TimelineSkeleton } from "../components/SkeletonLoader";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import { getCachedData, setCachedData } from "../utils/cache";
@@ -325,13 +325,11 @@ export default function TimelineScreen() {
     [handleItemPress]
   );
 
-  if (loading) {
+  if (loading && timelineItems.length === 0) {
     return (
-      <LoadingState
-        message="Loading your timeline..."
-        color={PRIMARY_PINK}
-        backgroundColor={TIMELINE_BG}
-      />
+      <View style={{ flex: 1, backgroundColor: TIMELINE_BG }}>
+        <TimelineSkeleton count={4} />
+      </View>
     );
   }
 

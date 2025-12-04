@@ -31,6 +31,7 @@ import MilestoneDetailView from "../components/MilestoneDetailView";
 import MilestoneCard from "../components/MilestoneCard";
 import AnimatedCard from "../components/AnimatedCard";
 import AnimatedFAB from "../components/AnimatedFAB";
+import { SkeletonList } from "../components/SkeletonLoader";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import { filterValidPhotos } from "../utils/imageUtils";
@@ -508,6 +509,14 @@ export default function MilestonesScreen() {
 
   const milestoneConfig = getMilestoneConfig(milestoneType);
   const milestoneColor = milestoneConfig.color;
+
+  if (loading && milestones.length === 0) {
+    return (
+      <View style={{ flex: 1, backgroundColor: MILESTONE_SCREEN_BG }}>
+        <SkeletonList variant="milestone" count={3} />
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: MILESTONE_SCREEN_BG }}>
