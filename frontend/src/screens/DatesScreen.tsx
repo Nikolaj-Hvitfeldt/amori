@@ -24,6 +24,7 @@ import DateCard from "../components/DateCard";
 import AnimatedCard from "../components/AnimatedCard";
 import AnimatedFAB from "../components/AnimatedFAB";
 import { SkeletonList } from "../components/SkeletonLoader";
+import AnimatedModal from "../components/AnimatedModal";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import { filterValidPhotos } from "../utils/imageUtils";
@@ -1581,10 +1582,9 @@ export default function DatesScreen() {
       </Modal>
 
       {/* Immersive Detail View */}
-      <Modal
+      <AnimatedModal
         visible={isDetailVisible}
-        animationType="slide"
-        presentationStyle="fullScreen"
+        onClose={() => setIsDetailVisible(false)}
       >
         {selectedDate && (
           <DateDetailView
@@ -1596,7 +1596,7 @@ export default function DatesScreen() {
             }}
           />
         )}
-      </Modal>
+      </AnimatedModal>
 
       {/* Android Date Picker - Must be at root level for native dialog */}
       {showDatePicker && Platform.OS === "android" && (

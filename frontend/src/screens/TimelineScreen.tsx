@@ -20,6 +20,7 @@ import MilestoneCard from "../components/MilestoneCard";
 import AnimatedCard from "../components/AnimatedCard";
 import TimelineRope from "../components/TimelineRope";
 import { TimelineSkeleton } from "../components/SkeletonLoader";
+import AnimatedModal from "../components/AnimatedModal";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import { getCachedData, setCachedData } from "../utils/cache";
@@ -374,11 +375,9 @@ export default function TimelineScreen() {
       </ScrollView>
 
       {/* Detail Modal */}
-      <Modal
+      <AnimatedModal
         visible={detailModalVisible}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={closeDetailModal}
+        onClose={closeDetailModal}
       >
         {selectedItem && (
           <>
@@ -408,7 +407,7 @@ export default function TimelineScreen() {
             )}
           </>
         )}
-      </Modal>
+      </AnimatedModal>
     </View>
   );
 }

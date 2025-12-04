@@ -21,6 +21,7 @@ import DateDetailView from "../components/DateDetailView";
 import MilestoneDetailView from "../components/MilestoneDetailView";
 import AnimatedPolaroid from "../components/AnimatedPolaroid";
 import AnimatedCard from "../components/AnimatedCard";
+import AnimatedModal from "../components/AnimatedModal";
 import { getThumbnailUrl } from "../utils/imageUtils";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -647,11 +648,9 @@ export default function PicturesScreen() {
       </Modal>
 
       {/* Entry detail modal */}
-      <Modal
+      <AnimatedModal
         visible={showDetailModal}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={() => setShowDetailModal(false)}
+        onClose={() => setShowDetailModal(false)}
       >
         {detailData?.type === "moment" && (
           <MomentDetailView
@@ -677,7 +676,7 @@ export default function PicturesScreen() {
             allowEdit={false}
           />
         )}
-      </Modal>
+      </AnimatedModal>
     </View>
   );
 }

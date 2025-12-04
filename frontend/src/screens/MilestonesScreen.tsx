@@ -32,6 +32,7 @@ import MilestoneCard from "../components/MilestoneCard";
 import AnimatedCard from "../components/AnimatedCard";
 import AnimatedFAB from "../components/AnimatedFAB";
 import { SkeletonList } from "../components/SkeletonLoader";
+import AnimatedModal from "../components/AnimatedModal";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import { filterValidPhotos } from "../utils/imageUtils";
@@ -534,11 +535,9 @@ export default function MilestonesScreen() {
         onRefresh={() => loadMilestones(true, false)}
       />
 
-      <Modal
+      <AnimatedModal
         visible={isDetailVisible}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={closeDetailView}
+        onClose={closeDetailView}
       >
         {selectedMilestone && (
           <MilestoneDetailView
@@ -547,7 +546,7 @@ export default function MilestonesScreen() {
             onEdit={handleEditFromDetail}
           />
         )}
-      </Modal>
+      </AnimatedModal>
 
       {/* Animated Floating Action Button */}
       <AnimatedFAB

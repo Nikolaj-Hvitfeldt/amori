@@ -24,6 +24,7 @@ import MomentCard from "../components/MomentCard";
 import AnimatedCard from "../components/AnimatedCard";
 import AnimatedFAB from "../components/AnimatedFAB";
 import { SkeletonList } from "../components/SkeletonLoader";
+import AnimatedModal from "../components/AnimatedModal";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import { getThumbnailUrl } from "../utils/imageUtils";
@@ -1097,11 +1098,9 @@ export default function MomentsScreen() {
       </Modal>
 
       {/* Detail View Modal */}
-      <Modal
+      <AnimatedModal
         visible={isDetailVisible}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={() => setIsDetailVisible(false)}
+        onClose={() => setIsDetailVisible(false)}
       >
         {selectedMoment && (
           <MomentDetailView
@@ -1113,7 +1112,7 @@ export default function MomentsScreen() {
             }}
           />
         )}
-      </Modal>
+      </AnimatedModal>
     </View>
   );
 }
