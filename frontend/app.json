@@ -39,7 +39,8 @@
       "dir": "ltr",
       "preferRelatedApplications": false,
       "apple": {
-        "appleTouchIcon": "./assets/icon.png"
+        "appleTouchIcon": "./assets/icon.png",
+        "statusBarStyle": "black-translucent"
       }
     },
     "plugins": [],

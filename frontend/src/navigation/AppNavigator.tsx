@@ -114,7 +114,6 @@ const styles = {
   container: {
     flex: 1,
     backgroundColor: "#FFF5F7",
-    paddingTop: 50,
   },
   header: {
     paddingVertical: 15,
