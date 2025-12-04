@@ -9,11 +9,9 @@ import {
   Modal,
   Alert,
   Image,
-  Dimensions,
   KeyboardAvoidingView,
   Platform,
   Animated,
-  ActivityIndicator,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -21,15 +19,13 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { momentsService } from "../services/moments";
 import { Moment, CreateMomentDto } from "../types/moments";
 import { API_BASE_URL } from "../services/api";
-import RotatingPhotoBackground from "../components/RotatingPhotoBackground";
 import MomentDetailView from "../components/MomentDetailView";
 import MomentCard from "../components/MomentCard";
 import LoadingState from "../components/common/LoadingState";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
-import { getThumbnailUrl, filterValidPhotos } from "../utils/imageUtils";
-import { getBoxShadow, getTextShadow } from "../utils/shadows";
-import { formatDateUS } from "../utils/dateUtils";
+import { getThumbnailUrl } from "../utils/imageUtils";
+import { getBoxShadow } from "../utils/shadows";
 import {
   MOMENT_COLOR,
   MOMENT_BG,
@@ -37,8 +33,6 @@ import {
   MOMENT_GRADIENT,
 } from "../constants/theme";
 import { ITEMS_PER_PAGE } from "../constants/spacing";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export default function MomentsScreen() {
   const [moments, setMoments] = useState<Moment[]>([]);
@@ -385,16 +379,6 @@ export default function MomentsScreen() {
     } else if (event.type === "dismissed") {
       setShowDatePicker(false);
     }
-  };
-
-  const formatDate = (dateString: string): string => {
-    const dateObj = new Date(dateString);
-    if (isNaN(dateObj.getTime())) return "";
-
-    const day = String(dateObj.getDate()).padStart(2, "0");
-    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-    const year = dateObj.getFullYear();
-    return `${day}-${month}-${year}`;
   };
 
   const handleDeleteMoment = async (id: string, title: string) => {

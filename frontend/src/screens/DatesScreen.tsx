@@ -12,9 +12,6 @@ import {
   Alert,
   Image,
   Animated,
-  Dimensions,
-  StyleSheet,
-  ActivityIndicator,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -26,32 +23,19 @@ import DateDetailView from "../components/DateDetailView";
 import DateCard from "../components/DateCard";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
-import { getThumbnailUrl, filterValidPhotos } from "../utils/imageUtils";
-import { getBoxShadow, getTextShadow } from "../utils/shadows";
+import { filterValidPhotos } from "../utils/imageUtils";
+import { getBoxShadow } from "../utils/shadows";
 import { formatDateEU } from "../utils/dateUtils";
-import { MOOD_COLORS, MOOD_OPTIONS, getMoodInfo } from "../utils/moodUtils";
+import { MOOD_COLORS, MOOD_OPTIONS } from "../utils/moodUtils";
 import { ITEMS_PER_PAGE } from "../constants/spacing";
 import {
   TIME_THEMES,
   TimeOfDay,
   DATE_SCREEN_BG,
-  DATE_SCREEN_HEADER_GRADIENT,
-  DATE_SCREEN_BORDER_LIGHT,
   DATE_SCREEN_PURPLE,
   DATE_SCREEN_PURPLE_LIGHT,
-  DATE_SCREEN_GRAY,
   DATE_SCREEN_GRAY_DARK,
-  DATE_SCREEN_WHITE,
-  DATE_SCREEN_TEXT_LIGHT,
-  DATE_BG,
-  DATE_BORDER,
-  DATE_TEXT,
-  DATE_TEXT_SECONDARY,
-  GRAY_LIGHT,
-  GRAY_MEDIUM,
 } from "../constants/theme";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 
 export default function DatesScreen() {
@@ -595,42 +579,7 @@ export default function DatesScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: DATE_SCREEN_BG }}>
-      {/* Elegant Header */}
-      <View
-        style={{
-          paddingTop: 60,
-          paddingBottom: 20,
-          paddingHorizontal: 20,
-          backgroundColor: DATE_SCREEN_HEADER_GRADIENT,
-          borderBottomWidth: 1,
-          borderBottomColor: DATE_SCREEN_BORDER_LIGHT,
-        }}
-      >
-        <Text
-          style={{
-            fontSize: 28,
-            fontWeight: "300",
-            color: DATE_TEXT,
-            textAlign: "center",
-            letterSpacing: 2,
-            fontFamily: Platform.select({ ios: "Georgia", android: "serif" }),
-          }}
-        >
-          Our Dates
-        </Text>
-        <Text
-          style={{
-            fontSize: 14,
-            color: DATE_TEXT_SECONDARY,
-            textAlign: "center",
-            marginTop: 5,
-            fontStyle: "italic",
-            letterSpacing: 1,
-          }}
-        >
-          Step back through time
-        </Text>
-      </View>
+
 
       <FlatList
         data={dates}

@@ -12,8 +12,6 @@ import {
   Alert,
   Image,
   Animated,
-  StyleSheet,
-  ActivityIndicator,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -33,15 +31,13 @@ import MilestoneDetailView from "../components/MilestoneDetailView";
 import MilestoneCard from "../components/MilestoneCard";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
-import { getThumbnailUrl, filterValidPhotos } from "../utils/imageUtils";
-import { getBoxShadow, getTextShadow } from "../utils/shadows";
-import { formatDateEU, calculateDaysSince } from "../utils/dateUtils";
+import { filterValidPhotos } from "../utils/imageUtils";
+import { getBoxShadow } from "../utils/shadows";
+import { formatDateEU } from "../utils/dateUtils";
 import { ITEMS_PER_PAGE } from "../constants/spacing";
 import {
   MILESTONE_BG,
   MILESTONE_COLOR,
-  MILESTONE_TEXT,
-  MILESTONE_TEXT_SECONDARY,
   MILESTONE_SCREEN_BG,
   MILESTONE_BROWN_TEXT,
   MILESTONE_LIGHT_BROWN,
@@ -49,7 +45,6 @@ import {
   MILESTONE_BORDER_LIGHT,
   MILESTONE_BORDER_OPACITY_30,
   MILESTONE_BORDER_OPACITY_40,
-  BLACK,
 } from "../constants/theme";
 
 export default function MilestonesScreen() {
@@ -513,43 +508,6 @@ export default function MilestonesScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: MILESTONE_SCREEN_BG }}>
-      {/* Elegant Header */}
-      <View
-        style={{
-          paddingTop: 60,
-          paddingBottom: 20,
-          paddingHorizontal: 20,
-          backgroundColor: MILESTONE_BG,
-          borderBottomWidth: 1,
-          borderBottomColor: MILESTONE_BORDER_OPACITY_30,
-        }}
-      >
-        <Text
-          style={{
-            fontSize: 28,
-            fontWeight: "300",
-            color: "#ffd700",
-            textAlign: "center",
-            letterSpacing: 2,
-            fontFamily: Platform.select({ ios: "Georgia", android: "serif" }),
-          }}
-        >
-          Our Milestones
-        </Text>
-        <Text
-          style={{
-            fontSize: 14,
-            color: MILESTONE_LIGHT_GOLD,
-            textAlign: "center",
-            marginTop: 5,
-            fontStyle: "italic",
-            letterSpacing: 1,
-          }}
-        >
-          Moments that shine forever
-        </Text>
-      </View>
-
       <FlatList
         data={milestones}
         renderItem={renderMilestoneItem}
