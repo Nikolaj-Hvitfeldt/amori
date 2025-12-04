@@ -19,6 +19,7 @@ import { Milestone } from "../types/milestones";
 import MomentDetailView from "../components/MomentDetailView";
 import DateDetailView from "../components/DateDetailView";
 import MilestoneDetailView from "../components/MilestoneDetailView";
+import AnimatedPolaroid from "../components/AnimatedPolaroid";
 import AnimatedCard from "../components/AnimatedCard";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -228,34 +229,22 @@ export default function PicturesScreen() {
         staggerDelay={50}
         style={{ width: POLAROID_WIDTH }}
       >
-        <TouchableOpacity
-          onPress={() => handlePhotoPress(photo)}
-          activeOpacity={0.9}
-          style={{
-            width: POLAROID_WIDTH,
-            marginBottom: 20,
-            transform: [
-              { rotate: `${photo.rotation}deg` },
-              { translateX: photo.offsetX },
-              { translateY: photo.offsetY },
-            ],
-          }}
+        <AnimatedPolaroid
+          width={POLAROID_WIDTH}
+          initialRotation={photo.rotation}
+          initialOffsetX={photo.offsetX}
+          initialOffsetY={photo.offsetY}
+          onTap={() => handlePhotoPress(photo)}
         >
-        {/* Polaroid frame */}
-        <View
-          style={{
-            backgroundColor: "#fefefe",
-            padding: 8,
-            paddingBottom: 36,
-            borderRadius: 2,
-            // Paper texture shadow
-            shadowColor: "#000",
-            shadowOffset: { width: 2, height: 4 },
-            shadowOpacity: 0.25,
-            shadowRadius: 6,
-            elevation: 8,
-          }}
-        >
+          {/* Polaroid frame */}
+          <View
+            style={{
+              backgroundColor: "#fefefe",
+              padding: 8,
+              paddingBottom: 36,
+              borderRadius: 2,
+            }}
+          >
           {/* Photo */}
           <Image
             source={{ uri: photo.url }}
@@ -358,7 +347,7 @@ export default function PicturesScreen() {
             }}
           />
         )}
-        </TouchableOpacity>
+        </AnimatedPolaroid>
       </AnimatedCard>
     );
   };
