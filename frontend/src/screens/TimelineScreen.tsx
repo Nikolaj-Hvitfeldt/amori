@@ -17,8 +17,10 @@ import MilestoneDetailView from "../components/MilestoneDetailView";
 import MomentCard from "../components/MomentCard";
 import DateCard from "../components/DateCard";
 import MilestoneCard from "../components/MilestoneCard";
+import AnimatedCard from "../components/AnimatedCard";
 import TimelineRope from "../components/TimelineRope";
-import LoadingState from "../components/common/LoadingState";
+import { TimelineSkeleton } from "../components/SkeletonLoader";
+import AnimatedModal from "../components/AnimatedModal";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import { getCachedData, setCachedData } from "../utils/cache";
@@ -280,54 +282,55 @@ export default function TimelineScreen() {
   }, []);
 
   const renderMomentCard = useCallback(
-    (item: TimelineItem) => {
+    (item: TimelineItem, index: number) => {
       if (!item.moment) return null;
       return (
-        <MomentCard
-          key={item.id}
-          moment={item.moment}
-          onPress={() => handleItemPress(item)}
-        />
+        <AnimatedCard key={item.id} index={index} animationType="fade-slide">
+          <MomentCard
+            moment={item.moment}
+            onPress={() => handleItemPress(item)}
+          />
+        </AnimatedCard>
       );
     },
     [handleItemPress]
   );
 
   const renderDateCard = useCallback(
-    (item: TimelineItem) => {
+    (item: TimelineItem, index: number) => {
       if (!item.dateEntry) return null;
       return (
-        <DateCard
-          key={item.id}
-          dateEntry={item.dateEntry}
-          onPress={() => handleItemPress(item)}
-        />
+        <AnimatedCard key={item.id} index={index} animationType="fade-slide">
+          <DateCard
+            dateEntry={item.dateEntry}
+            onPress={() => handleItemPress(item)}
+          />
+        </AnimatedCard>
       );
     },
     [handleItemPress]
   );
 
   const renderMilestoneCard = useCallback(
-    (item: TimelineItem) => {
+    (item: TimelineItem, index: number) => {
       if (!item.milestone) return null;
       return (
-        <MilestoneCard
-          key={item.id}
-          milestone={item.milestone}
-          onPress={() => handleItemPress(item)}
-        />
+        <AnimatedCard key={item.id} index={index} animationType="fade-slide">
+          <MilestoneCard
+            milestone={item.milestone}
+            onPress={() => handleItemPress(item)}
+          />
+        </AnimatedCard>
       );
     },
     [handleItemPress]
   );
 
-  if (loading) {
+  if (loading && timelineItems.length === 0) {
     return (
-      <LoadingState
-        message="Loading your timeline..."
-        color={PRIMARY_PINK}
-        backgroundColor={TIMELINE_BG}
-      />
+      <View style={{ flex: 1, backgroundColor: TIMELINE_BG }}>
+        <TimelineSkeleton count={4} />
+      </View>
     );
   }
 
@@ -354,14 +357,14 @@ export default function TimelineScreen() {
         {/* Golden Rope Timeline - represents the bond between moments */}
         <TimelineRope />
 
-        {timelineItems.map((item) => {
+        {timelineItems.map((item, index) => {
           switch (item.type) {
             case "moment":
-              return renderMomentCard(item);
+              return renderMomentCard(item, index);
             case "date":
-              return renderDateCard(item);
+              return renderDateCard(item, index);
             case "milestone":
-              return renderMilestoneCard(item);
+              return renderMilestoneCard(item, index);
             default:
               return null;
           }
@@ -372,11 +375,9 @@ export default function TimelineScreen() {
       </ScrollView>
 
       {/* Detail Modal */}
-      <Modal
+      <AnimatedModal
         visible={detailModalVisible}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={closeDetailModal}
+        onClose={closeDetailModal}
       >
         {selectedItem && (
           <>
@@ -406,7 +407,7 @@ export default function TimelineScreen() {
             )}
           </>
         )}
-      </Modal>
+      </AnimatedModal>
     </View>
   );
 }

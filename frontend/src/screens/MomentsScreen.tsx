@@ -21,7 +21,12 @@ import { Moment, CreateMomentDto } from "../types/moments";
 import { API_BASE_URL } from "../services/api";
 import MomentDetailView from "../components/MomentDetailView";
 import MomentCard from "../components/MomentCard";
-import LoadingState from "../components/common/LoadingState";
+import AnimatedCard from "../components/AnimatedCard";
+import AnimatedFAB from "../components/AnimatedFAB";
+import { SkeletonList } from "../components/SkeletonLoader";
+import AnimatedModal from "../components/AnimatedModal";
+import SuccessCheckmark from "../components/SuccessCheckmark";
+import { PulsingHeart } from "../components/HeartPulse";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import { getThumbnailUrl } from "../utils/imageUtils";
@@ -53,6 +58,7 @@ export default function MomentsScreen() {
   const [webDateInput, setWebDateInput] = useState("");
   const [description, setDescription] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
+  const [showSuccess, setShowSuccess] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -157,6 +163,7 @@ export default function MomentsScreen() {
 
       closeModal();
       await loadMoments();
+      setShowSuccess(true); // Show success animation
     } catch (error) {
       console.error("Error saving moment:", error);
       Alert.alert("Error", "Failed to save moment");
@@ -406,27 +413,26 @@ export default function MomentsScreen() {
   };
 
   const renderMoment = useCallback(
-    ({ item: moment }: { item: Moment }) => {
+    ({ item: moment, index }: { item: Moment; index: number }) => {
       return (
-        <MomentCard
-          key={moment.id}
-          moment={moment}
-          onPress={() => handleViewMoment(moment)}
-          onLongPress={() => openModal(moment)}
-          variant="screen"
-        />
+        <AnimatedCard index={index} animationType="spring">
+          <MomentCard
+            key={moment.id}
+            moment={moment}
+            onPress={() => handleViewMoment(moment)}
+            variant="screen"
+          />
+        </AnimatedCard>
       );
     },
-    [handleViewMoment, openModal]
+    [handleViewMoment]
   );
 
-  if (loading) {
+  if (loading && moments.length === 0) {
     return (
-      <LoadingState
-        message="Loading your moments..."
-        color={MOMENT_COLOR}
-        backgroundColor={MOMENT_BG}
-      />
+      <View style={{ flex: 1, backgroundColor: MOMENT_BG }}>
+        <SkeletonList variant="moment" count={3} />
+      </View>
     );
   }
 
@@ -460,29 +466,18 @@ export default function MomentsScreen() {
         onRefresh={() => loadMoments(true)}
       />
 
-      {/* Floating Action Button */}
-      <TouchableOpacity
+      {/* Animated Floating Action Button with Pulsing Heart */}
+      <AnimatedFAB
+        onPress={() => openModal()}
+        color={MOMENT_COLOR}
         style={{
-          position: "absolute",
-          bottom: 30,
-          right: 30,
-          width: 64,
-          height: 64,
-          borderRadius: 32,
-          backgroundColor: MOMENT_COLOR,
-          alignItems: "center",
-          justifyContent: "center",
           ...getBoxShadow(MOMENT_COLOR, { width: 0, height: 6 }, 0.5, 16),
-          elevation: 10,
           borderWidth: 2,
           borderColor: "#FF8E9D",
         }}
-        onPress={() => openModal()}
       >
-        <Text style={{ fontSize: 32, color: "white", fontWeight: "600" }}>
-          💕
-        </Text>
-      </TouchableOpacity>
+        <PulsingHeart size={32} />
+      </AnimatedFAB>
 
       {/* Immersive Modal */}
       <Modal
@@ -1105,11 +1100,9 @@ export default function MomentsScreen() {
       </Modal>
 
       {/* Detail View Modal */}
-      <Modal
+      <AnimatedModal
         visible={isDetailVisible}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={() => setIsDetailVisible(false)}
+        onClose={() => setIsDetailVisible(false)}
       >
         {selectedMoment && (
           <MomentDetailView
@@ -1121,7 +1114,14 @@ export default function MomentsScreen() {
             }}
           />
         )}
-      </Modal>
+      </AnimatedModal>
+
+      {/* Success Checkmark Animation - must be last for z-index */}
+      <SuccessCheckmark 
+        visible={showSuccess} 
+        onHide={() => setShowSuccess(false)} 
+        color={MOMENT_COLOR} 
+      />
     </View>
   );
 }

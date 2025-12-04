@@ -21,6 +21,11 @@ import { datesService } from "../services/dates";
 import { API_BASE_URL } from "../services/api";
 import DateDetailView from "../components/DateDetailView";
 import DateCard from "../components/DateCard";
+import AnimatedCard from "../components/AnimatedCard";
+import AnimatedFAB from "../components/AnimatedFAB";
+import { SkeletonList } from "../components/SkeletonLoader";
+import AnimatedModal from "../components/AnimatedModal";
+import SuccessCheckmark from "../components/SuccessCheckmark";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import { filterValidPhotos } from "../utils/imageUtils";
@@ -62,6 +67,7 @@ export default function DatesScreen() {
   const [weather, setWeather] = useState("");
   const [favoriteMoment, setFavoriteMoment] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
+  const [showSuccess, setShowSuccess] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   // Get time of day from date input
@@ -196,15 +202,16 @@ export default function DatesScreen() {
   }, []);
 
   const renderDateItem = useCallback(
-    ({ item: dateEntry }: { item: DateEntry }) => {
+    ({ item: dateEntry, index }: { item: DateEntry; index: number }) => {
       return (
-        <DateCard
-          key={dateEntry.id}
-          dateEntry={dateEntry}
-          onPress={() => handleViewDate(dateEntry)}
-          onLongPress={() => handleDeleteDate(dateEntry.id)}
-          variant="screen"
-        />
+        <AnimatedCard index={index} animationType="spring">
+          <DateCard
+            key={dateEntry.id}
+            dateEntry={dateEntry}
+            onPress={() => handleViewDate(dateEntry)}
+            variant="screen"
+          />
+        </AnimatedCard>
       );
     },
     [handleViewDate, handleDeleteDate]
@@ -337,14 +344,7 @@ export default function DatesScreen() {
 
     try {
       const filteredHighlights = highlights.filter((h) => h.trim() !== "");
-      // Filter out invalid/blob URLs before saving
       const validPhotos = filterValidPhotos(photos);
-      
-      // Debug logging
-      console.log("💾 Saving date entry:");
-      console.log("  - Photos in state:", photos);
-      console.log("  - Valid photos after filtering:", validPhotos);
-      console.log("  - Photos count:", photos.length, "->", validPhotos.length);
 
       const dateData: CreateDateEntryDto = {
         title: title.trim() || undefined,
@@ -355,23 +355,18 @@ export default function DatesScreen() {
         highlights: filteredHighlights,
         weather: weather || undefined,
         favorite_moment: favoriteMoment || undefined,
-        // Always include photos array - empty array means no photos
         photos: validPhotos,
       };
-      
-      console.log("  - Data being sent:", { ...dateData, photos: dateData.photos });
 
       if (editingDate) {
-        console.log("  - Updating existing date:", editingDate.id);
         await datesService.update(editingDate.id, dateData);
       } else {
-        console.log("  - Creating new date");
         await datesService.create(dateData);
       }
 
-      console.log("  - ✅ Date saved successfully");
       closeModal();
-      loadDates();
+      await loadDates();
+      setShowSuccess(true); // Show success animation
     } catch (error) {
       console.error("Error saving date:", error);
       Alert.alert("Error", "Failed to save date entry");
@@ -577,10 +572,16 @@ export default function DatesScreen() {
   // Use formatDateEU for display (European format: dd-mm-yyyy)
   const formatDate = formatDateEU;
 
+  if (loading && dates.length === 0) {
+    return (
+      <View style={{ flex: 1, backgroundColor: DATE_SCREEN_BG }}>
+        <SkeletonList variant="date" count={3} />
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: DATE_SCREEN_BG }}>
-
-
       <FlatList
         data={dates}
         renderItem={renderDateItem}
@@ -595,29 +596,27 @@ export default function DatesScreen() {
         onRefresh={() => loadDates(true)}
       />
 
-      {/* Floating Action Button */}
-      <TouchableOpacity
+      {/* Animated Floating Action Button */}
+      <AnimatedFAB
+        onPress={() => openModal()}
+        color={DATE_SCREEN_PURPLE}
         style={{
-          position: "absolute",
-          bottom: 30,
-          right: 30,
-          width: 64,
-          height: 64,
-          borderRadius: 32,
-          backgroundColor: DATE_SCREEN_PURPLE,
-          alignItems: "center",
-          justifyContent: "center",
           ...getBoxShadow(DATE_SCREEN_PURPLE, { width: 0, height: 6 }, 0.5, 16),
-          elevation: 10,
           borderWidth: 2,
           borderColor: DATE_SCREEN_PURPLE_LIGHT,
         }}
-        onPress={() => openModal()}
       >
         <Text style={{ fontSize: 32, color: "#e5d3ff", fontWeight: "600" }}>
           📅
         </Text>
-      </TouchableOpacity>
+      </AnimatedFAB>
+
+      {/* Success Checkmark Animation */}
+      <SuccessCheckmark 
+        visible={showSuccess} 
+        onHide={() => setShowSuccess(false)} 
+        color={DATE_SCREEN_PURPLE} 
+      />
 
       {/* Immersive Modal */}
       <Modal
@@ -851,25 +850,12 @@ export default function DatesScreen() {
                 </Text>
                 <TouchableOpacity
                   onPress={() => {
-                    console.log(
-                      "Date picker button pressed, showDatePicker:",
-                      showDatePicker,
-                      "date:",
-                      date,
-                      "datePickerValue:",
-                      datePickerValue
-                    );
                     if (Platform.OS === "web") {
                       if (!showDatePicker) {
-                        // Initialize web date input with current date if available
                         const initialValue =
                           date && datePickerValue
                             ? formatDateForDisplay(datePickerValue)
                             : "";
-                        console.log(
-                          "Initializing webDateInput with:",
-                          initialValue
-                        );
                         setWebDateInput(initialValue);
                       }
                     }
@@ -1580,10 +1566,9 @@ export default function DatesScreen() {
       </Modal>
 
       {/* Immersive Detail View */}
-      <Modal
+      <AnimatedModal
         visible={isDetailVisible}
-        animationType="slide"
-        presentationStyle="fullScreen"
+        onClose={() => setIsDetailVisible(false)}
       >
         {selectedDate && (
           <DateDetailView
@@ -1595,7 +1580,7 @@ export default function DatesScreen() {
             }}
           />
         )}
-      </Modal>
+      </AnimatedModal>
 
       {/* Android Date Picker - Must be at root level for native dialog */}
       {showDatePicker && Platform.OS === "android" && (

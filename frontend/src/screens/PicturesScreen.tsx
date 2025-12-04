@@ -19,6 +19,9 @@ import { Milestone } from "../types/milestones";
 import MomentDetailView from "../components/MomentDetailView";
 import DateDetailView from "../components/DateDetailView";
 import MilestoneDetailView from "../components/MilestoneDetailView";
+import AnimatedPolaroid from "../components/AnimatedPolaroid";
+import AnimatedCard from "../components/AnimatedCard";
+import AnimatedModal from "../components/AnimatedModal";
 import { getThumbnailUrl } from "../utils/imageUtils";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -221,47 +224,41 @@ export default function PicturesScreen() {
     const usePin = index % 3 === 0;
 
     return (
-      <TouchableOpacity
+      <AnimatedCard
         key={photo.id}
-        onPress={() => handlePhotoPress(photo)}
-        activeOpacity={0.9}
-        style={{
-          width: POLAROID_WIDTH,
-          marginBottom: 20,
-          transform: [
-            { rotate: `${photo.rotation}deg` },
-            { translateX: photo.offsetX },
-            { translateY: photo.offsetY },
-          ],
-        }}
+        index={index}
+        animationType="fade-scale"
+        staggerDelay={50}
+        style={{ width: POLAROID_WIDTH }}
       >
-        {/* Polaroid frame */}
-        <View
-          style={{
-            backgroundColor: "#fefefe",
-            padding: 8,
-            paddingBottom: 36,
-            borderRadius: 2,
-            // Paper texture shadow
-            shadowColor: "#000",
-            shadowOffset: { width: 2, height: 4 },
-            shadowOpacity: 0.25,
-            shadowRadius: 6,
-            elevation: 8,
-          }}
+        <AnimatedPolaroid
+          width={POLAROID_WIDTH}
+          initialRotation={photo.rotation}
+          initialOffsetX={photo.offsetX}
+          initialOffsetY={photo.offsetY}
+          onTap={() => handlePhotoPress(photo)}
         >
-          {/* Photo - using thumbnail for faster loading + caching */}
-          <Image
-            source={getThumbnailUrl(photo.url)}
+          {/* Polaroid frame */}
+          <View
             style={{
-              width: POLAROID_WIDTH - 16,
-              height: POLAROID_WIDTH - 16,
-              backgroundColor: "#e8e8e8",
+              backgroundColor: "#fefefe",
+              padding: 8,
+              paddingBottom: 36,
+              borderRadius: 2,
             }}
-            contentFit="cover"
-            cachePolicy="disk"
-            transition={200}
-          />
+          >
+            {/* Photo - using thumbnail for faster loading + caching */}
+            <Image
+              source={getThumbnailUrl(photo.url)}
+              style={{
+                width: POLAROID_WIDTH - 16,
+                height: POLAROID_WIDTH - 16,
+                backgroundColor: "#e8e8e8",
+              }}
+              contentFit="cover"
+              cachePolicy="disk"
+              transition={200}
+            />
 
           {/* Caption area */}
           <View
@@ -354,7 +351,8 @@ export default function PicturesScreen() {
             }}
           />
         )}
-      </TouchableOpacity>
+        </AnimatedPolaroid>
+      </AnimatedCard>
     );
   };
 
@@ -650,11 +648,9 @@ export default function PicturesScreen() {
       </Modal>
 
       {/* Entry detail modal */}
-      <Modal
+      <AnimatedModal
         visible={showDetailModal}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={() => setShowDetailModal(false)}
+        onClose={() => setShowDetailModal(false)}
       >
         {detailData?.type === "moment" && (
           <MomentDetailView
@@ -680,7 +676,7 @@ export default function PicturesScreen() {
             allowEdit={false}
           />
         )}
-      </Modal>
+      </AnimatedModal>
     </View>
   );
 }

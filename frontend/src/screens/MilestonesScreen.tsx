@@ -29,6 +29,11 @@ import {
 } from "../constants/milestoneConfig";
 import MilestoneDetailView from "../components/MilestoneDetailView";
 import MilestoneCard from "../components/MilestoneCard";
+import AnimatedCard from "../components/AnimatedCard";
+import AnimatedFAB from "../components/AnimatedFAB";
+import { SkeletonList } from "../components/SkeletonLoader";
+import AnimatedModal from "../components/AnimatedModal";
+import SuccessCheckmark from "../components/SuccessCheckmark";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import { filterValidPhotos } from "../utils/imageUtils";
@@ -72,6 +77,7 @@ export default function MilestonesScreen() {
   const [webDateInput, setWebDateInput] = useState("");
   const [description, setDescription] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
+  const [showSuccess, setShowSuccess] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -203,15 +209,16 @@ export default function MilestonesScreen() {
   }, []);
 
   const renderMilestoneItem = useCallback(
-    ({ item: milestone }: { item: Milestone }) => {
+    ({ item: milestone, index }: { item: Milestone; index: number }) => {
       return (
-        <MilestoneCard
-          key={milestone.id}
-          milestone={milestone}
-          onPress={() => handleViewMilestone(milestone)}
-          onLongPress={() => handleDeleteMilestone(milestone.id)}
-          variant="screen"
-        />
+        <AnimatedCard index={index} animationType="spring">
+          <MilestoneCard
+            key={milestone.id}
+            milestone={milestone}
+            onPress={() => handleViewMilestone(milestone)}
+            variant="screen"
+          />
+        </AnimatedCard>
       );
     },
     [handleViewMilestone, handleDeleteMilestone]
@@ -343,7 +350,8 @@ export default function MilestonesScreen() {
 
       closeModal();
       // Skip cleanup when loading after save to prevent removing just-saved photos
-      loadMilestones(true);
+      await loadMilestones(true);
+      setShowSuccess(true); // Show success animation
     } catch (error) {
       console.error("Error saving milestone:", error);
       Alert.alert("Error", "Failed to save milestone");
@@ -506,6 +514,14 @@ export default function MilestonesScreen() {
   const milestoneConfig = getMilestoneConfig(milestoneType);
   const milestoneColor = milestoneConfig.color;
 
+  if (loading && milestones.length === 0) {
+    return (
+      <View style={{ flex: 1, backgroundColor: MILESTONE_SCREEN_BG }}>
+        <SkeletonList variant="milestone" count={3} />
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: MILESTONE_SCREEN_BG }}>
       <FlatList
@@ -522,11 +538,9 @@ export default function MilestonesScreen() {
         onRefresh={() => loadMilestones(true, false)}
       />
 
-      <Modal
+      <AnimatedModal
         visible={isDetailVisible}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={closeDetailView}
+        onClose={closeDetailView}
       >
         {selectedMilestone && (
           <MilestoneDetailView
@@ -535,31 +549,29 @@ export default function MilestonesScreen() {
             onEdit={handleEditFromDetail}
           />
         )}
-      </Modal>
+      </AnimatedModal>
 
-      {/* Floating Action Button */}
-      <TouchableOpacity
+      {/* Animated Floating Action Button */}
+      <AnimatedFAB
+        onPress={() => openModal()}
+        color="#ffd700"
         style={{
-          position: "absolute",
-          bottom: 30,
-          right: 30,
-          width: 64,
-          height: 64,
-          borderRadius: 32,
-          backgroundColor: "#ffd700",
-          alignItems: "center",
-          justifyContent: "center",
           ...getBoxShadow("#ffd700", { width: 0, height: 6 }, 0.5, 16),
-          elevation: 10,
           borderWidth: 2,
           borderColor: MILESTONE_BORDER_LIGHT,
         }}
-        onPress={() => openModal()}
       >
         <Text style={{ fontSize: 32, color: MILESTONE_SCREEN_BG, fontWeight: "600" }}>
           ⭐
         </Text>
-      </TouchableOpacity>
+      </AnimatedFAB>
+
+      {/* Success Checkmark Animation */}
+      <SuccessCheckmark 
+        visible={showSuccess} 
+        onHide={() => setShowSuccess(false)} 
+        color={MILESTONE_COLOR} 
+      />
 
       {/* Modal */}
       <Modal
