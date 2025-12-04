@@ -25,6 +25,8 @@ import AnimatedCard from "../components/AnimatedCard";
 import AnimatedFAB from "../components/AnimatedFAB";
 import { SkeletonList } from "../components/SkeletonLoader";
 import AnimatedModal from "../components/AnimatedModal";
+import SuccessCheckmark from "../components/SuccessCheckmark";
+import { PulsingHeart } from "../components/HeartPulse";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import { getThumbnailUrl } from "../utils/imageUtils";
@@ -56,6 +58,7 @@ export default function MomentsScreen() {
   const [webDateInput, setWebDateInput] = useState("");
   const [description, setDescription] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
+  const [showSuccess, setShowSuccess] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -160,6 +163,7 @@ export default function MomentsScreen() {
 
       closeModal();
       await loadMoments();
+      setShowSuccess(true); // Show success animation
     } catch (error) {
       console.error("Error saving moment:", error);
       Alert.alert("Error", "Failed to save moment");
@@ -462,7 +466,7 @@ export default function MomentsScreen() {
         onRefresh={() => loadMoments(true)}
       />
 
-      {/* Animated Floating Action Button */}
+      {/* Animated Floating Action Button with Pulsing Heart */}
       <AnimatedFAB
         onPress={() => openModal()}
         color={MOMENT_COLOR}
@@ -472,9 +476,7 @@ export default function MomentsScreen() {
           borderColor: "#FF8E9D",
         }}
       >
-        <Text style={{ fontSize: 32, color: "white", fontWeight: "600" }}>
-          💕
-        </Text>
+        <PulsingHeart size={32} />
       </AnimatedFAB>
 
       {/* Immersive Modal */}
@@ -1113,6 +1115,13 @@ export default function MomentsScreen() {
           />
         )}
       </AnimatedModal>
+
+      {/* Success Checkmark Animation - must be last for z-index */}
+      <SuccessCheckmark 
+        visible={showSuccess} 
+        onHide={() => setShowSuccess(false)} 
+        color={MOMENT_COLOR} 
+      />
     </View>
   );
 }

@@ -1,12 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text } from "react-native";
 import TimelineScreen from "../screens/TimelineScreen";
 import DatesScreen from "../screens/DatesScreen";
 import PicturesScreen from "../screens/PicturesScreen";
 import MomentsScreen from "../screens/MomentsScreen";
 import MilestonesScreen from "../screens/MilestonesScreen";
-
-type Screen = "Home" | "Stories" | "Dates" | "Pictures" | "Milestones";
+import AnimatedTabBar, { Screen } from "../components/AnimatedTabBar";
 
 export default function AppNavigator() {
   const [activeScreen, setActiveScreen] = useState<Screen>("Home");
@@ -28,207 +27,107 @@ export default function AppNavigator() {
     }
   };
 
-  const getTabIcon = (screen: Screen) => {
-    switch (screen) {
-      case "Home":
-        return "🏠";
-      case "Stories":
-        return "💕";
+  const getHeaderStyle = () => {
+    switch (activeScreen) {
       case "Dates":
-        return "📅";
-      case "Pictures":
-        return "📸";
+        return {
+          backgroundColor: "#16213e",
+          borderBottomColor: "#374151",
+        };
       case "Milestones":
-        return "⭐";
+        return {
+          backgroundColor: "#2d1810",
+          borderBottomColor: "#ffd70030",
+        };
+      case "Stories":
+        return {
+          backgroundColor: "#FF6B9D",
+          borderBottomColor: "#FEC7D7",
+        };
+      case "Pictures":
+        return {
+          backgroundColor: "#3D2820",
+          borderBottomColor: "#5D4037",
+        };
       default:
-        return "🏠";
+        return {
+          backgroundColor: "#4A3545",
+          borderBottomColor: "#6B4D64",
+        };
     }
   };
 
-  const getTabTitle = (screen: Screen) => {
-    switch (screen) {
+  const getHeaderTextStyle = () => {
+    switch (activeScreen) {
+      case "Dates":
+        return { color: "#e5d3ff" };
+      case "Milestones":
+        return { color: "#ffd700" };
+      case "Stories":
+        return { color: "#FFF" };
+      case "Pictures":
+        return { color: "#D4A574" };
+      default:
+        return { color: "#F8E8F0" };
+    }
+  };
+
+  const getHeaderTitle = () => {
+    switch (activeScreen) {
       case "Home":
-        return "Timeline";
+        return "Our Story";
       case "Stories":
         return "Moments";
       case "Dates":
         return "Dates";
-      case "Pictures":
-        return "Memories";
       case "Milestones":
         return "Milestones";
+      case "Pictures":
+        return "Memory Wall";
       default:
-        return "Timeline";
+        return "Our Story";
     }
   };
 
-  const containerStyle = {
-    flex: 1,
-    backgroundColor: "#FFF5F7",
-    paddingTop: 50,
-  };
-
-  const headerStyle = {
-    backgroundColor: "#4A3545",
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#6B4D64",
-  };
-
-  const headerTitleStyle = {
-    fontSize: 20,
-    fontWeight: "600" as const,
-    color: "#F8E8F0",
-    textAlign: "center" as const,
-    letterSpacing: 1,
-  };
-
-  const contentStyle = {
-    flex: 1,
-  };
-
-  const tabBarStyle = {
-    flexDirection: "row" as const,
-    backgroundColor: "#FFF",
-    borderTopColor: "#FEC7D7",
-    borderTopWidth: 1,
-    paddingBottom: 5,
-    paddingTop: 5,
-    height: 60,
-  };
-
-  const tabStyle = {
-    flex: 1,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-  };
-
-  const tabIconStyle = {
-    fontSize: 20,
-    marginBottom: 2,
-  };
-
-  const tabLabelStyle = {
-    fontSize: 12,
-    color: "#999",
-  };
-
-  const activeTabLabelStyle = {
-    fontSize: 12,
-    color: "#FF6B9D",
-    fontWeight: "600" as const,
-  };
-
   return (
-    <View style={containerStyle}>
+    <View style={styles.container}>
       {/* Header */}
-      <View
-        style={
-          activeScreen === "Dates"
-            ? {
-                backgroundColor: "#16213e",
-                paddingVertical: 15,
-                paddingHorizontal: 20,
-                borderBottomWidth: 1,
-                borderBottomColor: "#374151",
-              }
-            : activeScreen === "Milestones"
-            ? {
-                backgroundColor: "#2d1810",
-                paddingVertical: 15,
-                paddingHorizontal: 20,
-                borderBottomWidth: 1,
-                borderBottomColor: "#ffd70030",
-              }
-            : activeScreen === "Stories"
-            ? {
-                backgroundColor: "#FF6B9D",
-                paddingVertical: 15,
-                paddingHorizontal: 20,
-                borderBottomWidth: 1,
-                borderBottomColor: "#FEC7D7",
-              }
-            : activeScreen === "Pictures"
-            ? {
-                backgroundColor: "#3D2820",
-                paddingVertical: 15,
-                paddingHorizontal: 20,
-                borderBottomWidth: 1,
-                borderBottomColor: "#5D4037",
-              }
-            : headerStyle
-        }
-      >
-        <Text
-          style={
-            activeScreen === "Dates"
-              ? {
-                  fontSize: 20,
-                  fontWeight: "600" as const,
-                  color: "#e5d3ff",
-                  textAlign: "center" as const,
-                  letterSpacing: 1,
-                }
-              : activeScreen === "Milestones"
-              ? {
-                  fontSize: 20,
-                  fontWeight: "600" as const,
-                  color: "#ffd700",
-                  textAlign: "center" as const,
-                  letterSpacing: 1,
-                }
-              : activeScreen === "Stories"
-              ? {
-                  fontSize: 20,
-                  fontWeight: "600" as const,
-                  color: "#FFF",
-                  textAlign: "center" as const,
-                  letterSpacing: 1,
-                }
-              : activeScreen === "Pictures"
-              ? {
-                  fontSize: 20,
-                  fontWeight: "600" as const,
-                  color: "#D4A574",
-                  textAlign: "center" as const,
-                  letterSpacing: 1,
-                }
-              : headerTitleStyle
-          }
-        >
-          {activeScreen === "Home" && "Our Story"}
-          {activeScreen === "Stories" && "Moments"}
-          {activeScreen === "Dates" && "Dates"}
-          {activeScreen === "Milestones" && "Milestones"}
-          {activeScreen === "Pictures" && "Memory Wall"}
+      <View style={[styles.header, getHeaderStyle()]}>
+        <Text style={[styles.headerText, getHeaderTextStyle()]}>
+          {getHeaderTitle()}
         </Text>
       </View>
 
       {/* Content */}
-      <View style={contentStyle}>{renderScreen()}</View>
+      <View style={styles.content}>{renderScreen()}</View>
 
-      {/* Bottom Tab Bar */}
-      <View style={tabBarStyle}>
-        {(
-          ["Home", "Stories", "Dates", "Milestones", "Pictures"] as Screen[]
-        ).map((screen) => (
-          <TouchableOpacity
-            key={screen}
-            style={tabStyle}
-            onPress={() => setActiveScreen(screen)}
-          >
-            <Text style={tabIconStyle}>{getTabIcon(screen)}</Text>
-            <Text
-              style={
-                activeScreen === screen ? activeTabLabelStyle : tabLabelStyle
-              }
-            >
-              {getTabTitle(screen)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {/* Animated Bottom Tab Bar */}
+      <AnimatedTabBar
+        activeScreen={activeScreen}
+        onTabPress={setActiveScreen}
+      />
     </View>
   );
 }
+
+const styles = {
+  container: {
+    flex: 1,
+    backgroundColor: "#FFF5F7",
+    paddingTop: 50,
+  },
+  header: {
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+  },
+  headerText: {
+    fontSize: 20,
+    fontWeight: "600" as const,
+    textAlign: "center" as const,
+    letterSpacing: 1,
+  },
+  content: {
+    flex: 1,
+  },
+};

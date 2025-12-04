@@ -25,6 +25,7 @@ import AnimatedCard from "../components/AnimatedCard";
 import AnimatedFAB from "../components/AnimatedFAB";
 import { SkeletonList } from "../components/SkeletonLoader";
 import AnimatedModal from "../components/AnimatedModal";
+import SuccessCheckmark from "../components/SuccessCheckmark";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import { filterValidPhotos } from "../utils/imageUtils";
@@ -66,6 +67,7 @@ export default function DatesScreen() {
   const [weather, setWeather] = useState("");
   const [favoriteMoment, setFavoriteMoment] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
+  const [showSuccess, setShowSuccess] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   // Get time of day from date input
@@ -342,14 +344,7 @@ export default function DatesScreen() {
 
     try {
       const filteredHighlights = highlights.filter((h) => h.trim() !== "");
-      // Filter out invalid/blob URLs before saving
       const validPhotos = filterValidPhotos(photos);
-      
-      // Debug logging
-      console.log("💾 Saving date entry:");
-      console.log("  - Photos in state:", photos);
-      console.log("  - Valid photos after filtering:", validPhotos);
-      console.log("  - Photos count:", photos.length, "->", validPhotos.length);
 
       const dateData: CreateDateEntryDto = {
         title: title.trim() || undefined,
@@ -360,23 +355,18 @@ export default function DatesScreen() {
         highlights: filteredHighlights,
         weather: weather || undefined,
         favorite_moment: favoriteMoment || undefined,
-        // Always include photos array - empty array means no photos
         photos: validPhotos,
       };
-      
-      console.log("  - Data being sent:", { ...dateData, photos: dateData.photos });
 
       if (editingDate) {
-        console.log("  - Updating existing date:", editingDate.id);
         await datesService.update(editingDate.id, dateData);
       } else {
-        console.log("  - Creating new date");
         await datesService.create(dateData);
       }
 
-      console.log("  - ✅ Date saved successfully");
       closeModal();
-      loadDates();
+      await loadDates();
+      setShowSuccess(true); // Show success animation
     } catch (error) {
       console.error("Error saving date:", error);
       Alert.alert("Error", "Failed to save date entry");
@@ -621,6 +611,13 @@ export default function DatesScreen() {
         </Text>
       </AnimatedFAB>
 
+      {/* Success Checkmark Animation */}
+      <SuccessCheckmark 
+        visible={showSuccess} 
+        onHide={() => setShowSuccess(false)} 
+        color={DATE_SCREEN_PURPLE} 
+      />
+
       {/* Immersive Modal */}
       <Modal
         visible={isModalVisible}
@@ -853,25 +850,12 @@ export default function DatesScreen() {
                 </Text>
                 <TouchableOpacity
                   onPress={() => {
-                    console.log(
-                      "Date picker button pressed, showDatePicker:",
-                      showDatePicker,
-                      "date:",
-                      date,
-                      "datePickerValue:",
-                      datePickerValue
-                    );
                     if (Platform.OS === "web") {
                       if (!showDatePicker) {
-                        // Initialize web date input with current date if available
                         const initialValue =
                           date && datePickerValue
                             ? formatDateForDisplay(datePickerValue)
                             : "";
-                        console.log(
-                          "Initializing webDateInput with:",
-                          initialValue
-                        );
                         setWebDateInput(initialValue);
                       }
                     }

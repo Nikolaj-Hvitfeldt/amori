@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { StyleSheet, TouchableWithoutFeedback, ViewStyle } from "react-native";
+import { StyleSheet, Pressable, Platform, ViewStyle } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -82,7 +82,7 @@ export default function AnimatedFAB({
   }));
 
   return (
-    <TouchableWithoutFeedback
+    <Pressable
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
@@ -96,13 +96,14 @@ export default function AnimatedFAB({
             borderRadius: size / 2,
             backgroundColor: color,
           },
+          Platform.OS === "web" ? styles.fabWeb : styles.fabNative,
           style,
           animatedStyle,
         ]}
       >
         {children}
       </Animated.View>
-    </TouchableWithoutFeedback>
+    </Pressable>
   );
 }
 
@@ -113,11 +114,17 @@ const styles = StyleSheet.create({
     right: 30,
     alignItems: "center",
     justifyContent: "center",
+  },
+  fabNative: {
     elevation: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+  },
+  fabWeb: {
+    // @ts-ignore - boxShadow is valid for web
+    boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.3)",
   },
 });
 

@@ -33,6 +33,7 @@ import AnimatedCard from "../components/AnimatedCard";
 import AnimatedFAB from "../components/AnimatedFAB";
 import { SkeletonList } from "../components/SkeletonLoader";
 import AnimatedModal from "../components/AnimatedModal";
+import SuccessCheckmark from "../components/SuccessCheckmark";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import { filterValidPhotos } from "../utils/imageUtils";
@@ -76,6 +77,7 @@ export default function MilestonesScreen() {
   const [webDateInput, setWebDateInput] = useState("");
   const [description, setDescription] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
+  const [showSuccess, setShowSuccess] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -348,7 +350,8 @@ export default function MilestonesScreen() {
 
       closeModal();
       // Skip cleanup when loading after save to prevent removing just-saved photos
-      loadMilestones(true);
+      await loadMilestones(true);
+      setShowSuccess(true); // Show success animation
     } catch (error) {
       console.error("Error saving milestone:", error);
       Alert.alert("Error", "Failed to save milestone");
@@ -562,6 +565,13 @@ export default function MilestonesScreen() {
           ⭐
         </Text>
       </AnimatedFAB>
+
+      {/* Success Checkmark Animation */}
+      <SuccessCheckmark 
+        visible={showSuccess} 
+        onHide={() => setShowSuccess(false)} 
+        color={MILESTONE_COLOR} 
+      />
 
       {/* Modal */}
       <Modal

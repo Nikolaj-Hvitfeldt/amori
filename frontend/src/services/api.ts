@@ -7,5 +7,4 @@ const API_URL =
     ? "http://localhost:3000" // Web browser
     : "http://192.168.0.92:3000"; // Mobile: local network IP
 
-console.log("Platform:", Platform.OS, "API URL:", API_URL);
 export const API_BASE_URL = API_URL;
