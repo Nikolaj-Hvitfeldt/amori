@@ -23,8 +23,7 @@ export class MomentsService {
   constructor(private readonly supabase: SupabaseService) {}
 
   async findAll(limit?: number, offset?: number): Promise<{ data: Moment[]; total: number }> {
-    console.log("Fetching moments from moments table...");
-    const result = await findAllWithPagination<Moment>(
+    return findAllWithPagination<Moment>(
       this.supabase.getClient(),
       "moments",
       {
@@ -34,8 +33,6 @@ export class MomentsService {
         ascending: false,
       }
     );
-    console.log(`Successfully fetched ${result.data.length} moments`);
-    return result;
   }
 
   async findOne(id: string): Promise<Moment> {

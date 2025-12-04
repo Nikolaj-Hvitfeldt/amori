@@ -22,7 +22,7 @@ import MilestoneDetailView from "../components/MilestoneDetailView";
 import AnimatedPolaroid from "../components/AnimatedPolaroid";
 import AnimatedCard from "../components/AnimatedCard";
 import AnimatedModal from "../components/AnimatedModal";
-import { getThumbnailUrl } from "../utils/imageUtils";
+import ThumbnailImage from "../components/ThumbnailImage";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const POLAROID_WIDTH = (SCREEN_WIDTH - 60) / 2;
@@ -247,9 +247,9 @@ export default function PicturesScreen() {
               borderRadius: 2,
             }}
           >
-            {/* Photo - using thumbnail for faster loading + caching */}
-            <Image
-              source={getThumbnailUrl(photo.url)}
+            {/* Photo - using thumbnail for faster loading with fallback */}
+            <ThumbnailImage
+              source={photo.url}
               style={{
                 width: POLAROID_WIDTH - 16,
                 height: POLAROID_WIDTH - 16,

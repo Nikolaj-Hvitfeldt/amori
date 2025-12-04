@@ -28,6 +28,7 @@ import AnimatedModal from "../components/AnimatedModal";
 import SuccessCheckmark from "../components/SuccessCheckmark";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
+import ThumbnailImage from "../components/ThumbnailImage";
 import { filterValidPhotos } from "../utils/imageUtils";
 import { getBoxShadow } from "../utils/shadows";
 import { formatDateEU } from "../utils/dateUtils";
@@ -725,7 +726,7 @@ export default function DatesScreen() {
                 >
                   {photos.map((photo, index) => (
                     <View key={index} style={{ position: "relative" }}>
-                      <Image
+                      <ThumbnailImage
                         source={photo}
                         style={{
                           width: 120,
@@ -1478,7 +1479,7 @@ export default function DatesScreen() {
                   >
                     {photos.map((photo, index) => (
                       <View key={index} style={{ position: "relative" }}>
-                        <Image
+                        <ThumbnailImage
                           source={photo}
                           style={{
                             width: 120,

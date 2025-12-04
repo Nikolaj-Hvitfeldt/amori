@@ -1,7 +1,7 @@
 import React, { useState, memo, useMemo, useCallback } from "react";
 import { View, Text, ScrollView, StyleSheet, Platform } from "react-native";
 import PressableCard from "./PressableCard";
-import { Image } from "expo-image";
+import ThumbnailImage from "./ThumbnailImage";
 import { Milestone } from "../types/milestones";
 import { MILESTONE_CONFIG } from "../constants/milestoneConfig";
 import DecorativeAccent from "./common/DecorativeAccent";
@@ -141,7 +141,7 @@ function MilestoneCard({
                 nestedScrollEnabled={true}
               >
                 {validDisplayPhotos.map((photo, photoIndex) => (
-                  <Image
+                  <ThumbnailImage
                     key={photoIndex}
                     source={photo}
                     style={[

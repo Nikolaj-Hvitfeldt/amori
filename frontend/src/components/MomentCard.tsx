@@ -4,7 +4,7 @@ import PressableCard from "./PressableCard";
 import { Moment } from "../types/moments";
 import RotatingPhotoBackground from "./RotatingPhotoBackground";
 import DecorativeAccent from "./common/DecorativeAccent";
-import { getThumbnailUrl, filterValidPhotos } from "../utils/imageUtils";
+import { filterValidPhotos } from "../utils/imageUtils";
 import { getBoxShadow, getTextShadow } from "../utils/shadows";
 import { formatDateUS } from "../utils/dateUtils";
 import {
@@ -33,10 +33,6 @@ function MomentCard({
   const momentPhotos = useMemo(
     () => filterValidPhotos(moment.photos || []),
     [moment.photos]
-  );
-  const thumbnailPhotos = useMemo(
-    () => momentPhotos.map((photo) => getThumbnailUrl(photo)),
-    [momentPhotos]
   );
 
   // Adjust styling based on variant
@@ -70,7 +66,7 @@ function MomentCard({
       {/* Rotating Photo Background */}
       {hasPhotos && (
         <RotatingPhotoBackground
-          photos={thumbnailPhotos}
+          photos={momentPhotos}
           interval={8000}
           style={styles.photoBackground}
         />

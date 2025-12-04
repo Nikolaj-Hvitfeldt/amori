@@ -29,7 +29,7 @@ import SuccessCheckmark from "../components/SuccessCheckmark";
 import { PulsingHeart } from "../components/HeartPulse";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
-import { getThumbnailUrl } from "../utils/imageUtils";
+import ThumbnailImage from "../components/ThumbnailImage";
 import { getBoxShadow } from "../utils/shadows";
 import {
   MOMENT_COLOR,
@@ -581,8 +581,8 @@ export default function MomentsScreen() {
                 >
                   {photos.map((photo, index) => (
                     <View key={index} style={{ position: "relative" }}>
-                      <Image
-                        source={getThumbnailUrl(photo)}
+                      <ThumbnailImage
+                        source={photo}
                         style={{
                           width: 120,
                           height: 120,
@@ -987,8 +987,8 @@ export default function MomentsScreen() {
                   >
                     {photos.map((photo, index) => (
                       <View key={index} style={{ position: "relative" }}>
-                        <Image
-                          source={getThumbnailUrl(photo)}
+                        <ThumbnailImage
+                          source={photo}
                           style={{
                             width: 120,
                             height: 120,
