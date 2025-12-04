@@ -43,7 +43,7 @@ cd frontend
 npm run web
 ```
 
-Then open `http://localhost:8081` in your browser. On mobile:
+Then open the URL shown in the terminal (typically `http://localhost:8081` or `http://localhost:19006`). On mobile:
 - **Android Chrome**: Menu → "Add to Home screen"
 - **iOS Safari**: Share button → "Add to Home Screen"
 
@@ -93,18 +93,36 @@ vercel --prod
 
 Before deploying, update `frontend/src/services/api.ts`:
 
+**Option 1: Environment Variable (Recommended)**
 ```typescript
-// For production PWA
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.railway.app';
+import { Platform } from "react-native";
 
-// For local development
-// const API_URL = "http://192.168.0.92:3000";
+const API_URL =
+  Platform.OS === "web"
+    ? process.env.EXPO_PUBLIC_API_URL || "https://your-backend.railway.app"
+    : process.env.EXPO_PUBLIC_API_URL || "https://your-backend.railway.app";
+
+export const API_BASE_URL = API_URL;
 ```
 
-Create `.env` file:
+Create `.env` file in `frontend/`:
 ```
 EXPO_PUBLIC_API_URL=https://your-backend.railway.app
 ```
+
+**Option 2: Direct Update**
+```typescript
+import { Platform } from "react-native";
+
+const API_URL =
+  Platform.OS === "web"
+    ? "https://your-backend.railway.app" // Production backend URL
+    : "https://your-backend.railway.app"; // Same for mobile
+
+export const API_BASE_URL = API_URL;
+```
+
+**Note:** Make sure your backend CORS settings allow requests from your PWA domain.
 
 ## Using the PWA
 
@@ -144,12 +162,14 @@ eas build --platform ios
 ✅ **Works Everywhere** - iOS, Android, Desktop  
 ✅ **Offline Support** - Can work without internet (with service workers)  
 ✅ **No App Store Approval** - Deploy instantly  
+✅ **Full Feature Support** - All animations (Reanimated), image optimization (Expo Image), and features work on web  
 
 ## Limitations
 
 ⚠️ **iOS Safari**: Some PWA features limited (but still works great!)  
 ⚠️ **Push Notifications**: Limited on iOS (but you can add later)  
 ⚠️ **App Store**: Can't be in App Store as PWA (but you can build native later)  
+⚠️ **Date Picker**: Uses web date picker (React DatePicker) instead of native picker on web  
 
 ## Best of Both Worlds
 
@@ -170,16 +190,61 @@ You can:
 - Check file paths in `app.json`
 - Rebuild: `npm run build:pwa`
 
+### iOS Home Screen Icon Wrong/Missing?
+
+**The Problem:** iOS Safari caches PWA icons aggressively and may show a default icon instead of your custom one.
+
+**Solution:**
+1. **Delete the PWA from home screen** (long press → Remove App)
+2. **Clear Safari cache:**
+   - Settings → Safari → Clear History and Website Data
+3. **Restart dev server:**
+   ```bash
+   cd frontend
+   npm run web:lan
+   ```
+4. **Re-add to home screen** from Safari
+5. **Verify icon path:** Make sure `app.json` has:
+   ```json
+   "web": {
+     "apple": {
+       "appleTouchIcon": "./assets/icon.png"
+     }
+   }
+   ```
+
+**Note:** The icon must be a PNG file, ideally 1024x1024px or at least 180x180px for iOS. iOS Safari caches icons very aggressively, so you may need to clear cache and re-add the app.
+
 ### API not working?
-- Check CORS settings on backend
-- Verify API URL in production
+- Check CORS settings on backend (should allow your PWA domain)
+- Verify API URL in production (must use HTTPS)
 - Check network tab in browser DevTools
+- Ensure backend is accessible from the internet (not just localhost)
+- Verify environment variables are set correctly
+
+### Images not loading?
+- Check Supabase Storage bucket policies (should be public)
+- Verify image URLs are correct
+- Check browser console for CORS errors
+- Ensure thumbnails are being generated (check backend logs)
+
+## PWA Features in Amori
+
+The following features work great in the PWA:
+
+✅ **Animations** - React Native Reanimated animations work smoothly on web  
+✅ **Image Optimization** - Expo Image provides caching and optimization  
+✅ **Date Picker** - Custom themed date picker for web  
+✅ **Photo Gallery** - Memory wall with polaroid-style display  
+✅ **All Screens** - Timeline, Moments, Dates, Milestones, Pictures  
+✅ **Image Upload** - Full image upload and compression support  
 
 ## Next Steps
 
 1. Create app icons (see step 1)
 2. Test locally: `npm run web`
-3. Deploy to Netlify/Vercel
-4. Share the URL with your girlfriend!
+3. Update API URL for production
+4. Deploy to Netlify/Vercel
+5. Share the URL!
 
 Enjoy your free, beautiful app! 💕

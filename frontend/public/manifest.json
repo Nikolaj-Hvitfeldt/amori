@@ -1,0 +1,28 @@
+{
+  "name": "Amori - Your Love Story",
+  "short_name": "Amori",
+  "description": "A beautiful journal app for couples to capture and cherish their special moments together",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFF5F7",
+  "theme_color": "#FFF5F7",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/assets/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "apple-touch-icon"
+    }
+  ],
+  "apple": {
+    "apple-touch-icon": "/assets/icon.png"
+  }
+}
+

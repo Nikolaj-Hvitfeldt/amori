@@ -2,34 +2,43 @@
 
 ## Amori - Relationship Journal App
 
-A complete, production-ready application for documenting your relationship journey.
+A complete, production-ready application for documenting your relationship journey with moments, dates, milestones, and photo memories.
 
 ## What Was Built
 
 ### ✅ Complete Full-Stack Application
 
 **Backend (NestJS + TypeScript)**
-- RESTful API with 5 endpoints (GET all, GET one, POST, PUT, DELETE)
-- Modular architecture with separate Journal and Supabase modules
+- RESTful API with separate modules for Moments, Dates, and Milestones
+- Image upload and processing with automatic compression and thumbnail generation
+- HEIC/HEIF format support for iOS images
+- Progressive compression fallback (3 stages)
+- Supabase Storage integration
+- Row Level Security (RLS) enabled
 - Type-safe DTOs and interfaces
-- PostgreSQL database schema with indexes and triggers
+- PostgreSQL database with three tables
 - Environment-based configuration
 - CORS enabled for cross-origin requests
+- Error handling and validation
 
-**Frontend (React Native + TypeScript)**
-- 4 main screens with bottom tab navigation
+**Frontend (React Native + Expo + TypeScript)**
+- 5 main screens with animated tab bar navigation
 - Timeline view showing all entries chronologically
-- Filtered views for Love Stories, Special Dates, and Pictures
-- Beautiful pink/romantic UI theme using NativeWind (Tailwind CSS)
-- Type-safe API service layer
-- Responsive design for mobile devices
+- Separate views for Moments, Dates, Milestones, and Pictures
+- Beautiful theme-based UI (pink for moments, mood-based for dates, gold for milestones)
+- Smooth animations with React Native Reanimated
+- Image optimization with Expo Image
+- Custom date picker (web) and native picker (mobile)
+- Local caching with AsyncStorage/localStorage
+- Success animations and loading skeletons
+- Photo gallery with polaroid-style display
 
 **Database (Supabase)**
-- Single table design: `journal_entries`
-- Support for 4 entry types: lovestory, date, milestone, general
-- Image URL storage as arrays
+- Three tables: `moments`, `date_entries`, `milestones`
+- Row Level Security enabled
 - Automatic timestamp management
 - Indexed for optimal query performance
+- Supabase Storage for images (3 buckets)
 
 ## Technology Stack
 
@@ -38,95 +47,127 @@ A complete, production-ready application for documenting your relationship journ
 - NestJS 11.x
 - TypeScript 5.x
 - Supabase JS Client 2.x
+- Sharp (image processing)
+- HEIC Convert (iOS image support)
 - Express (bundled with NestJS)
 
 ### Frontend
-- React Native 0.82
+- React Native with Expo
 - React 19.x
 - TypeScript 5.x
-- React Navigation 7.x
-- NativeWind 4.x
-- Tailwind CSS 3.x
-- Supabase JS Client 2.x
+- React Native Reanimated 3.x
+- Expo Image (optimized image loading)
+- React DatePicker (web date picker)
+- @react-native-community/datetimepicker (native)
+- AsyncStorage (local caching)
+- Expo ImagePicker (camera/gallery access)
 
 ### Database
 - Supabase (PostgreSQL)
+- Row Level Security enabled
+- Supabase Storage (image buckets)
 - Free tier available
-- Built-in authentication and storage
 
 ## File Structure
 
 ```
 amori/
-├── Documentation
+├── docs/                      # Documentation
 │   ├── README.md              # Main documentation
 │   ├── QUICKSTART.md          # Quick setup guide
 │   ├── DEPLOYMENT.md          # Production deployment
 │   ├── ARCHITECTURE.md        # System architecture
+│   ├── SUMMARY.md             # This file
 │   └── EXAMPLE_DATA.md        # Sample data
 │
 ├── backend/                   # NestJS API
 │   ├── src/
-│   │   ├── journal/          # Journal module (controller, service, DTOs)
-│   │   ├── supabase/         # Supabase integration
-│   │   ├── app.module.ts     # Root module
-│   │   └── main.ts           # Entry point
-│   ├── schema.sql            # Database schema
-│   ├── tsconfig.json         # TypeScript config
-│   ├── package.json          # Dependencies
+│   │   ├── moments/           # Moments module
+│   │   ├── dates/             # Dates module
+│   │   ├── milestones/        # Milestones module
+│   │   ├── supabase/          # Supabase integration
+│   │   ├── utils/             # Image processing, storage utils
+│   │   ├── common/            # Shared exceptions and filters
+│   │   ├── constants/         # App constants
+│   │   ├── app.module.ts      # Root module
+│   │   └── main.ts            # Entry point
+│   ├── migrations/            # Database migrations
+│   ├── schema.sql             # Complete database schema
+│   ├── tsconfig.json          # TypeScript config
+│   ├── package.json           # Dependencies
 │   └── README.md             # API documentation
 │
 └── frontend/                  # React Native app
     ├── src/
-    │   ├── screens/          # 4 main screens
-    │   ├── navigation/       # Tab navigation
-    │   ├── services/         # API & Supabase clients
-    │   └── types/            # TypeScript types
-    ├── App.tsx               # Root component
-    ├── tailwind.config.js    # Styling config
-    ├── tsconfig.json         # TypeScript config
-    ├── package.json          # Dependencies
-    └── README.md             # Frontend docs
+    │   ├── screens/           # 5 main screens
+    │   ├── components/        # Reusable components
+    │   │   ├── AnimatedCard.tsx
+    │   │   ├── AnimatedFAB.tsx
+    │   │   ├── AnimatedModal.tsx
+    │   │   ├── AnimatedTabBar.tsx
+    │   │   ├── PressableCard.tsx
+    │   │   ├── SkeletonLoader.tsx
+    │   │   ├── SuccessCheckmark.tsx
+    │   │   ├── HeartPulse.tsx
+    │   │   ├── WebDatePicker.tsx
+    │   │   ├── ThumbnailImage.tsx
+    │   │   └── common/        # Common components
+    │   ├── navigation/        # Navigation setup
+    │   ├── services/          # API services
+    │   ├── utils/             # Utility functions
+    │   ├── constants/         # Constants and themes
+    │   └── types/             # TypeScript types
+    ├── App.tsx                # Root component
+    ├── tsconfig.json          # TypeScript config
+    ├── package.json           # Dependencies
+    └── README.md              # Frontend docs
 ```
 
 ## Features Implemented
 
 ### Core Features
-✅ Create journal entries
-✅ Read all entries (with timeline view)
-✅ Update existing entries
-✅ Delete entries
-✅ Filter by entry type
-✅ Image attachment support
-✅ Chronological sorting
+✅ Create, read, update, delete for Moments, Dates, and Milestones
+✅ Image upload with automatic compression and thumbnails
+✅ Photo gallery view (Memory Wall)
+✅ Chronological timeline view
+✅ Pagination and infinite scroll
+✅ Local caching for performance
 
 ### UI/UX Features
-✅ Bottom tab navigation (Home, Stories, Dates, Pictures)
-✅ Timeline visualization with icons
-✅ Type-specific filtering
+✅ Animated tab bar with sliding indicator
+✅ Card entrance animations with stagger
+✅ Floating Action Button with bounce
+✅ Press feedback on cards
+✅ Modal slide-in animations
+✅ Success checkmark animation
+✅ Heart pulse animation
+✅ Loading skeleton shimmer
 ✅ Empty state messages
-✅ Loading indicators
-✅ Beautiful pink theme
+✅ Theme-based color schemes
 ✅ Responsive card layouts
-✅ Touch-friendly design
+✅ Date picker (web and native)
 
 ### Technical Features
 ✅ Full TypeScript coverage
 ✅ Type-safe API communication
-✅ Environment variable configuration
+✅ Image optimization (compression, thumbnails)
+✅ HEIC/HEIF format support
+✅ Progressive compression fallback
+✅ Row Level Security enabled
+✅ Error handling and validation
 ✅ CORS enabled
 ✅ Database indexes for performance
 ✅ Auto-updating timestamps
 ✅ Modular architecture
-✅ Error handling
 
 ## Code Quality
 
 - ✅ **TypeScript**: 100% type coverage on both frontend and backend
 - ✅ **Build**: Both projects compile without errors
-- ✅ **Security**: CodeQL scan passed with 0 vulnerabilities
+- ✅ **Clean Code**: Unused imports removed
 - ✅ **Architecture**: Clean, modular design with separation of concerns
 - ✅ **Documentation**: Comprehensive guides for setup and deployment
+- ✅ **Security**: RLS enabled, service role key properly secured
 
 ## Getting Started
 
@@ -139,35 +180,90 @@ Choose your path:
 
 ## API Endpoints
 
+### Moments
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/journal` | Get all entries (optional `?type=` filter) |
-| GET | `/journal/:id` | Get specific entry |
-| POST | `/journal` | Create new entry |
-| PUT | `/journal/:id` | Update entry |
-| DELETE | `/journal/:id` | Delete entry |
+| GET | `/moments` | Get all moments (with pagination) |
+| GET | `/moments/:id` | Get specific moment |
+| POST | `/moments` | Create new moment |
+| PATCH | `/moments/:id` | Update moment |
+| DELETE | `/moments/:id` | Delete moment |
+| POST | `/moments/upload-image` | Upload image for moment |
+
+### Dates
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/dates` | Get all date entries (with pagination) |
+| GET | `/dates/:id` | Get specific date entry |
+| POST | `/dates` | Create new date entry |
+| PATCH | `/dates/:id` | Update date entry |
+| DELETE | `/dates/:id` | Delete date entry |
+| POST | `/dates/upload-image` | Upload image for date |
+
+### Milestones
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/milestones` | Get all milestones (with pagination) |
+| GET | `/milestones/:id` | Get specific milestone |
+| POST | `/milestones` | Create new milestone |
+| PATCH | `/milestones/:id` | Update milestone |
+| DELETE | `/milestones/:id` | Delete milestone |
+| POST | `/milestones/upload-image` | Upload image for milestone |
 
 ## Screens
 
 | Screen | Route | Description |
 |--------|-------|-------------|
-| Home | `/` | Timeline view of all entries |
-| Stories | `/stories` | Love stories only |
-| Dates | `/dates` | Special dates only |
-| Pictures | `/pictures` | Entries with images |
+| Home | Timeline | Chronological view of all entries |
+| Moments | Stories | Love stories/moments |
+| Dates | Dates | Special dates with mood theming |
+| Milestones | Milestones | Relationship milestones |
+| Pictures | Memory Wall | Gallery view of all photos |
 
-## Data Model
+## Data Models
 
+### Moment
 ```typescript
-interface JournalEntry {
+interface Moment {
   id: string;                    // UUID
-  title: string;                 // Entry title
-  content: string;               // Entry content
-  entry_type: string;            // lovestory|date|milestone|general
-  entry_date: string;            // ISO date
-  images?: string[];             // Image URLs
-  created_at: string;            // Auto-generated
-  updated_at: string;            // Auto-updated
+  title: string;                 // Moment title
+  story_date: string;           // ISO date
+  description: string;           // Moment description
+  photos?: string[];            // Array of photo URLs
+  created_at: string;           // Auto-generated
+  updated_at: string;           // Auto-updated
+}
+```
+
+### Date Entry
+```typescript
+interface DateEntry {
+  id: string;                    // UUID
+  title?: string;                // Optional title
+  date: string;                  // ISO date
+  location: string;             // Location
+  description: string;           // Description
+  mood: DateMood;               // magical|romantic|adventurous|cozy|spontaneous|dreamy
+  highlights?: string[];         // Array of highlights
+  photos?: string[];            // Array of photo URLs
+  weather?: string;             // Optional weather
+  favorite_moment?: string;      // Optional favorite moment
+  created_at: string;           // Auto-generated
+  updated_at: string;           // Auto-updated
+}
+```
+
+### Milestone
+```typescript
+interface Milestone {
+  id: string;                    // UUID
+  milestone_type: MilestoneType; // met|first_date|official|moved_in|engagement|wedding|kid|custom
+  title: string;                // Milestone title
+  date: string;                  // ISO date
+  description?: string;          // Optional description
+  photos?: string[];            // Array of photo URLs
+  created_at: string;           // Auto-generated
+  updated_at: string;           // Auto-updated
 }
 ```
 
@@ -176,16 +272,16 @@ interface JournalEntry {
 **Backend (.env)**
 ```
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
-**Frontend (can be hardcoded or use Expo env)**
+**Frontend**
 - Update `src/services/api.ts` for API URL
-- Update `src/services/supabase.ts` for Supabase credentials
+- No Supabase client needed (uses backend API)
 
 ## Testing the App
 
-1. Set up Supabase database (run `schema.sql`)
+1. Set up Supabase database (run `backend/schema.sql` or migrations)
 2. Start backend: `cd backend && npm run start:dev`
 3. Start frontend: `cd frontend && npm start`
 4. Add sample data from `EXAMPLE_DATA.md`
@@ -194,14 +290,13 @@ SUPABASE_KEY=your-anon-key
 ## Next Steps
 
 After setup, you can:
-- Add authentication (Supabase Auth)
-- Implement image upload (Supabase Storage)
-- Add push notifications
-- Create data backup/export
-- Add search functionality
-- Implement sharing features
+- Deploy to production (see `DEPLOYMENT.md`)
+- Customize themes and colors
+- Add more milestone types
+- Implement search functionality
 - Add calendar view
 - Create photo albums
+- Export data to PDF
 
 ## Support & Resources
 
@@ -214,14 +309,14 @@ After setup, you can:
 ## Cost Estimate
 
 **Development (Free)**
-- Supabase: Free tier (500MB database)
+- Supabase: Free tier (500MB database, 2GB bandwidth)
 - Backend: localhost
 - Frontend: localhost/emulator
 
 **Production (from $0-45/month)**
 - Supabase: $0-25/month
 - Backend hosting: $0-20/month
-- Frontend: Free (Expo)
+- Frontend: Free (Expo) or hosting for web
 - Domain: $10-15/year (optional)
 
 ## License
@@ -239,4 +334,3 @@ This is a starter template. Feel free to:
 ---
 
 Built with ❤️ using React Native, NestJS, and Supabase
-

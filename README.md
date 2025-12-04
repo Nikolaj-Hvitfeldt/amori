@@ -1,53 +1,92 @@
 # Amori 💕
 
-A beautiful React Native journal app for documenting your relationship journey with love stories, special dates, and cherished milestones.
+A React Native journal app for documenting your relationship journey with love stories, special dates, cherished milestones, and photo memories.
 
 ## Features
 
-- 📱 **React Native** frontend with TypeScript
-- 🎨 **NativeWind** (Tailwind CSS) for beautiful, responsive styling
-- 🏗️ **NestJS** backend with TypeScript
-- 🗄️ **Supabase** as the database
-- 🧭 **Bottom Navigation** for easy access to different sections
-- 📅 **Timeline View** on the homepage showing all your entries chronologically
-- 💕 **Love Stories** section for your favorite romantic moments
-- 📆 **Special Dates** for anniversaries and memorable occasions
-- 📸 **Memories** gallery for entries with pictures
+- 📱 **Cross-platform** React Native app (iOS, Android, Web)
+- 💕 **Moments** - Capture and preserve your special romantic moments with photos
+- 📅 **Dates** - Track memorable dates with mood-based theming and location
+- 🏆 **Milestones** - Celebrate relationship milestones (first date, engagement, wedding, etc.)
+- 📸 **Memory Wall** - Beautiful gallery view of all your photos
+- 📊 **Timeline** - Chronological view of all your entries with visual timeline
+- 🎨 **Beautiful Animations** - Smooth, polished UI with React Native Reanimated
+- 🖼️ **Image Optimization** - Automatic compression and thumbnail generation
+- 📱 **PWA Support** - Install as an app on mobile devices
+
+## Tech Stack
+
+### Frontend
+- **React Native** with Expo
+- **TypeScript** for type safety
+- **React Native Reanimated** for smooth animations
+- **Expo Image** for optimized image loading
+- **React DatePicker** for date selection
+- **AsyncStorage** for local caching
+
+### Backend
+- **NestJS** REST API
+- **TypeScript**
+- **Supabase** (PostgreSQL database + Storage)
+- **Sharp** for image processing and thumbnail generation
+- **HEIC Convert** for iOS image format support
 
 ## Project Structure
 
 ```
 amori/
-├── frontend/          # React Native app
+├── frontend/              # React Native app
 │   ├── src/
-│   │   ├── screens/   # Screen components
-│   │   ├── navigation/# Navigation setup
-│   │   ├── services/  # API and Supabase services
-│   │   └── types/     # TypeScript types
-│   ├── App.tsx
+│   │   ├── screens/       # Screen components
+│   │   │   ├── TimelineScreen.tsx
+│   │   │   ├── MomentsScreen.tsx
+│   │   │   ├── DatesScreen.tsx
+│   │   │   ├── MilestonesScreen.tsx
+│   │   │   └── PicturesScreen.tsx
+│   │   ├── components/   # Reusable components
+│   │   │   ├── AnimatedCard.tsx
+│   │   │   ├── AnimatedFAB.tsx
+│   │   │   ├── AnimatedModal.tsx
+│   │   │   ├── AnimatedTabBar.tsx
+│   │   │   ├── PressableCard.tsx
+│   │   │   ├── SkeletonLoader.tsx
+│   │   │   ├── SuccessCheckmark.tsx
+│   │   │   ├── HeartPulse.tsx
+│   │   │   ├── WebDatePicker.tsx
+│   │   │   └── ThumbnailImage.tsx
+│   │   ├── navigation/    # Navigation setup
+│   │   ├── services/      # API services
+│   │   ├── utils/         # Utility functions
+│   │   ├── constants/     # Constants and themes
+│   │   └── types/         # TypeScript types
 │   └── package.json
 │
-└── backend/           # NestJS API
-    ├── src/
-    │   ├── journal/   # Journal module
-    │   ├── supabase/  # Supabase integration
-    │   └── main.ts
-    ├── schema.sql     # Database schema
-    └── package.json
+├── backend/               # NestJS API
+│   ├── src/
+│   │   ├── moments/       # Moments module
+│   │   ├── dates/         # Dates module
+│   │   ├── milestones/    # Milestones module
+│   │   ├── supabase/      # Supabase integration
+│   │   ├── utils/         # Utilities (image processing, etc.)
+│   │   └── main.ts
+│   ├── migrations/        # Database migrations
+│   └── package.json
+│
+└── README.md
 ```
 
-## Setup Instructions
+## Quick Start
 
 ### Prerequisites
 
 - Node.js (v20 or higher)
-- npm
+- npm or yarn
 - Supabase account (free tier available)
-- React Native development environment (for mobile)
+- For mobile development: Expo Go app or development environment
 
 ### Backend Setup
 
-1. Navigate to the backend directory:
+1. Navigate to backend directory:
    ```bash
    cd backend
    ```
@@ -57,32 +96,26 @@ amori/
    npm install
    ```
 
-3. Create a `.env` file based on `.env.example`:
+3. Create `.env` file:
    ```bash
-   cp .env.example .env
-   ```
-
-4. Update `.env` with your Supabase credentials:
-   ```
    SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_KEY=your-anon-key
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
    ```
 
-5. Set up the database:
-   - Go to your Supabase project
-   - Navigate to SQL Editor
-   - Run the SQL script from `schema.sql`
+4. Set up database:
+   - Run migrations in `backend/migrations/` folder
+   - Enable RLS policies (see `backend/migrations/009_enable_rls_policies.sql`)
 
-6. Start the backend server:
+5. Start the server:
    ```bash
    npm run start:dev
    ```
    
-   The backend will be available at `http://localhost:3000`
+   Server runs on `http://localhost:3000`
 
 ### Frontend Setup
 
-1. Navigate to the frontend directory:
+1. Navigate to frontend directory:
    ```bash
    cd frontend
    ```
@@ -92,50 +125,141 @@ amori/
    npm install
    ```
 
-3. Update the API URL in `src/services/api.ts` if needed (default: `http://localhost:3000`)
+3. Update API URL in `src/services/api.ts`:
+   ```typescript
+   const API_URL = Platform.OS === "web"
+     ? "http://localhost:3000"
+     : "http://YOUR_LOCAL_IP:3000"; // For mobile devices
+   ```
 
-4. Update Supabase credentials in `src/services/supabase.ts`
-
-5. Start the app:
+4. Start the app:
    ```bash
    npm start
    ```
 
+5. Choose platform:
+   - Press `w` for web
+   - Press `a` for Android
+   - Press `i` for iOS
+   - Scan QR code with Expo Go app
+
 ## Database Schema
 
-The app uses a single `journal_entries` table with the following structure:
+The app uses three main tables:
 
+### `moments`
 - `id` (UUID): Primary key
-- `title` (TEXT): Entry title
-- `content` (TEXT): Entry content
-- `entry_type` (TEXT): Type of entry (lovestory, date, milestone, general)
-- `entry_date` (DATE): Date of the event
-- `images` (TEXT[]): Array of image URLs
-- `created_at` (TIMESTAMP): Creation timestamp
-- `updated_at` (TIMESTAMP): Last update timestamp
+- `title` (TEXT): Moment title
+- `story_date` (DATE): Date of the moment
+- `description` (TEXT): Moment description
+- `photos` (TEXT[]): Array of photo URLs
+- `created_at`, `updated_at` (TIMESTAMP)
+
+### `date_entries`
+- `id` (UUID): Primary key
+- `title` (TEXT): Optional title
+- `date` (DATE): Date of the event
+- `location` (TEXT): Location
+- `description` (TEXT): Description
+- `mood` (TEXT): Mood type (magical, romantic, adventurous, etc.)
+- `highlights` (TEXT[]): Array of highlights
+- `weather` (TEXT): Optional weather info
+- `favorite_moment` (TEXT): Optional favorite moment
+- `photos` (TEXT[]): Array of photo URLs
+- `created_at`, `updated_at` (TIMESTAMP)
+
+### `milestones`
+- `id` (UUID): Primary key
+- `milestone_type` (TEXT): Type (met, first_date, official, etc.)
+- `title` (TEXT): Milestone title
+- `date` (DATE): Date of the milestone
+- `description` (TEXT): Optional description
+- `photos` (TEXT[]): Array of photo URLs
+- `created_at`, `updated_at` (TIMESTAMP)
 
 ## API Endpoints
 
-- `GET /journal` - Get all entries (optional `?type=` filter)
-- `GET /journal/:id` - Get a specific entry
-- `POST /journal` - Create a new entry
-- `PUT /journal/:id` - Update an entry
-- `DELETE /journal/:id` - Delete an entry
+### Moments
+- `GET /moments` - Get all moments (with pagination)
+- `GET /moments/:id` - Get a specific moment
+- `POST /moments` - Create a new moment
+- `PATCH /moments/:id` - Update a moment
+- `DELETE /moments/:id` - Delete a moment
+- `POST /moments/upload-image` - Upload image for moment
 
-## Technologies Used
+### Dates
+- `GET /dates` - Get all date entries (with pagination)
+- `GET /dates/:id` - Get a specific date entry
+- `POST /dates` - Create a new date entry
+- `PATCH /dates/:id` - Update a date entry
+- `DELETE /dates/:id` - Delete a date entry
+- `POST /dates/upload-image` - Upload image for date
 
-### Frontend
-- React Native
-- TypeScript
-- NativeWind (Tailwind CSS)
-- React Navigation (Bottom Tabs)
-- Supabase JS Client
+### Milestones
+- `GET /milestones` - Get all milestones (with pagination)
+- `GET /milestones/:id` - Get a specific milestone
+- `POST /milestones` - Create a new milestone
+- `PATCH /milestones/:id` - Update a milestone
+- `DELETE /milestones/:id` - Delete a milestone
+- `POST /milestones/upload-image` - Upload image for milestone
+
+## Features in Detail
+
+### Image Handling
+- Automatic image compression on upload
+- Thumbnail generation for faster loading
+- HEIC/HEIF format support (iOS)
+- Progressive compression fallback
+- Storage cleanup on deletion
+
+### Animations
+- Card entrance animations with stagger
+- Floating Action Button with bounce
+- Press feedback on cards
+- Modal slide-in animations
+- Success checkmark animation
+- Heart pulse animation
+- Tab bar indicator animation
+- Loading skeleton shimmer
+
+### Date Picker
+- Native date picker on mobile
+- Custom themed date picker on web
+- Prevents future date selection
+- Defaults to today's date
+
+### Caching
+- Local caching with AsyncStorage (native) / localStorage (web)
+- Automatic cache invalidation on updates
+- Configurable TTL per resource type
+
+## Security
+
+- Row Level Security (RLS) enabled on all tables
+- Service role key used by backend (bypasses RLS)
+- Frontend uses backend API (no direct database access)
+- Image upload validation and size limits
+
+## Deployment
 
 ### Backend
-- NestJS
-- TypeScript
-- Supabase
-- Express
+1. Set environment variables on your hosting platform
+2. Run database migrations
+3. Build and start the server:
+   ```bash
+   npm run build
+   npm start
+   ```
+
+### Frontend
+1. Update API URL in `src/services/api.ts` to production URL
+2. Build for production:
+   ```bash
+   npm run build
+   ```
+3. Deploy to your hosting platform (Vercel, Netlify, etc.)
+
+For mobile apps, use EAS Build or build locally.
 
 ## Contributing
 

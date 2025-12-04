@@ -18,9 +18,20 @@ Before you begin, ensure you have:
 3. Navigate to the SQL Editor in your Supabase dashboard
 4. Copy the contents of `backend/schema.sql`
 5. Paste it into the SQL Editor and click "Run"
-6. Your database table is now ready! ✨
+6. Your database tables are now ready! ✨
 
-### 2️⃣ Configure Backend
+**Note:** Alternatively, you can run the migration files in `backend/migrations/` in order (002, 003, 004, 005, 006, 007, 009).
+
+### 2️⃣ Set Up Supabase Storage
+
+1. In Supabase Dashboard, go to Storage
+2. Create three public buckets:
+   - `moments-photos`
+   - `date-photos`
+   - `milestone-photos`
+3. Set each bucket to **Public** (or configure policies as needed)
+
+### 3️⃣ Configure Backend
 
 ```bash
 # Navigate to backend directory
@@ -30,18 +41,19 @@ cd backend
 npm install
 
 # Create environment file
-cp .env.example .env
+# Create .env file with:
 ```
 
-Now edit the `.env` file with your Supabase credentials:
+Edit the `.env` file with your Supabase credentials:
 ```
 SUPABASE_URL=https://YOUR-PROJECT-ID.supabase.co
-SUPABASE_KEY=YOUR-ANON-KEY
+SUPABASE_SERVICE_ROLE_KEY=YOUR-SERVICE-ROLE-KEY
 ```
 
-You can find these in your Supabase project settings under API.
+**Important:** Use the **Service Role Key**, not the anon key. Find it in:
+Supabase Dashboard → Settings → API → Service Role Key
 
-### 3️⃣ Start the Backend
+### 4️⃣ Start the Backend
 
 ```bash
 # Still in the backend directory
@@ -51,11 +63,12 @@ npm run start:dev
 You should see:
 ```
 Backend is running on http://localhost:3000
+Also accessible at http://YOUR_LOCAL_IP:3000
 ```
 
 Keep this terminal running! 🏃
 
-### 4️⃣ Configure Frontend
+### 5️⃣ Configure Frontend
 
 Open a **new terminal** window:
 
@@ -67,13 +80,14 @@ cd frontend
 npm install
 ```
 
-Update the Supabase credentials in `src/services/supabase.ts`:
+Update the API URL in `src/services/api.ts`:
 ```typescript
-const supabaseUrl = 'https://YOUR-PROJECT-ID.supabase.co';
-const supabaseAnonKey = 'YOUR-ANON-KEY';
+const API_URL = Platform.OS === "web"
+  ? "http://localhost:3000"           // Web
+  : "http://YOUR_LOCAL_IP:3000";      // Mobile (use the IP from backend output)
 ```
 
-### 5️⃣ Start the Frontend
+### 6️⃣ Start the Frontend
 
 ```bash
 # Still in the frontend directory
@@ -82,91 +96,154 @@ npm start
 
 This will start the React Native development server.
 
-### 6️⃣ Run on a Device/Emulator
+### 7️⃣ Run on a Device/Emulator
 
 #### For Web (Easiest for Testing)
 ```bash
+# In the frontend terminal, press 'w'
+# Or run:
 npm run web
 ```
 
 #### For iOS Simulator (Mac only)
 ```bash
+# In the frontend terminal, press 'i'
+# Or run:
 npm run ios
 ```
 
 #### For Android Emulator
 ```bash
+# In the frontend terminal, press 'a'
+# Or run:
 npm run android
 ```
 
+#### For Mobile Device
+1. Install Expo Go app on your phone
+2. Scan the QR code shown in the terminal
+3. Make sure your phone is on the same network as your computer
+
 ## Adding Sample Data
 
-To test the app with some sample data:
+To test the app with some sample data, see `EXAMPLE_DATA.md` for examples.
 
-### Option 1: Using curl (Terminal)
+### Option 1: Using the App UI
+
+1. Open the app
+2. Tap the Floating Action Button (+)
+3. Fill in the form
+4. Add photos if desired
+5. Save!
+
+### Option 2: Using curl (Terminal)
 
 ```bash
-curl -X POST http://localhost:3000/journal \
+# Create a moment
+curl -X POST http://localhost:3000/moments \
   -H "Content-Type: application/json" \
   -d '{
     "title": "The Day We Met",
-    "content": "I will never forget the moment our eyes met across the coffee shop...",
-    "entry_type": "lovestory",
-    "entry_date": "2023-01-15"
+    "story_date": "2023-01-15",
+    "description": "I will never forget the moment our eyes met...",
+    "photos": []
+  }'
+
+# Create a date entry
+curl -X POST http://localhost:3000/dates \
+  -H "Content-Type: application/json" \
+  -d '{
+    "date": "2024-02-14",
+    "location": "Fancy Restaurant",
+    "description": "Wonderful anniversary dinner",
+    "mood": "romantic",
+    "highlights": ["Great food", "Beautiful ambiance"]
+  }'
+
+# Create a milestone
+curl -X POST http://localhost:3000/milestones \
+  -H "Content-Type: application/json" \
+  -d '{
+    "milestone_type": "first_date",
+    "title": "Our First Date",
+    "date": "2023-01-20",
+    "description": "We went to the movies..."
   }'
 ```
 
-### Option 2: Using Supabase Dashboard
+### Option 3: Using Supabase Dashboard
 
 1. Go to your Supabase project
 2. Click "Table Editor"
-3. Select `journal_entries`
+3. Select a table (`moments`, `date_entries`, or `milestones`)
 4. Click "Insert row"
 5. Fill in the fields
 6. Click "Save"
-
-See `EXAMPLE_DATA.md` for more sample entries!
 
 ## Testing the App
 
 Once you have data:
 
-1. **Home Tab** 🏠 - See all entries in a timeline
-2. **Stories Tab** 💕 - View only love stories
-3. **Dates Tab** 📅 - See special dates
-4. **Pictures Tab** 📸 - View entries with images
+1. **Home Tab** 🏠 - See all entries in a chronological timeline
+2. **Moments Tab** 💕 - View only love stories/moments
+3. **Dates Tab** 📅 - See special dates with mood theming
+4. **Milestones Tab** 🏆 - View relationship milestones
+5. **Pictures Tab** 📸 - Gallery view of all photos
+
+## Features to Try
+
+- ✅ **Create entries** - Tap the FAB (+) button
+- ✅ **Upload photos** - Add multiple photos per entry
+- ✅ **Date picker** - Click the date field to pick a date
+- ✅ **Animations** - Notice smooth card animations
+- ✅ **Delete entries** - Edit an entry and tap delete
+- ✅ **View details** - Tap any card to see full details
 
 ## Troubleshooting
 
 ### Backend won't start
-- Check that ports 3000 is available
-- Verify your Supabase credentials are correct
+- Check that port 3000 is available
+- Verify your Supabase credentials are correct (use SERVICE ROLE KEY)
 - Run `npm install` again
+- Check that `.env` file exists and has correct values
 
 ### Frontend won't connect
 - Make sure backend is running on http://localhost:3000
 - Check the API URL in `src/services/api.ts`
-- Verify Supabase credentials in `src/services/supabase.ts`
+- For mobile: Use your local IP address (shown in backend output)
+- Ensure both devices are on the same network
 
 ### No data showing
-- Make sure you've created the database table using `schema.sql`
+- Make sure you've created the database tables using `schema.sql`
 - Add some test data using the methods above
 - Check the browser/app console for errors
+- Verify backend is running and accessible
+
+### Images not uploading
+- Check that Supabase Storage buckets are created
+- Verify buckets are set to Public
+- Check backend console for error messages
+- Ensure image size is under 10MB
+
+### Date picker not working
+- On web: Check browser console for errors
+- On mobile: Ensure `@react-native-community/datetimepicker` is installed
+- Verify date format matches backend expectations
 
 ## Next Steps
 
-- 📝 Customize the color scheme in `frontend/tailwind.config.js`
+- 📝 Customize the color themes in `frontend/src/constants/theme.ts`
 - 🎨 Add your own images to entries
-- 🚀 Deploy to production (backend on Railway/Render, frontend on Expo)
-- 💾 Set up Supabase Row Level Security for data protection
+- 🚀 Deploy to production (see `DEPLOYMENT.md`)
+- 💾 Row Level Security is already enabled for data protection
 
 ## Need Help?
 
 Check out:
 - `README.md` - Full documentation
 - `ARCHITECTURE.md` - System architecture
+- `DEPLOYMENT.md` - Production deployment guide
 - `backend/README.md` - Backend API docs
 - `frontend/README.md` - Frontend docs
 
 Enjoy documenting your journey together! 💕
-
