@@ -2,14 +2,14 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
-  ScrollView,
-  Image,
+  FlatList,
   TouchableOpacity,
   Modal,
   Dimensions,
   ActivityIndicator,
   Platform,
 } from "react-native";
+import { Image } from "expo-image";
 import { momentsService } from "../services/moments";
 import { datesService } from "../services/dates";
 import { milestonesService } from "../services/milestones";
@@ -21,6 +21,7 @@ import DateDetailView from "../components/DateDetailView";
 import MilestoneDetailView from "../components/MilestoneDetailView";
 import AnimatedPolaroid from "../components/AnimatedPolaroid";
 import AnimatedCard from "../components/AnimatedCard";
+import { getThumbnailUrl } from "../utils/imageUtils";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const POLAROID_WIDTH = (SCREEN_WIDTH - 60) / 2;
@@ -245,16 +246,18 @@ export default function PicturesScreen() {
               borderRadius: 2,
             }}
           >
-          {/* Photo */}
-          <Image
-            source={{ uri: photo.url }}
-            style={{
-              width: POLAROID_WIDTH - 16,
-              height: POLAROID_WIDTH - 16,
-              backgroundColor: "#e8e8e8",
-            }}
-            resizeMode="cover"
-          />
+            {/* Photo - using thumbnail for faster loading + caching */}
+            <Image
+              source={getThumbnailUrl(photo.url)}
+              style={{
+                width: POLAROID_WIDTH - 16,
+                height: POLAROID_WIDTH - 16,
+                backgroundColor: "#e8e8e8",
+              }}
+              contentFit="cover"
+              cachePolicy="disk"
+              transition={200}
+            />
 
           {/* Caption area */}
           <View
@@ -486,20 +489,32 @@ export default function PicturesScreen() {
           </Text>
         </View>
       ) : (
-        <ScrollView
-          contentContainerStyle={{
-            flexDirection: "row",
-            flexWrap: "wrap",
+        <FlatList
+          data={photos}
+          renderItem={({ item, index }) => renderPolaroid(item, index)}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          columnWrapperStyle={{
             justifyContent: "space-around",
-            padding: 15,
+            paddingHorizontal: 15,
+          }}
+          contentContainerStyle={{
             paddingTop: 25,
+            paddingBottom: 30,
           }}
           showsVerticalScrollIndicator={false}
-        >
-          {photos.map((photo, index) => renderPolaroid(photo, index))}
-          {/* Bottom padding */}
-          <View style={{ width: "100%", height: 30 }} />
-        </ScrollView>
+          // Virtualization settings - only render visible items
+          initialNumToRender={6}
+          maxToRenderPerBatch={4}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS !== "web"}
+          // Optimize re-renders
+          getItemLayout={(_, index) => ({
+            length: POLAROID_WIDTH + 20,
+            offset: (POLAROID_WIDTH + 20) * Math.floor(index / 2),
+            index,
+          })}
+        />
       )}
 
       {/* Photo preview modal */}
@@ -537,13 +552,15 @@ export default function PicturesScreen() {
                 }}
               >
                 <Image
-                  source={{ uri: selectedPhoto.url }}
+                  source={selectedPhoto.url}
                   style={{
                     width: SCREEN_WIDTH - 64,
                     height: SCREEN_WIDTH - 64,
                     backgroundColor: "#e8e8e8",
                   }}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  cachePolicy="disk"
+                  transition={300}
                 />
                 <View
                   style={{

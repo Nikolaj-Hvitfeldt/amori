@@ -4,12 +4,12 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Image,
   Dimensions,
   Animated,
   Platform,
   StyleSheet,
 } from "react-native";
+import { Image } from "expo-image";
 import { Moment } from "../types/moments";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -127,12 +127,11 @@ export default function MomentDetailView({
               {photos.map((photo: string, index: number) => (
                 <Image
                   key={index}
-                  source={{ uri: photo }}
+                  source={photo}
                   style={[styles.photo, { width: carouselWidth }]}
-                  resizeMode="cover"
-                  onError={(error) => {
-                    console.error("❌ Failed to load image in detail view:", photo, error);
-                  }}
+                  contentFit="cover"
+                  cachePolicy="disk"
+                  transition={200}
                 />
               ))}
             </Animated.ScrollView>

@@ -3,13 +3,13 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Image,
   ScrollView,
   Animated,
   Dimensions,
   Platform,
   StyleSheet,
 } from "react-native";
+import { Image } from "expo-image";
 import { Milestone } from "../types/milestones";
 import { getMilestoneConfig } from "../constants/milestoneConfig";
 
@@ -112,12 +112,11 @@ export default function MilestoneDetailView({
               {photos.map((photo, index) => (
                 <Image
                   key={`${photo}-${index}`}
-                  source={{ uri: photo }}
+                  source={photo}
                   style={[styles.photo, { width: carouselWidth }]}
-                  resizeMode="cover"
-                  onError={(error) => {
-                    console.warn("Failed to load milestone image:", photo, error);
-                  }}
+                  contentFit="cover"
+                  cachePolicy="disk"
+                  transition={200}
                 />
               ))}
             </Animated.ScrollView>
@@ -217,9 +216,10 @@ export default function MilestoneDetailView({
                 {photos.map((photo, index) => (
                   <Image
                     key={`thumb-${photo}-${index}`}
-                    source={{ uri: photo }}
+                    source={photo}
                     style={styles.thumbnail}
-                    resizeMode="cover"
+                    contentFit="cover"
+                    cachePolicy="disk"
                   />
                 ))}
               </ScrollView>
