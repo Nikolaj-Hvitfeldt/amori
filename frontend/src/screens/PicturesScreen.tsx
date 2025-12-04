@@ -19,6 +19,7 @@ import { Milestone } from "../types/milestones";
 import MomentDetailView from "../components/MomentDetailView";
 import DateDetailView from "../components/DateDetailView";
 import MilestoneDetailView from "../components/MilestoneDetailView";
+import AnimatedCard from "../components/AnimatedCard";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const POLAROID_WIDTH = (SCREEN_WIDTH - 60) / 2;
@@ -220,20 +221,26 @@ export default function PicturesScreen() {
     const usePin = index % 3 === 0;
 
     return (
-      <TouchableOpacity
+      <AnimatedCard
         key={photo.id}
-        onPress={() => handlePhotoPress(photo)}
-        activeOpacity={0.9}
-        style={{
-          width: POLAROID_WIDTH,
-          marginBottom: 20,
-          transform: [
-            { rotate: `${photo.rotation}deg` },
-            { translateX: photo.offsetX },
-            { translateY: photo.offsetY },
-          ],
-        }}
+        index={index}
+        animationType="fade-scale"
+        staggerDelay={50}
+        style={{ width: POLAROID_WIDTH }}
       >
+        <TouchableOpacity
+          onPress={() => handlePhotoPress(photo)}
+          activeOpacity={0.9}
+          style={{
+            width: POLAROID_WIDTH,
+            marginBottom: 20,
+            transform: [
+              { rotate: `${photo.rotation}deg` },
+              { translateX: photo.offsetX },
+              { translateY: photo.offsetY },
+            ],
+          }}
+        >
         {/* Polaroid frame */}
         <View
           style={{
@@ -351,7 +358,8 @@ export default function PicturesScreen() {
             }}
           />
         )}
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </AnimatedCard>
     );
   };
 

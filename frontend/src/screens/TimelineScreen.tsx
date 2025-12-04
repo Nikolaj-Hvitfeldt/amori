@@ -17,6 +17,7 @@ import MilestoneDetailView from "../components/MilestoneDetailView";
 import MomentCard from "../components/MomentCard";
 import DateCard from "../components/DateCard";
 import MilestoneCard from "../components/MilestoneCard";
+import AnimatedCard from "../components/AnimatedCard";
 import TimelineRope from "../components/TimelineRope";
 import LoadingState from "../components/common/LoadingState";
 import EmptyState from "../components/common/EmptyState";
@@ -280,42 +281,45 @@ export default function TimelineScreen() {
   }, []);
 
   const renderMomentCard = useCallback(
-    (item: TimelineItem) => {
+    (item: TimelineItem, index: number) => {
       if (!item.moment) return null;
       return (
-        <MomentCard
-          key={item.id}
-          moment={item.moment}
-          onPress={() => handleItemPress(item)}
-        />
+        <AnimatedCard key={item.id} index={index} animationType="fade-slide">
+          <MomentCard
+            moment={item.moment}
+            onPress={() => handleItemPress(item)}
+          />
+        </AnimatedCard>
       );
     },
     [handleItemPress]
   );
 
   const renderDateCard = useCallback(
-    (item: TimelineItem) => {
+    (item: TimelineItem, index: number) => {
       if (!item.dateEntry) return null;
       return (
-        <DateCard
-          key={item.id}
-          dateEntry={item.dateEntry}
-          onPress={() => handleItemPress(item)}
-        />
+        <AnimatedCard key={item.id} index={index} animationType="fade-slide">
+          <DateCard
+            dateEntry={item.dateEntry}
+            onPress={() => handleItemPress(item)}
+          />
+        </AnimatedCard>
       );
     },
     [handleItemPress]
   );
 
   const renderMilestoneCard = useCallback(
-    (item: TimelineItem) => {
+    (item: TimelineItem, index: number) => {
       if (!item.milestone) return null;
       return (
-        <MilestoneCard
-          key={item.id}
-          milestone={item.milestone}
-          onPress={() => handleItemPress(item)}
-        />
+        <AnimatedCard key={item.id} index={index} animationType="fade-slide">
+          <MilestoneCard
+            milestone={item.milestone}
+            onPress={() => handleItemPress(item)}
+          />
+        </AnimatedCard>
       );
     },
     [handleItemPress]
@@ -354,14 +358,14 @@ export default function TimelineScreen() {
         {/* Golden Rope Timeline - represents the bond between moments */}
         <TimelineRope />
 
-        {timelineItems.map((item) => {
+        {timelineItems.map((item, index) => {
           switch (item.type) {
             case "moment":
-              return renderMomentCard(item);
+              return renderMomentCard(item, index);
             case "date":
-              return renderDateCard(item);
+              return renderDateCard(item, index);
             case "milestone":
-              return renderMilestoneCard(item);
+              return renderMilestoneCard(item, index);
             default:
               return null;
           }

@@ -21,6 +21,7 @@ import { Moment, CreateMomentDto } from "../types/moments";
 import { API_BASE_URL } from "../services/api";
 import MomentDetailView from "../components/MomentDetailView";
 import MomentCard from "../components/MomentCard";
+import AnimatedCard from "../components/AnimatedCard";
 import LoadingState from "../components/common/LoadingState";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
@@ -406,15 +407,17 @@ export default function MomentsScreen() {
   };
 
   const renderMoment = useCallback(
-    ({ item: moment }: { item: Moment }) => {
+    ({ item: moment, index }: { item: Moment; index: number }) => {
       return (
-        <MomentCard
-          key={moment.id}
-          moment={moment}
-          onPress={() => handleViewMoment(moment)}
-          onLongPress={() => openModal(moment)}
-          variant="screen"
-        />
+        <AnimatedCard index={index} animationType="spring">
+          <MomentCard
+            key={moment.id}
+            moment={moment}
+            onPress={() => handleViewMoment(moment)}
+            onLongPress={() => openModal(moment)}
+            variant="screen"
+          />
+        </AnimatedCard>
       );
     },
     [handleViewMoment, openModal]

@@ -21,6 +21,7 @@ import { datesService } from "../services/dates";
 import { API_BASE_URL } from "../services/api";
 import DateDetailView from "../components/DateDetailView";
 import DateCard from "../components/DateCard";
+import AnimatedCard from "../components/AnimatedCard";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import { filterValidPhotos } from "../utils/imageUtils";
@@ -196,15 +197,17 @@ export default function DatesScreen() {
   }, []);
 
   const renderDateItem = useCallback(
-    ({ item: dateEntry }: { item: DateEntry }) => {
+    ({ item: dateEntry, index }: { item: DateEntry; index: number }) => {
       return (
-        <DateCard
-          key={dateEntry.id}
-          dateEntry={dateEntry}
-          onPress={() => handleViewDate(dateEntry)}
-          onLongPress={() => handleDeleteDate(dateEntry.id)}
-          variant="screen"
-        />
+        <AnimatedCard index={index} animationType="spring">
+          <DateCard
+            key={dateEntry.id}
+            dateEntry={dateEntry}
+            onPress={() => handleViewDate(dateEntry)}
+            onLongPress={() => handleDeleteDate(dateEntry.id)}
+            variant="screen"
+          />
+        </AnimatedCard>
       );
     },
     [handleViewDate, handleDeleteDate]

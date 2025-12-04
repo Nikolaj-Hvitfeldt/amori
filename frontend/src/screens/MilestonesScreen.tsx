@@ -29,6 +29,7 @@ import {
 } from "../constants/milestoneConfig";
 import MilestoneDetailView from "../components/MilestoneDetailView";
 import MilestoneCard from "../components/MilestoneCard";
+import AnimatedCard from "../components/AnimatedCard";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import { filterValidPhotos } from "../utils/imageUtils";
@@ -203,15 +204,17 @@ export default function MilestonesScreen() {
   }, []);
 
   const renderMilestoneItem = useCallback(
-    ({ item: milestone }: { item: Milestone }) => {
+    ({ item: milestone, index }: { item: Milestone; index: number }) => {
       return (
-        <MilestoneCard
-          key={milestone.id}
-          milestone={milestone}
-          onPress={() => handleViewMilestone(milestone)}
-          onLongPress={() => handleDeleteMilestone(milestone.id)}
-          variant="screen"
-        />
+        <AnimatedCard index={index} animationType="spring">
+          <MilestoneCard
+            key={milestone.id}
+            milestone={milestone}
+            onPress={() => handleViewMilestone(milestone)}
+            onLongPress={() => handleDeleteMilestone(milestone.id)}
+            variant="screen"
+          />
+        </AnimatedCard>
       );
     },
     [handleViewMilestone, handleDeleteMilestone]
