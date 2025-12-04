@@ -8,11 +8,11 @@ import {
   TextInput,
   Modal,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Animated,
 } from "react-native";
+import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -587,7 +587,7 @@ export default function MomentsScreen() {
                   {photos.map((photo, index) => (
                     <View key={index} style={{ position: "relative" }}>
                       <Image
-                        source={{ uri: getThumbnailUrl(photo) }}
+                        source={getThumbnailUrl(photo)}
                         style={{
                           width: 120,
                           height: 120,
@@ -595,11 +595,9 @@ export default function MomentsScreen() {
                           borderWidth: 2,
                           borderColor: MOMENT_COLOR + "60",
                         }}
-                        resizeMode="cover"
-                        onError={(error) => {
-                          console.warn("Failed to load image:", photo, error);
-                          removePhoto(index);
-                        }}
+                        contentFit="cover"
+                        cachePolicy="disk"
+                        transition={150}
                       />
                       <TouchableOpacity
                         onPress={() => removePhoto(index)}
@@ -995,7 +993,7 @@ export default function MomentsScreen() {
                     {photos.map((photo, index) => (
                       <View key={index} style={{ position: "relative" }}>
                         <Image
-                          source={{ uri: getThumbnailUrl(photo) }}
+                          source={getThumbnailUrl(photo)}
                           style={{
                             width: 120,
                             height: 120,
@@ -1003,11 +1001,9 @@ export default function MomentsScreen() {
                             borderWidth: 2,
                             borderColor: MOMENT_COLOR,
                           }}
-                          resizeMode="cover"
-                          onError={(error) => {
-                            console.warn("Failed to load image:", photo, error);
-                            removePhoto(index);
-                          }}
+                          contentFit="cover"
+                          cachePolicy="disk"
+                          transition={150}
                         />
                         <TouchableOpacity
                           onPress={() => removePhoto(index)}

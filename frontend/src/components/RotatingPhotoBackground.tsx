@@ -1,7 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
-import { View, Image, Animated, StyleSheet, Dimensions, Platform } from "react-native";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+import React, { useEffect, useState } from "react";
+import { View, StyleSheet } from "react-native";
+import { Image } from "expo-image";
 
 interface RotatingPhotoBackgroundProps {
   photos: string[];
@@ -20,27 +19,12 @@ export default function RotatingPhotoBackground({
   });
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (validPhotos.length <= 1) return;
 
     const timer = setInterval(() => {
-      // Fade out
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 1500,
-        useNativeDriver: Platform.OS !== "web",
-      }).start(() => {
-        // Change photo
-        setCurrentIndex((prev) => (prev + 1) % validPhotos.length);
-        // Fade in
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 1500,
-          useNativeDriver: Platform.OS !== "web",
-        }).start();
-      });
+      setCurrentIndex((prev) => (prev + 1) % validPhotos.length);
     }, interval);
 
     return () => clearInterval(timer);
@@ -52,17 +36,12 @@ export default function RotatingPhotoBackground({
 
   return (
     <View style={[styles.container, style]}>
-      <Animated.Image
-        source={{ uri: validPhotos[currentIndex] }}
-        style={[styles.image, { opacity: fadeAnim }]}
-        resizeMode="cover"
-        onError={(error) => {
-          console.warn("Failed to load rotating background image:", validPhotos[currentIndex], error);
-          // Try to skip to next photo if current one fails
-          if (validPhotos.length > 1) {
-            setCurrentIndex((prev) => (prev + 1) % validPhotos.length);
-          }
-        }}
+      <Image
+        source={validPhotos[currentIndex]}
+        style={styles.image}
+        contentFit="cover"
+        cachePolicy="disk"
+        transition={1500} // Built-in crossfade transition
       />
       {/* Dark overlay for better text readability */}
       <View style={styles.overlay} />
@@ -93,4 +72,3 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.4)",
   },
 });
-

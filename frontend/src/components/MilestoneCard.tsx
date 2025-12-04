@@ -1,5 +1,6 @@
 import React, { useState, memo, useMemo, useCallback } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Image, StyleSheet, Platform } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform } from "react-native";
+import { Image } from "expo-image";
 import { Milestone } from "../types/milestones";
 import { MILESTONE_CONFIG } from "../constants/milestoneConfig";
 import DecorativeAccent from "./common/DecorativeAccent";
@@ -145,15 +146,16 @@ function MilestoneCard({
                 {validDisplayPhotos.map((photo, photoIndex) => (
                   <Image
                     key={photoIndex}
-                    source={{ uri: photo }}
+                    source={photo}
                     style={[
                       styles.photo,
                       {
                         borderColor: config.color + "60",
                       },
                     ]}
-                    resizeMode="cover"
-                    onError={() => handleImageError(photo)}
+                    contentFit="cover"
+                    cachePolicy="disk"
+                    transition={150}
                   />
                 ))}
               </ScrollView>

@@ -4,12 +4,12 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Image,
   Dimensions,
   Animated,
   Platform,
   StyleSheet,
 } from "react-native";
+import { Image } from "expo-image";
 import { DateEntry, DateMood } from "../types/dates";
 // Using View with opacity for gradient effect (can upgrade to expo-linear-gradient later)
 
@@ -175,9 +175,11 @@ export default function DateDetailView({
             {photos.map((photo, index) => (
               <Image
                 key={index}
-                source={{ uri: photo }}
+                source={photo}
                 style={[styles.photo, { width: carouselWidth }]}
-                resizeMode="cover"
+                contentFit="cover"
+                cachePolicy="disk"
+                transition={200}
               />
             ))}
           </Animated.ScrollView>
