@@ -7,6 +7,7 @@ import {
   findOneById,
   handleSupabaseError,
 } from "../utils/supabase-helpers";
+import { deleteStorageFiles } from "../utils/storage-utils";
 
 export interface Moment {
   id: string;
@@ -98,6 +99,20 @@ export class MomentsService {
   }
 
   async remove(id: string): Promise<void> {
+    // First, fetch the moment to get its photos
+    const { data: moment } = await this.supabase
+      .getClient()
+      .from("moments")
+      .select("photos")
+      .eq("id", id)
+      .single();
+
+    // Delete photos from storage if they exist
+    if (moment?.photos && moment.photos.length > 0) {
+      await deleteStorageFiles(this.supabase.getClient(), moment.photos);
+    }
+
+    // Delete the database record
     const { error } = await this.supabase
       .getClient()
       .from("moments")

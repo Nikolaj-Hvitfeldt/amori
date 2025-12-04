@@ -389,27 +389,33 @@ export default function MomentsScreen() {
   };
 
   const handleDeleteMoment = async (id: string, title: string) => {
-    Alert.alert(
-      "Delete Moment",
-      `Are you sure you want to delete "${title}"?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await momentsService.deleteMoment(id);
-              closeModal();
-              loadMoments();
-            } catch (error) {
-              console.error("Error deleting moment:", error);
-              Alert.alert("Error", "Failed to delete moment");
-            }
-          },
-        },
-      ]
-    );
+    const confirmDelete = Platform.OS === "web"
+      ? window.confirm(`Are you sure you want to delete "${title}"?`)
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            "Delete Moment",
+            `Are you sure you want to delete "${title}"?`,
+            [
+              { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+              { text: "Delete", style: "destructive", onPress: () => resolve(true) },
+            ]
+          );
+        });
+
+    if (confirmDelete) {
+      try {
+        await momentsService.deleteMoment(id);
+        closeModal();
+        loadMoments();
+      } catch (error) {
+        console.error("Error deleting moment:", error);
+        if (Platform.OS === "web") {
+          window.alert("Failed to delete moment");
+        } else {
+          Alert.alert("Error", "Failed to delete moment");
+        }
+      }
+    }
   };
 
   const renderMoment = useCallback(

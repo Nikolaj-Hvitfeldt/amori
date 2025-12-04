@@ -179,28 +179,36 @@ export default function DatesScreen() {
     setIsDetailVisible(true);
   }, []);
 
-  const handleDeleteDate = useCallback(async (id: string) => {
-    Alert.alert(
-      "Delete Date",
-      "Are you sure you want to delete this special date?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await datesService.delete(id);
-              loadDates();
-            } catch (error) {
-              console.error("Error deleting date:", error);
-              Alert.alert("Error", "Failed to delete date entry");
-            }
-          },
-        },
-      ]
-    );
-  }, []);
+  const handleDeleteDate = useCallback(async (id: string, title?: string) => {
+    const displayTitle = title || 'this date';
+    const confirmDelete = Platform.OS === "web"
+      ? window.confirm(`Are you sure you want to delete "${displayTitle}"?`)
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            "Delete Date",
+            `Are you sure you want to delete "${displayTitle}"?`,
+            [
+              { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+              { text: "Delete", style: "destructive", onPress: () => resolve(true) },
+            ]
+          );
+        });
+
+    if (confirmDelete) {
+      try {
+        await datesService.delete(id);
+        setIsModalVisible(false);
+        loadDates();
+      } catch (error) {
+        console.error("Error deleting date:", error);
+        if (Platform.OS === "web") {
+          window.alert("Failed to delete date entry");
+        } else {
+          Alert.alert("Error", "Failed to delete date entry");
+        }
+      }
+    }
+  }, [loadDates]);
 
   const renderDateItem = useCallback(
     ({ item: dateEntry, index }: { item: DateEntry; index: number }) => {
@@ -1561,6 +1569,34 @@ export default function DatesScreen() {
                   </TouchableOpacity>
                 )}
               </View>
+
+              {/* Delete Button for Editing */}
+              {editingDate && (
+                <TouchableOpacity
+                  onPress={() =>
+                    editingDate.id &&
+                    handleDeleteDate(editingDate.id, editingDate.title || editingDate.location)
+                  }
+                  style={{
+                    backgroundColor: "#ef4444",
+                    padding: 16,
+                    borderRadius: 20,
+                    alignItems: "center",
+                    marginTop: 20,
+                    marginBottom: 20,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "#fff",
+                      fontSize: 18,
+                      fontWeight: "600",
+                    }}
+                  >
+                    Delete Date
+                  </Text>
+                </TouchableOpacity>
+              )}
             </ScrollView>
           </Animated.View>
         </KeyboardAvoidingView>
