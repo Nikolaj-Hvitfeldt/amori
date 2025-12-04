@@ -37,6 +37,7 @@ import SuccessCheckmark from "../components/SuccessCheckmark";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import ThumbnailImage from "../components/ThumbnailImage";
+import WebDatePicker from "../components/WebDatePicker";
 import { filterValidPhotos } from "../utils/imageUtils";
 import { getBoxShadow } from "../utils/shadows";
 import { formatDateEU } from "../utils/dateUtils";
@@ -189,7 +190,7 @@ export default function MilestonesScreen() {
   const handleDeleteMilestone = useCallback(async (id: string, title?: string) => {
     const displayTitle = title || 'this milestone';
     const confirmDelete = Platform.OS === "web"
-      ? window.confirm(`Are you sure you want to delete "${displayTitle}"?`)
+      ? (globalThis as any).confirm(`Are you sure you want to delete "${displayTitle}"?`)
       : await new Promise<boolean>((resolve) => {
           Alert.alert(
             "Delete Milestone",
@@ -209,7 +210,7 @@ export default function MilestonesScreen() {
       } catch (error) {
         console.error("Error deleting milestone:", error);
         if (Platform.OS === "web") {
-          window.alert("Failed to delete milestone");
+          (globalThis as any).alert("Failed to delete milestone");
         } else {
           Alert.alert("Error", "Failed to delete milestone");
         }
@@ -247,11 +248,19 @@ export default function MilestonesScreen() {
     return <LoadingMore color={MILESTONE_COLOR} />;
   };
 
+  const formatDateForDb = (dateObj: Date): string => {
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const day = String(dateObj.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const resetForm = () => {
+    const today = new Date();
     setMilestoneType("met");
     setTitle("");
-    setDate("");
-    setDatePickerValue(new Date());
+    setDate(formatDateForDb(today)); // Default to today
+    setDatePickerValue(today);
     setDescription("");
     setPhotos([]);
     setEditingMilestone(null);
@@ -278,7 +287,9 @@ export default function MilestonesScreen() {
       setMilestoneType(milestone.milestone_type);
       setTitle(milestone.title);
       setDate(milestone.date);
-      const parsedDate = new Date(milestone.date);
+      // Parse date manually to avoid timezone issues
+      const [year, month, day] = milestone.date.split("-").map(Number);
+      const parsedDate = new Date(year, month - 1, day);
       setDatePickerValue(isNaN(parsedDate.getTime()) ? new Date() : parsedDate);
       setDescription(milestone.description || "");
       // Don't filter photos when opening modal - use photos as-is from database
@@ -788,45 +799,53 @@ export default function MilestonesScreen() {
                 >
                   📅 Date *
                 </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    if (Platform.OS === "web") {
-                      if (!showDatePicker) {
-                        const initialValue =
-                          date && datePickerValue
-                            ? formatDateForDisplay(datePickerValue)
-                            : "";
-                        setWebDateInput(initialValue);
-                      }
-                    }
-                    setShowDatePicker(!showDatePicker);
-                  }}
-                  style={{
-                    borderWidth: 2,
-                    borderColor: milestoneColor + "60",
-                    borderRadius: 16,
-                    padding: 18,
-                    backgroundColor: MILESTONE_BG,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <Text
+
+                {/* Web: Inline date input */}
+                {Platform.OS === "web" && (
+                  <WebDatePicker
+                    value={datePickerValue}
+                    onChange={(newDate) => {
+                      setDatePickerValue(newDate);
+                      setDate(formatDateForDatabase(newDate));
+                    }}
+                    maxDate={new Date()}
+                    accentColor={milestoneColor}
+                    backgroundColor={MILESTONE_BG}
+                    textColor={MILESTONE_COLOR}
+                  />
+                )}
+
+                {/* Native: TouchableOpacity to open picker */}
+                {Platform.OS !== "web" && (
+                  <TouchableOpacity
+                    onPress={() => setShowDatePicker(!showDatePicker)}
                     style={{
-                      fontSize: 17,
-                      color: date ? "#ffd700" : "#8b7355",
-                      fontWeight: "500",
+                      borderWidth: 2,
+                      borderColor: milestoneColor + "60",
+                      borderRadius: 16,
+                      padding: 18,
+                      backgroundColor: MILESTONE_BG,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
                     }}
                   >
-                    {date && datePickerValue
-                      ? formatDateForDisplay(datePickerValue)
-                      : "Select a date"}
-                  </Text>
-                  <Text style={{ fontSize: 20, color: milestoneColor }}>
-                    📅
-                  </Text>
-                </TouchableOpacity>
+                    <Text
+                      style={{
+                        fontSize: 17,
+                        color: date ? "#ffd700" : "#8b7355",
+                        fontWeight: "500",
+                      }}
+                    >
+                      {date && datePickerValue
+                        ? formatDateForDisplay(datePickerValue)
+                        : "Select a date"}
+                    </Text>
+                    <Text style={{ fontSize: 20, color: milestoneColor }}>
+                      📅
+                    </Text>
+                  </TouchableOpacity>
+                )}
 
                 {showDatePicker && Platform.OS === "ios" && (
                   <View
@@ -887,136 +906,6 @@ export default function MilestonesScreen() {
                       onChange={handleDateChange}
                       maximumDate={new Date()}
                     />
-                  </View>
-                )}
-
-                {showDatePicker && Platform.OS === "web" && (
-                  <View
-                    style={{
-                      marginTop: 16,
-                      padding: 20,
-                      backgroundColor: "#FFF",
-                      borderRadius: 16,
-                      borderWidth: 2,
-                      borderColor: milestoneColor + "60",
-                    }}
-                  >
-                    <TextInput
-                      value={webDateInput}
-                      onChangeText={(text) => {
-                        let cleaned = text.replace(/[^\d-]/g, "");
-                        cleaned = cleaned.replace(/-+/g, "-");
-                        if (cleaned.startsWith("-")) cleaned = cleaned.slice(1);
-
-                        let formatted = cleaned;
-                        if (cleaned.length > 2 && !cleaned.includes("-")) {
-                          formatted =
-                            cleaned.slice(0, 2) + "-" + cleaned.slice(2);
-                        }
-                        if (
-                          cleaned.length > 5 &&
-                          cleaned.split("-").length === 2
-                        ) {
-                          const parts = cleaned.split("-");
-                          formatted =
-                            parts[0] +
-                            "-" +
-                            parts[1].slice(0, 2) +
-                            "-" +
-                            parts[1].slice(2, 6);
-                        }
-
-                        setWebDateInput(formatted);
-
-                        const parts = formatted.split("-");
-                        if (
-                          parts.length === 3 &&
-                          parts[0].length === 2 &&
-                          parts[1].length === 2 &&
-                          parts[2].length === 4
-                        ) {
-                          const day = parseInt(parts[0], 10);
-                          const month = parseInt(parts[1], 10) - 1;
-                          const year = parseInt(parts[2], 10);
-
-                          if (
-                            day >= 1 &&
-                            day <= 31 &&
-                            month >= 0 &&
-                            month <= 11 &&
-                            year >= 1900 &&
-                            year <= 2100
-                          ) {
-                            const parsedDate = new Date(year, month, day);
-                            if (
-                              !isNaN(parsedDate.getTime()) &&
-                              parsedDate.getDate() === day &&
-                              parsedDate.getMonth() === month &&
-                              parsedDate.getFullYear() === year
-                            ) {
-                              setDatePickerValue(parsedDate);
-                              const formattedDate =
-                                formatDateForDatabase(parsedDate);
-                              setDate(formattedDate);
-                            }
-                          }
-                        }
-                      }}
-                      placeholder="dd-mm-yyyy"
-                      keyboardType="numeric"
-                      maxLength={10}
-                      style={{
-                        borderWidth: 2,
-                        borderColor: milestoneColor + "60",
-                        borderRadius: 12,
-                        padding: 12,
-                        fontSize: 16,
-                        backgroundColor: "#1a0f00",
-                        color: MILESTONE_COLOR,
-                      }}
-                    />
-                    <TouchableOpacity
-                      onPress={() => {
-                        if (webDateInput) {
-                          const parts = webDateInput.split("-");
-                          if (parts.length === 3) {
-                            const day = parseInt(parts[0], 10);
-                            const month = parseInt(parts[1], 10) - 1;
-                            const year = parseInt(parts[2], 10);
-                            const parsedDate = new Date(year, month, day);
-                            if (!isNaN(parsedDate.getTime())) {
-                              setDatePickerValue(parsedDate);
-                              const formattedDate =
-                                formatDateForDatabase(parsedDate);
-                              setDate(formattedDate);
-                            }
-                          }
-                        } else if (datePickerValue) {
-                          const formattedDate =
-                            formatDateForDatabase(datePickerValue);
-                          setDate(formattedDate);
-                        }
-                        setWebDateInput("");
-                        setShowDatePicker(false);
-                      }}
-                      style={{
-                        marginTop: 12,
-                        paddingHorizontal: 16,
-                        paddingVertical: 8,
-                        borderRadius: 20,
-                        backgroundColor: milestoneColor,
-                        alignSelf: "flex-end",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color: "#1a0f00",
-                          fontWeight: "600",
-                        }}
-                      >
-                        Done
-                      </Text>
-                    </TouchableOpacity>
                   </View>
                 )}
               </View>

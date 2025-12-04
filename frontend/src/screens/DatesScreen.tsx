@@ -29,6 +29,7 @@ import SuccessCheckmark from "../components/SuccessCheckmark";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import ThumbnailImage from "../components/ThumbnailImage";
+import WebDatePicker from "../components/WebDatePicker";
 import { filterValidPhotos } from "../utils/imageUtils";
 import { getBoxShadow } from "../utils/shadows";
 import { formatDateEU } from "../utils/dateUtils";
@@ -182,7 +183,7 @@ export default function DatesScreen() {
   const handleDeleteDate = useCallback(async (id: string, title?: string) => {
     const displayTitle = title || 'this date';
     const confirmDelete = Platform.OS === "web"
-      ? window.confirm(`Are you sure you want to delete "${displayTitle}"?`)
+      ? (globalThis as any).confirm(`Are you sure you want to delete "${displayTitle}"?`)
       : await new Promise<boolean>((resolve) => {
           Alert.alert(
             "Delete Date",
@@ -202,7 +203,7 @@ export default function DatesScreen() {
       } catch (error) {
         console.error("Error deleting date:", error);
         if (Platform.OS === "web") {
-          window.alert("Failed to delete date entry");
+          (globalThis as any).alert("Failed to delete date entry");
         } else {
           Alert.alert("Error", "Failed to delete date entry");
         }
@@ -240,10 +241,18 @@ export default function DatesScreen() {
     return <LoadingMore color={DATE_SCREEN_PURPLE} />;
   };
 
+  const formatDateForDb = (dateObj: Date): string => {
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const day = String(dateObj.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const resetForm = () => {
+    const today = new Date();
     setTitle("");
-    setDate("");
-    setDatePickerValue(new Date());
+    setDate(formatDateForDb(today)); // Default to today
+    setDatePickerValue(today);
     setLocation("");
     setDescription("");
     setMood("romantic");
@@ -263,8 +272,9 @@ export default function DatesScreen() {
       setEditingDate(dateEntry);
       setTitle(dateEntry.title || "");
       setDate(dateEntry.date);
-      // Parse the date string to Date object
-      const parsedDate = new Date(dateEntry.date);
+      // Parse date manually to avoid timezone issues
+      const [year, month, day] = dateEntry.date.split("-").map(Number);
+      const parsedDate = new Date(year, month - 1, day);
       setDatePickerValue(isNaN(parsedDate.getTime()) ? new Date() : parsedDate);
       setLocation(dateEntry.location);
       setDescription(dateEntry.description);
@@ -857,50 +867,58 @@ export default function DatesScreen() {
                 >
                   📅 Date *
                 </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    if (Platform.OS === "web") {
-                      if (!showDatePicker) {
-                        const initialValue =
-                          date && datePickerValue
-                            ? formatDateForDisplay(datePickerValue)
-                            : "";
-                        setWebDateInput(initialValue);
-                      }
-                    }
-                    setShowDatePicker(!showDatePicker);
-                  }}
-                  style={{
-                    borderWidth: 2,
-                    borderColor: moodColor + "60",
-                    borderRadius: 16,
-                    padding: 18,
-                    backgroundColor:
-                      timeOfDay === "night"
-                        ? "#1e293b"
-                        : "rgba(255, 255, 255, 0.9)",
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <Text
+
+                {/* Web: Inline date input */}
+                {Platform.OS === "web" && (
+                  <WebDatePicker
+                    value={datePickerValue}
+                    onChange={(newDate) => {
+                      setDatePickerValue(newDate);
+                      setDate(formatDateForDatabase(newDate));
+                    }}
+                    maxDate={new Date()}
+                    accentColor={moodColor}
+                    backgroundColor={timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.95)"}
+                    textColor={theme.text}
+                  />
+                )}
+
+                {/* Native: TouchableOpacity to open picker */}
+                {Platform.OS !== "web" && (
+                  <TouchableOpacity
+                    onPress={() => setShowDatePicker(!showDatePicker)}
                     style={{
-                      fontSize: 17,
-                      color: date
-                        ? theme.text
-                        : timeOfDay === "night"
-                        ? "#6b7280"
-                        : theme.text + "60",
-                      fontWeight: "500",
+                      borderWidth: 2,
+                      borderColor: moodColor + "60",
+                      borderRadius: 16,
+                      padding: 18,
+                      backgroundColor:
+                        timeOfDay === "night"
+                          ? "#1e293b"
+                          : "rgba(255, 255, 255, 0.9)",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
                     }}
                   >
-                    {date && datePickerValue
-                      ? formatDateForDisplay(datePickerValue)
-                      : "Select a date"}
-                  </Text>
-                  <Text style={{ fontSize: 20, color: moodColor }}>📅</Text>
-                </TouchableOpacity>
+                    <Text
+                      style={{
+                        fontSize: 17,
+                        color: date
+                          ? theme.text
+                          : timeOfDay === "night"
+                          ? "#6b7280"
+                          : theme.text + "60",
+                        fontWeight: "500",
+                      }}
+                    >
+                      {date && datePickerValue
+                        ? formatDateForDisplay(datePickerValue)
+                        : "Select a date"}
+                    </Text>
+                    <Text style={{ fontSize: 20, color: moodColor }}>📅</Text>
+                  </TouchableOpacity>
+                )}
 
                 {/* Date Picker - Inline for iOS */}
                 {showDatePicker && Platform.OS === "ios" && (
@@ -967,150 +985,6 @@ export default function DatesScreen() {
                       maximumDate={new Date()}
                       textColor={theme.text}
                     />
-                  </View>
-                )}
-
-                {/* Web Date Picker - Use TextInput with European date format */}
-                {showDatePicker && Platform.OS === "web" && (
-                  <View
-                    style={{
-                      marginTop: 16,
-                      padding: 20,
-                      backgroundColor:
-                        timeOfDay === "night"
-                          ? "#1e293b"
-                          : "rgba(255, 255, 255, 0.9)",
-                      borderRadius: 16,
-                      borderWidth: 2,
-                      borderColor: moodColor + "60",
-                    }}
-                  >
-                    <TextInput
-                      value={webDateInput}
-                      onChangeText={(text) => {
-                        // Allow user to type freely
-                        // Format as they type: dd-mm-yyyy
-                        let cleaned = text.replace(/[^\d-]/g, "");
-
-                        // Remove extra dashes
-                        cleaned = cleaned.replace(/-+/g, "-");
-                        if (cleaned.startsWith("-")) cleaned = cleaned.slice(1);
-
-                        // Auto-format with dashes
-                        let formatted = cleaned;
-                        if (cleaned.length > 2 && !cleaned.includes("-")) {
-                          formatted =
-                            cleaned.slice(0, 2) + "-" + cleaned.slice(2);
-                        }
-                        if (
-                          cleaned.length > 5 &&
-                          cleaned.split("-").length === 2
-                        ) {
-                          const parts = cleaned.split("-");
-                          formatted =
-                            parts[0] +
-                            "-" +
-                            parts[1].slice(0, 2) +
-                            "-" +
-                            parts[1].slice(2, 6);
-                        }
-
-                        setWebDateInput(formatted);
-
-                        // Try to parse when we have a complete date (dd-mm-yyyy)
-                        const parts = formatted.split("-");
-                        if (
-                          parts.length === 3 &&
-                          parts[0].length === 2 &&
-                          parts[1].length === 2 &&
-                          parts[2].length === 4
-                        ) {
-                          const day = parseInt(parts[0], 10);
-                          const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
-                          const year = parseInt(parts[2], 10);
-
-                          // Validate date
-                          if (
-                            day >= 1 &&
-                            day <= 31 &&
-                            month >= 0 &&
-                            month <= 11 &&
-                            year >= 1900 &&
-                            year <= 2100
-                          ) {
-                            const parsedDate = new Date(year, month, day);
-                            if (
-                              !isNaN(parsedDate.getTime()) &&
-                              parsedDate.getDate() === day &&
-                              parsedDate.getMonth() === month &&
-                              parsedDate.getFullYear() === year
-                            ) {
-                              setDatePickerValue(parsedDate);
-                              const formattedDate =
-                                formatDateForDatabase(parsedDate);
-                              setDate(formattedDate);
-                            }
-                          }
-                        }
-                      }}
-                      placeholder="dd-mm-yyyy"
-                      keyboardType="numeric"
-                      maxLength={10}
-                      editable={true}
-                      style={{
-                        borderWidth: 2,
-                        borderColor: moodColor + "60",
-                        borderRadius: 12,
-                        padding: 12,
-                        fontSize: 16,
-                        backgroundColor:
-                          timeOfDay === "night" ? "#0f172a" : "#ffffff",
-                        color: theme.text,
-                      }}
-                    />
-                    <TouchableOpacity
-                      onPress={() => {
-                        // Parse the input when closing if not already parsed
-                        if (webDateInput) {
-                          const parts = webDateInput.split("-");
-                          if (parts.length === 3) {
-                            const day = parseInt(parts[0], 10);
-                            const month = parseInt(parts[1], 10) - 1;
-                            const year = parseInt(parts[2], 10);
-                            const parsedDate = new Date(year, month, day);
-                            if (!isNaN(parsedDate.getTime())) {
-                              setDatePickerValue(parsedDate);
-                              const formattedDate =
-                                formatDateForDatabase(parsedDate);
-                              setDate(formattedDate);
-                            }
-                          }
-                        } else if (datePickerValue) {
-                          const formattedDate =
-                            formatDateForDatabase(datePickerValue);
-                          setDate(formattedDate);
-                        }
-                        setWebDateInput("");
-                        setShowDatePicker(false);
-                      }}
-                      style={{
-                        marginTop: 12,
-                        paddingHorizontal: 16,
-                        paddingVertical: 8,
-                        borderRadius: 20,
-                        backgroundColor: moodColor,
-                        alignSelf: "flex-end",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color: timeOfDay === "night" ? "#fff" : "#1a1a2e",
-                          fontWeight: "600",
-                        }}
-                      >
-                        Done
-                      </Text>
-                    </TouchableOpacity>
                   </View>
                 )}
               </View>

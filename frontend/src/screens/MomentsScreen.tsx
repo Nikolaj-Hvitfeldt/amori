@@ -30,6 +30,7 @@ import { PulsingHeart } from "../components/HeartPulse";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import ThumbnailImage from "../components/ThumbnailImage";
+import WebDatePicker from "../components/WebDatePicker";
 import { getBoxShadow } from "../utils/shadows";
 import {
   MOMENT_COLOR,
@@ -120,10 +121,18 @@ export default function MomentsScreen() {
     }
   };
 
+  const formatDateForDatabase = (dateObj: Date): string => {
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const day = String(dateObj.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const resetForm = useCallback(() => {
+    const today = new Date();
     setTitle("");
-    setStoryDate("");
-    setDatePickerValue(new Date());
+    setStoryDate(formatDateForDatabase(today)); // Default to today
+    setDatePickerValue(today);
     setDescription("");
     setPhotos([]);
     setEditingMoment(null);
@@ -176,7 +185,9 @@ export default function MomentsScreen() {
         setEditingMoment(moment);
         setTitle(moment.title);
         setStoryDate(moment.story_date);
-        const parsedDate = new Date(moment.story_date);
+        // Parse date manually to avoid timezone issues
+        const [year, month, day] = moment.story_date.split("-").map(Number);
+        const parsedDate = new Date(year, month - 1, day);
         setDatePickerValue(
           isNaN(parsedDate.getTime()) ? new Date() : parsedDate
         );
@@ -367,13 +378,6 @@ export default function MomentsScreen() {
     return `${day}-${month}-${year}`;
   };
 
-  const formatDateForDatabase = (dateObj: Date): string => {
-    const year = dateObj.getFullYear();
-    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-    const day = String(dateObj.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
   const handleDateChange = (event: any, pickedDate?: Date) => {
     if (Platform.OS === "android") {
       setShowDatePicker(false);
@@ -390,7 +394,7 @@ export default function MomentsScreen() {
 
   const handleDeleteMoment = async (id: string, title: string) => {
     const confirmDelete = Platform.OS === "web"
-      ? window.confirm(`Are you sure you want to delete "${title}"?`)
+      ? (globalThis as any).confirm(`Are you sure you want to delete "${title}"?`)
       : await new Promise<boolean>((resolve) => {
           Alert.alert(
             "Delete Moment",
@@ -410,7 +414,7 @@ export default function MomentsScreen() {
       } catch (error) {
         console.error("Error deleting moment:", error);
         if (Platform.OS === "web") {
-          window.alert("Failed to delete moment");
+          (globalThis as any).alert("Failed to delete moment");
         } else {
           Alert.alert("Error", "Failed to delete moment");
         }
@@ -707,43 +711,51 @@ export default function MomentsScreen() {
                 >
                   📅 Date *
                 </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    if (Platform.OS === "web") {
-                      if (!showDatePicker) {
-                        const initialValue =
-                          storyDate && datePickerValue
-                            ? formatDateForDisplay(datePickerValue)
-                            : "";
-                        setWebDateInput(initialValue);
-                      }
-                    }
-                    setShowDatePicker(!showDatePicker);
-                  }}
-                  style={{
-                    borderWidth: 2,
-                    borderColor: MOMENT_COLOR + "60",
-                    borderRadius: 16,
-                    padding: 18,
-                    backgroundColor: "#1e293b",
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <Text
+
+                {/* Web: Inline date input */}
+                {Platform.OS === "web" && (
+                  <WebDatePicker
+                    value={datePickerValue}
+                    onChange={(newDate) => {
+                      setDatePickerValue(newDate);
+                      setStoryDate(formatDateForDatabase(newDate));
+                    }}
+                    maxDate={new Date()}
+                    accentColor={MOMENT_COLOR}
+                    backgroundColor="#1e293b"
+                    textColor={MOMENT_TEXT}
+                  />
+                )}
+
+                {/* Native: TouchableOpacity to open picker */}
+                {Platform.OS !== "web" && (
+                  <TouchableOpacity
+                    onPress={() => setShowDatePicker(!showDatePicker)}
                     style={{
-                      fontSize: 17,
-                      color: storyDate ? MOMENT_TEXT : MOMENT_TEXT + "60",
-                      fontWeight: "500",
+                      borderWidth: 2,
+                      borderColor: MOMENT_COLOR + "60",
+                      borderRadius: 16,
+                      padding: 18,
+                      backgroundColor: "#1e293b",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
                     }}
                   >
-                    {storyDate && datePickerValue
-                      ? formatDateForDisplay(datePickerValue)
-                      : "Select a date"}
-                  </Text>
-                  <Text style={{ fontSize: 20, color: MOMENT_COLOR }}>📅</Text>
-                </TouchableOpacity>
+                    <Text
+                      style={{
+                        fontSize: 17,
+                        color: storyDate ? MOMENT_TEXT : MOMENT_TEXT + "60",
+                        fontWeight: "500",
+                      }}
+                    >
+                      {storyDate && datePickerValue
+                        ? formatDateForDisplay(datePickerValue)
+                        : "Select a date"}
+                    </Text>
+                    <Text style={{ fontSize: 20, color: MOMENT_COLOR }}>📅</Text>
+                  </TouchableOpacity>
+                )}
 
                 {/* Date Picker - Inline for iOS */}
                 {showDatePicker && Platform.OS === "ios" && (
@@ -807,95 +819,6 @@ export default function MomentsScreen() {
                       maximumDate={new Date()}
                       textColor={MOMENT_TEXT}
                     />
-                  </View>
-                )}
-
-                {/* Web Date Picker - Use TextInput with European date format */}
-                {showDatePicker && Platform.OS === "web" && (
-                  <View
-                    style={{
-                      marginTop: 16,
-                      padding: 20,
-                      backgroundColor: "#1e293b",
-                      borderRadius: 16,
-                      borderWidth: 2,
-                      borderColor: MOMENT_COLOR + "60",
-                    }}
-                  >
-                    <TextInput
-                      value={webDateInput}
-                      onChangeText={(text) => {
-                        let cleaned = text.replace(/[^\d-]/g, "");
-                        if (cleaned.length <= 2) {
-                          setWebDateInput(cleaned);
-                        } else if (cleaned.length <= 5) {
-                          if (cleaned.length === 3 && !cleaned.includes("-")) {
-                            cleaned =
-                              cleaned.slice(0, 2) + "-" + cleaned.slice(2);
-                          }
-                          setWebDateInput(cleaned);
-                        } else {
-                          if (
-                            cleaned.length === 6 &&
-                            cleaned.split("-").length === 2
-                          ) {
-                            cleaned =
-                              cleaned.slice(0, 5) + "-" + cleaned.slice(5);
-                          }
-                          cleaned = cleaned.slice(0, 10);
-                          setWebDateInput(cleaned);
-                        }
-
-                        if (cleaned.length === 10) {
-                          const [day, month, year] = cleaned.split("-");
-                          if (day && month && year) {
-                            const dateObj = new Date(
-                              parseInt(year),
-                              parseInt(month) - 1,
-                              parseInt(day)
-                            );
-                            if (!isNaN(dateObj.getTime())) {
-                              setDatePickerValue(dateObj);
-                              setStoryDate(formatDateForDatabase(dateObj));
-                            }
-                          }
-                        }
-                      }}
-                      placeholder="dd-mm-yyyy"
-                      keyboardType="numeric"
-                      maxLength={10}
-                      style={{
-                        borderWidth: 2,
-                        borderColor: MOMENT_COLOR + "60",
-                        borderRadius: 12,
-                        padding: 12,
-                        fontSize: 16,
-                        backgroundColor: "#0f172a",
-                        color: MOMENT_TEXT,
-                        textAlign: "center",
-                      }}
-                      placeholderTextColor={MOMENT_TEXT + "60"}
-                    />
-                    <TouchableOpacity
-                      onPress={() => setShowDatePicker(false)}
-                      style={{
-                        marginTop: 12,
-                        paddingHorizontal: 16,
-                        paddingVertical: 8,
-                        borderRadius: 20,
-                        backgroundColor: MOMENT_COLOR,
-                        alignSelf: "center",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color: "#fff",
-                          fontWeight: "600",
-                        }}
-                      >
-                        Done
-                      </Text>
-                    </TouchableOpacity>
                   </View>
                 )}
 
