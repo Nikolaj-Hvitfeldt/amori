@@ -54,7 +54,7 @@ export default function AppNavigator() {
       case "Dates":
         return "Dates";
       case "Pictures":
-        return "Pictures";
+        return "Memories";
       case "Milestones":
         return "Milestones";
       default:
@@ -69,18 +69,19 @@ export default function AppNavigator() {
   };
 
   const headerStyle = {
-    backgroundColor: "#FF6B9D",
+    backgroundColor: "#4A3545",
     paddingVertical: 15,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#FEC7D7",
+    borderBottomColor: "#6B4D64",
   };
 
   const headerTitleStyle = {
     fontSize: 20,
     fontWeight: "600" as const,
-    color: "#FFF",
+    color: "#F8E8F0",
     textAlign: "center" as const,
+    letterSpacing: 1,
   };
 
   const contentStyle = {
@@ -148,6 +149,14 @@ export default function AppNavigator() {
                 borderBottomWidth: 1,
                 borderBottomColor: "#FEC7D7",
               }
+            : activeScreen === "Pictures"
+            ? {
+                backgroundColor: "#3D2820",
+                paddingVertical: 15,
+                paddingHorizontal: 20,
+                borderBottomWidth: 1,
+                borderBottomColor: "#5D4037",
+              }
             : headerStyle
         }
       >
@@ -156,7 +165,7 @@ export default function AppNavigator() {
             activeScreen === "Dates"
               ? {
                   fontSize: 20,
-                  fontWeight: "300" as const,
+                  fontWeight: "600" as const,
                   color: "#e5d3ff",
                   textAlign: "center" as const,
                   letterSpacing: 1,
@@ -164,7 +173,7 @@ export default function AppNavigator() {
               : activeScreen === "Milestones"
               ? {
                   fontSize: 20,
-                  fontWeight: "300" as const,
+                  fontWeight: "600" as const,
                   color: "#ffd700",
                   textAlign: "center" as const,
                   letterSpacing: 1,
@@ -172,19 +181,27 @@ export default function AppNavigator() {
               : activeScreen === "Stories"
               ? {
                   fontSize: 20,
-                  fontWeight: "300" as const,
+                  fontWeight: "600" as const,
                   color: "#FFF",
+                  textAlign: "center" as const,
+                  letterSpacing: 1,
+                }
+              : activeScreen === "Pictures"
+              ? {
+                  fontSize: 20,
+                  fontWeight: "600" as const,
+                  color: "#D4A574",
                   textAlign: "center" as const,
                   letterSpacing: 1,
                 }
               : headerTitleStyle
           }
         >
-          {activeScreen === "Home" && "Our Timeline"}
+          {activeScreen === "Home" && "Our Story"}
           {activeScreen === "Stories" && "Moments"}
-          {activeScreen === "Dates" && "Treasured Dates"}
+          {activeScreen === "Dates" && "Dates"}
           {activeScreen === "Milestones" && "Milestones"}
-          {activeScreen === "Pictures" && "Memories"}
+          {activeScreen === "Pictures" && "Memory Wall"}
         </Text>
       </View>
 

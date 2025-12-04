@@ -1,18 +1,15 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
-  Text,
   ScrollView,
   Modal,
-  ActivityIndicator,
   StyleSheet,
-  Platform,
 } from "react-native";
 import { momentsService } from "../services/moments";
 import { datesService } from "../services/dates";
 import { milestonesService } from "../services/milestones";
 import { Moment } from "../types/moments";
-import { DateEntry, DateMood } from "../types/dates";
+import { DateEntry } from "../types/dates";
 import { Milestone } from "../types/milestones";
 import MomentDetailView from "../components/MomentDetailView";
 import DateDetailView from "../components/DateDetailView";
@@ -24,7 +21,7 @@ import TimelineRope from "../components/TimelineRope";
 import LoadingState from "../components/common/LoadingState";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
-import { getCachedData, setCachedData, invalidateCache } from "../utils/cache";
+import { getCachedData, setCachedData } from "../utils/cache";
 import { TIMELINE_BG, PRIMARY_PINK } from "../constants/theme";
 import {
   TIMELINE_TOP_PADDING,
@@ -258,18 +255,6 @@ export default function TimelineScreen() {
   const loadMore = () => {
     if (!loadingMore && hasMore) {
       loadTimeline(false, false); // false = don't reset, false = cache results
-    }
-  };
-
-  // Invalidate timeline cache when items are created/updated/deleted
-  const invalidateTimelineCache = async () => {
-    try {
-      await Promise.all([
-        invalidateCache(CACHE_KEY_TIMELINE_ITEMS),
-        invalidateCache(CACHE_KEY_TIMELINE_STATE),
-      ]);
-    } catch (error) {
-      console.warn("Error invalidating timeline cache:", error);
     }
   };
 
