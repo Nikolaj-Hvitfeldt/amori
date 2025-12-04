@@ -809,7 +809,7 @@ export default function MilestonesScreen() {
                       setDate(formatDateForDatabase(newDate));
                     }}
                     maxDate={new Date()}
-                    accentColor={milestoneColor}
+                    accentColor={MILESTONE_COLOR}
                     backgroundColor={MILESTONE_BG}
                     textColor={MILESTONE_COLOR}
                   />
