@@ -30,6 +30,7 @@ import {
 import MilestoneDetailView from "../components/MilestoneDetailView";
 import MilestoneCard from "../components/MilestoneCard";
 import AnimatedCard from "../components/AnimatedCard";
+import AnimatedFAB from "../components/AnimatedFAB";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import { filterValidPhotos } from "../utils/imageUtils";
@@ -211,7 +212,6 @@ export default function MilestonesScreen() {
             key={milestone.id}
             milestone={milestone}
             onPress={() => handleViewMilestone(milestone)}
-            onLongPress={() => handleDeleteMilestone(milestone.id)}
             variant="screen"
           />
         </AnimatedCard>
@@ -540,29 +540,20 @@ export default function MilestonesScreen() {
         )}
       </Modal>
 
-      {/* Floating Action Button */}
-      <TouchableOpacity
+      {/* Animated Floating Action Button */}
+      <AnimatedFAB
+        onPress={() => openModal()}
+        color="#ffd700"
         style={{
-          position: "absolute",
-          bottom: 30,
-          right: 30,
-          width: 64,
-          height: 64,
-          borderRadius: 32,
-          backgroundColor: "#ffd700",
-          alignItems: "center",
-          justifyContent: "center",
           ...getBoxShadow("#ffd700", { width: 0, height: 6 }, 0.5, 16),
-          elevation: 10,
           borderWidth: 2,
           borderColor: MILESTONE_BORDER_LIGHT,
         }}
-        onPress={() => openModal()}
       >
         <Text style={{ fontSize: 32, color: MILESTONE_SCREEN_BG, fontWeight: "600" }}>
           ⭐
         </Text>
-      </TouchableOpacity>
+      </AnimatedFAB>
 
       {/* Modal */}
       <Modal

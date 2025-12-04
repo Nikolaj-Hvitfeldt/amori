@@ -1,5 +1,6 @@
 import React, { memo, useMemo } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import PressableCard from "./PressableCard";
 import { Moment } from "../types/moments";
 import RotatingPhotoBackground from "./RotatingPhotoBackground";
 import DecorativeAccent from "./common/DecorativeAccent";
@@ -21,14 +22,12 @@ import {
 interface MomentCardProps {
   moment: Moment;
   onPress: () => void;
-  onLongPress?: () => void;
   variant?: "timeline" | "screen";
 }
 
 function MomentCard({
   moment,
   onPress,
-  onLongPress,
   variant = "timeline",
 }: MomentCardProps) {
   const momentPhotos = useMemo(
@@ -57,10 +56,8 @@ function MomentCard({
   const hasPhotos = momentPhotos.length > 0;
 
   return (
-    <TouchableOpacity
+    <PressableCard
       onPress={onPress}
-      onLongPress={onLongPress}
-      activeOpacity={0.7}
       style={[
         cardStyle,
         styles.cardBase,
@@ -130,7 +127,7 @@ function MomentCard({
           {moment.description}
         </Text>
       </View>
-    </TouchableOpacity>
+    </PressableCard>
   );
 }
 

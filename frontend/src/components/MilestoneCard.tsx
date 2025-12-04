@@ -1,5 +1,6 @@
 import React, { useState, memo, useMemo, useCallback } from "react";
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Platform } from "react-native";
+import PressableCard from "./PressableCard";
 import { Image } from "expo-image";
 import { Milestone } from "../types/milestones";
 import { MILESTONE_CONFIG } from "../constants/milestoneConfig";
@@ -17,14 +18,12 @@ import {
 interface MilestoneCardProps {
   milestone: Milestone;
   onPress: () => void;
-  onLongPress?: () => void;
   variant?: "timeline" | "screen";
 }
 
 function MilestoneCard({
   milestone,
   onPress,
-  onLongPress,
   variant = "timeline",
 }: MilestoneCardProps) {
   const config = useMemo(
@@ -62,10 +61,8 @@ function MilestoneCard({
   );
 
   return (
-    <TouchableOpacity
+    <PressableCard
       onPress={onPress}
-      onLongPress={onLongPress}
-      activeOpacity={0.7}
       style={[
         cardStyle,
         styles.cardBase,
@@ -163,7 +160,7 @@ function MilestoneCard({
           ) : null;
         })()}
       </View>
-    </TouchableOpacity>
+    </PressableCard>
   );
 }
 

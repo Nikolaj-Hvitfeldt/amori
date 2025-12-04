@@ -22,6 +22,7 @@ import { API_BASE_URL } from "../services/api";
 import MomentDetailView from "../components/MomentDetailView";
 import MomentCard from "../components/MomentCard";
 import AnimatedCard from "../components/AnimatedCard";
+import AnimatedFAB from "../components/AnimatedFAB";
 import LoadingState from "../components/common/LoadingState";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
@@ -414,13 +415,12 @@ export default function MomentsScreen() {
             key={moment.id}
             moment={moment}
             onPress={() => handleViewMoment(moment)}
-            onLongPress={() => openModal(moment)}
             variant="screen"
           />
         </AnimatedCard>
       );
     },
-    [handleViewMoment, openModal]
+    [handleViewMoment]
   );
 
   if (loading) {
@@ -463,29 +463,20 @@ export default function MomentsScreen() {
         onRefresh={() => loadMoments(true)}
       />
 
-      {/* Floating Action Button */}
-      <TouchableOpacity
+      {/* Animated Floating Action Button */}
+      <AnimatedFAB
+        onPress={() => openModal()}
+        color={MOMENT_COLOR}
         style={{
-          position: "absolute",
-          bottom: 30,
-          right: 30,
-          width: 64,
-          height: 64,
-          borderRadius: 32,
-          backgroundColor: MOMENT_COLOR,
-          alignItems: "center",
-          justifyContent: "center",
           ...getBoxShadow(MOMENT_COLOR, { width: 0, height: 6 }, 0.5, 16),
-          elevation: 10,
           borderWidth: 2,
           borderColor: "#FF8E9D",
         }}
-        onPress={() => openModal()}
       >
         <Text style={{ fontSize: 32, color: "white", fontWeight: "600" }}>
           💕
         </Text>
-      </TouchableOpacity>
+      </AnimatedFAB>
 
       {/* Immersive Modal */}
       <Modal

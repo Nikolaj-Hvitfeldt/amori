@@ -1,5 +1,6 @@
 import React, { memo, useMemo } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import PressableCard from "./PressableCard";
 import { DateEntry } from "../types/dates";
 import RotatingPhotoBackground from "./RotatingPhotoBackground";
 import DecorativeAccent from "./common/DecorativeAccent";
@@ -17,14 +18,12 @@ import {
 interface DateCardProps {
   dateEntry: DateEntry;
   onPress: () => void;
-  onLongPress?: () => void;
   variant?: "timeline" | "screen";
 }
 
 function DateCard({
   dateEntry,
   onPress,
-  onLongPress,
   variant = "timeline",
 }: DateCardProps) {
   const moodInfo = useMemo(() => getMoodInfo(dateEntry.mood), [dateEntry.mood]);
@@ -59,10 +58,8 @@ function DateCard({
   const hasPhotos = datePhotos.length > 0;
 
   return (
-    <TouchableOpacity
+    <PressableCard
       onPress={onPress}
-      onLongPress={onLongPress}
-      activeOpacity={0.7}
       style={[
         cardStyle,
         styles.cardBase,
@@ -133,7 +130,7 @@ function DateCard({
           </Text>
         )}
       </View>
-    </TouchableOpacity>
+    </PressableCard>
   );
 }
 

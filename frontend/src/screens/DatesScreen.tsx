@@ -22,6 +22,7 @@ import { API_BASE_URL } from "../services/api";
 import DateDetailView from "../components/DateDetailView";
 import DateCard from "../components/DateCard";
 import AnimatedCard from "../components/AnimatedCard";
+import AnimatedFAB from "../components/AnimatedFAB";
 import EmptyState from "../components/common/EmptyState";
 import LoadingMore from "../components/common/LoadingMore";
 import { filterValidPhotos } from "../utils/imageUtils";
@@ -204,7 +205,6 @@ export default function DatesScreen() {
             key={dateEntry.id}
             dateEntry={dateEntry}
             onPress={() => handleViewDate(dateEntry)}
-            onLongPress={() => handleDeleteDate(dateEntry.id)}
             variant="screen"
           />
         </AnimatedCard>
@@ -598,29 +598,20 @@ export default function DatesScreen() {
         onRefresh={() => loadDates(true)}
       />
 
-      {/* Floating Action Button */}
-      <TouchableOpacity
+      {/* Animated Floating Action Button */}
+      <AnimatedFAB
+        onPress={() => openModal()}
+        color={DATE_SCREEN_PURPLE}
         style={{
-          position: "absolute",
-          bottom: 30,
-          right: 30,
-          width: 64,
-          height: 64,
-          borderRadius: 32,
-          backgroundColor: DATE_SCREEN_PURPLE,
-          alignItems: "center",
-          justifyContent: "center",
           ...getBoxShadow(DATE_SCREEN_PURPLE, { width: 0, height: 6 }, 0.5, 16),
-          elevation: 10,
           borderWidth: 2,
           borderColor: DATE_SCREEN_PURPLE_LIGHT,
         }}
-        onPress={() => openModal()}
       >
         <Text style={{ fontSize: 32, color: "#e5d3ff", fontWeight: "600" }}>
           📅
         </Text>
-      </TouchableOpacity>
+      </AnimatedFAB>
 
       {/* Immersive Modal */}
       <Modal
