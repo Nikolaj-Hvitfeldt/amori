@@ -10,15 +10,17 @@ const CACHE_KEY_ALL = "milestones_all";
 const CACHE_KEY_PREFIX = "milestones_";
 
 export const milestonesService = {
-  async getAll(limit?: number, offset?: number): Promise<{ data: Milestone[]; total: number }> {
+  async getAll(limit?: number, offset?: number, bypassCache: boolean = false): Promise<{ data: Milestone[]; total: number }> {
     const cacheKey = limit !== undefined || offset !== undefined 
       ? `${CACHE_KEY_ALL}_${limit || 'all'}_${offset || 0}`
       : CACHE_KEY_ALL;
     
-    // Check cache first for all requests
-    const cached = await getCachedData<{ data: Milestone[]; total: number }>(cacheKey);
-    if (cached !== null) {
-      return cached;
+    // Check cache first for all requests (unless bypassing)
+    if (!bypassCache) {
+      const cached = await getCachedData<{ data: Milestone[]; total: number }>(cacheKey);
+      if (cached !== null) {
+        return cached;
+      }
     }
 
     // Build URL with query parameters

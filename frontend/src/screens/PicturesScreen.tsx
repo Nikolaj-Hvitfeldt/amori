@@ -23,6 +23,7 @@ import AnimatedPolaroid from "../components/AnimatedPolaroid";
 import AnimatedCard from "../components/AnimatedCard";
 import AnimatedModal from "../components/AnimatedModal";
 import ThumbnailImage from "../components/ThumbnailImage";
+import { useAutoRefresh } from "../hooks/useAutoRefresh";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const POLAROID_WIDTH = (SCREEN_WIDTH - 60) / 2;
@@ -52,7 +53,11 @@ const TAPE_STYLES = [
 // Pin colors for variety
 const PIN_COLORS = ["#e74c3c", "#3498db", "#f39c12", "#9b59b6", "#1abc9c"];
 
-export default function PicturesScreen() {
+interface PicturesScreenProps {
+  isFocused?: boolean;
+}
+
+export default function PicturesScreen({ isFocused = true }: PicturesScreenProps) {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoItem | null>(null);
@@ -67,13 +72,13 @@ export default function PicturesScreen() {
   const [datesData, setDatesData] = useState<DateEntry[]>([]);
   const [milestonesData, setMilestonesData] = useState<Milestone[]>([]);
 
-  const loadAllPhotos = useCallback(async () => {
+  const loadAllPhotos = useCallback(async (bypassCache: boolean = false) => {
     setLoading(true);
     try {
       const [momentsResult, datesResult, milestonesResult] = await Promise.all([
-        momentsService.getAllMoments(),
-        datesService.getAll(),
-        milestonesService.getAll(),
+        momentsService.getAllMoments(undefined, undefined, bypassCache),
+        datesService.getAll(undefined, undefined, bypassCache),
+        milestonesService.getAll(undefined, undefined, bypassCache),
       ]);
 
       const moments = momentsResult.data || [];
@@ -162,6 +167,13 @@ export default function PicturesScreen() {
   useEffect(() => {
     loadAllPhotos();
   }, [loadAllPhotos]);
+
+  // Auto-check for changes and refresh only if data has changed
+  useAutoRefresh({
+    onRefresh: () => loadAllPhotos(true), // Bypass cache for fresh data
+    resourceType: "all", // Pictures screen shows all resource types
+    isFocused,
+  });
 
   const handlePhotoPress = (photo: PhotoItem) => {
     setSelectedPhoto(photo);

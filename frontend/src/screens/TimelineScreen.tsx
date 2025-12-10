@@ -31,6 +31,7 @@ import {
   SCROLL_LOAD_MORE_THRESHOLD,
   ITEMS_PER_TYPE,
 } from "../constants/spacing";
+import { useAutoRefresh } from "../hooks/useAutoRefresh";
 
 // Unified timeline item type
 type TimelineItemType = "moment" | "date" | "milestone";
@@ -53,7 +54,11 @@ const CACHE_KEY_TIMELINE_ITEMS = "timeline_items";
 const CACHE_KEY_TIMELINE_STATE = "timeline_state";
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
-export default function TimelineScreen() {
+interface TimelineScreenProps {
+  isFocused?: boolean;
+}
+
+export default function TimelineScreen({ isFocused = true }: TimelineScreenProps) {
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -72,6 +77,13 @@ export default function TimelineScreen() {
   useEffect(() => {
     loadTimelineFromCacheOrAPI(true);
   }, []);
+
+  // Auto-check for changes and refresh only if data has changed
+  useAutoRefresh({
+    onRefresh: () => loadTimeline(true, true), // Bypass cache for fresh data
+    resourceType: "all", // Timeline shows all resource types
+    isFocused,
+  });
 
   // Load timeline from cache first, then API if needed
   const loadTimelineFromCacheOrAPI = async (reset: boolean = true) => {
@@ -133,9 +145,9 @@ export default function TimelineScreen() {
 
       // Fetch paginated data in parallel
       const [momentsResult, datesResult, milestonesResult] = await Promise.all([
-        momentsService.getAllMoments(ITEMS_PER_TYPE, reset ? 0 : momentsOffset),
-        datesService.getAll(ITEMS_PER_TYPE, reset ? 0 : datesOffset),
-        milestonesService.getAll(ITEMS_PER_TYPE, reset ? 0 : milestonesOffset),
+        momentsService.getAllMoments(ITEMS_PER_TYPE, reset ? 0 : momentsOffset, skipCache),
+        datesService.getAll(ITEMS_PER_TYPE, reset ? 0 : datesOffset, skipCache),
+        milestonesService.getAll(ITEMS_PER_TYPE, reset ? 0 : milestonesOffset, skipCache),
       ]);
 
       const moments = momentsResult.data || momentsResult || [];

@@ -4,6 +4,7 @@ import { SupabaseModule } from "./supabase/supabase.module";
 import { MomentsModule } from "./moments/moments.module";
 import { DatesModule } from "./dates/dates.module";
 import { MilestonesModule } from "./milestones/milestones.module";
+import { SyncModule } from "./sync/sync.module";
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { MilestonesModule } from "./milestones/milestones.module";
     MomentsModule,
     DatesModule,
     MilestonesModule,
+    SyncModule,
   ],
 })
 export class AppModule {}
