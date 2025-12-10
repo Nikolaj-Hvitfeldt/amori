@@ -11,26 +11,25 @@ export default function App() {
       existingIcons.forEach((icon) => icon.remove());
 
       // Add new apple-touch-icon with cache-busting
-      // Expo web exports assets to /assets/ folder
-      const iconPath = "/assets/icon.png";
+      // Icon should be in public folder and accessible at /icon.png
+      const iconPath = "/icon.png";
+      const timestamp = Date.now();
       
       const icon = document.createElement("link");
       icon.rel = "apple-touch-icon";
-      icon.href = iconPath + "?v=" + Date.now(); // Cache busting
+      icon.href = iconPath + "?v=" + timestamp;
       document.head.appendChild(icon);
 
-      // Also add with size specification (iOS prefers 180x180)
       const icon180 = document.createElement("link");
       icon180.rel = "apple-touch-icon";
       icon180.sizes = "180x180";
-      icon180.href = iconPath + "?v=" + Date.now();
+      icon180.href = iconPath + "?v=" + timestamp;
       document.head.appendChild(icon180);
       
-      // Add 1024x1024 for high-res displays
       const icon1024 = document.createElement("link");
       icon1024.rel = "apple-touch-icon";
       icon1024.sizes = "1024x1024";
-      icon1024.href = iconPath + "?v=" + Date.now();
+      icon1024.href = iconPath + "?v=" + timestamp;
       document.head.appendChild(icon1024);
 
       // Add to manifest as well
