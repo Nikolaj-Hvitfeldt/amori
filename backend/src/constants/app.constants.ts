@@ -8,8 +8,21 @@ export const SERVER_CONFIG = {
 export const BODY_PARSER_LIMIT = "20mb"; // For image uploads
 
 // CORS configuration
+// In production, you can restrict origins for better security
+// For development, allow all origins
+const getAllowedOrigins = (): string[] | boolean => {
+  const allowedOrigins = process.env.ALLOWED_ORIGINS;
+  if (allowedOrigins) {
+    // Comma-separated list of allowed origins
+    return allowedOrigins.split(",").map((origin) => origin.trim());
+  }
+  // Development: allow all origins
+  // Production: allow all origins (can be restricted if needed)
+  return true;
+};
+
 export const CORS_CONFIG = {
-  origin: true, // Allow all origins for development
+  origin: getAllowedOrigins(),
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: [

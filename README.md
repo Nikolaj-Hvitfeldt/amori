@@ -242,22 +242,36 @@ The app uses three main tables:
 
 ## Deployment
 
-### Backend
-1. Set environment variables on your hosting platform
-2. Run database migrations
-3. Build and start the server:
-   ```bash
-   npm run build
-   npm start
-   ```
+### Quick Start
 
-### Frontend
-1. Update API URL in `src/services/api.ts` to production URL
-2. Build for production:
-   ```bash
-   npm run build
-   ```
-3. Deploy to your hosting platform (Vercel, Netlify, etc.)
+**Deploy in 15 minutes!** See [`DEPLOYMENT_QUICKSTART.md`](./DEPLOYMENT_QUICKSTART.md) for step-by-step instructions.
+
+### Recommended Setup
+
+- **Frontend (PWA):** Vercel - Free tier, automatic deployments
+- **Backend (API):** Render - Free tier, simple configuration
+
+### Detailed Guides
+
+- **Full Deployment Guide:** [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) - Complete deployment instructions
+- **Backend Deployment:** [`backend/docs/DEPLOYMENT.md`](./backend/docs/DEPLOYMENT.md) - Backend-specific guide
+- **PWA Setup:** [`frontend/docs/PWA_SETUP.md`](./frontend/docs/PWA_SETUP.md) - PWA configuration
+
+### Quick Deploy Commands
+
+**Backend (Render):**
+1. Connect GitHub repo to Render
+2. Render auto-detects `backend/render.yaml`
+3. Add environment variables: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+4. Deploy!
+
+**Frontend (Vercel):**
+```bash
+cd frontend
+npm install -g vercel
+vercel --prod
+```
+Then add `EXPO_PUBLIC_API_URL` environment variable in Vercel dashboard.
 
 For mobile apps, use EAS Build or build locally.
 

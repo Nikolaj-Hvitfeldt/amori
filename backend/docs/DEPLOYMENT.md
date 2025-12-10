@@ -92,25 +92,39 @@ Your backend will be available at: `https://your-app.railway.app`
 
 **Free Tier:** 500 hours/month, then $5/month
 
-### Option 2: Render
+### Option 2: Render (Recommended for Amori)
 
-Render offers a free tier with automatic deployments.
+Render offers a free tier with automatic deployments and a simple configuration file.
 
 1. **Sign up** at https://render.com
-2. **New +** → "Web Service"
-3. **Connect GitHub** repository
-4. **Configure:**
-   - Name: `amori-backend`
-   - Root Directory: `backend`
-   - Environment: `Node`
-   - Build Command: `npm install && npm run build`
-   - Start Command: `npm start`
-5. **Add Environment Variables:**
-   - `SUPABASE_URL`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-6. **Create Web Service**
+2. **Option A: Using render.yaml (Easiest)**
+   - The `render.yaml` file in the backend directory is already configured
+   - In Render Dashboard: "New +" → "Blueprint"
+   - Connect GitHub repository
+   - Render will automatically detect `render.yaml` and configure the service
+   - Add environment variables:
+     - `SUPABASE_URL` = Your Supabase project URL
+     - `SUPABASE_SERVICE_ROLE_KEY` = Your service role key
+   - Deploy!
 
-**Free Tier:** 750 hours/month, then $7/month
+3. **Option B: Manual Setup**
+   - "New +" → "Web Service"
+   - Connect GitHub repository
+   - **Configure:**
+     - Name: `amori-backend`
+     - Root Directory: `backend`
+     - Environment: `Node`
+     - Build Command: `npm install && npm run build`
+     - Start Command: `npm start`
+   - **Add Environment Variables:**
+     - `NODE_ENV` = `production`
+     - `SUPABASE_URL` = Your Supabase project URL
+     - `SUPABASE_SERVICE_ROLE_KEY` = Your service role key
+   - **Create Web Service**
+
+**Free Tier:** 750 hours/month (enough for 24/7), then $7/month for always-on
+
+**Note:** Free tier services spin down after 15 minutes of inactivity. First request after spin-down takes 30-60 seconds.
 
 ### Option 3: VPS (DigitalOcean, AWS EC2, Linode, etc.)
 

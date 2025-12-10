@@ -1,321 +1,342 @@
 # Deployment Guide 🚀
 
-This guide covers deploying your Amori journal app to production.
+This guide covers deploying Amori to production:
+- **Frontend** → Vercel (PWA)
+- **Backend** → Render (API)
 
-## Database (Supabase)
+## Prerequisites
 
-Your Supabase database is already production-ready! Just ensure you've:
+Before deploying, ensure you have:
+- ✅ Node.js v20+ installed locally
+- ✅ A Supabase account with a project created
+- ✅ Database schema set up (see `backend/schema.sql`)
+- ✅ Storage buckets created in Supabase
+- ✅ Service role key from Supabase (NOT anon key)
+- ✅ GitHub account (for connecting repositories)
 
-1. ✅ Created the database schema using `backend/schema.sql` or migrations
-2. ✅ Created storage buckets: `moments-photos`, `date-photos`, `milestone-photos`
-3. ✅ Set buckets to Public (or configure policies)
-4. ✅ Noted your production Supabase URL and service role key
-5. ✅ Row Level Security is enabled (included in schema.sql)
+## Quick Start
 
-### Verifying RLS
+1. **Deploy Backend to Render** (5-10 minutes)
+2. **Deploy Frontend to Vercel** (5-10 minutes)
+3. **Update API URL** in frontend environment variables
+4. **Test everything!**
 
-RLS is enabled in the schema. To verify in Supabase SQL Editor:
+---
 
-```sql
--- Check if RLS is enabled
-SELECT tablename, rowsecurity 
-FROM pg_tables 
-WHERE schemaname = 'public' 
-AND tablename IN ('moments', 'date_entries', 'milestones');
-```
+## Part 1: Deploy Backend to Render
 
-## Backend Deployment
+### Step 1: Prepare Your Backend
 
-### Option 1: Railway (Recommended)
-
-1. Go to https://railway.app
-2. Click "New Project" → "Deploy from GitHub repo"
-3. Select your repository
-4. Railway will auto-detect the Node.js app
-5. Set the root directory to `backend`
-6. Add environment variables:
-   - `SUPABASE_URL` = Your Supabase project URL
-   - `SUPABASE_SERVICE_ROLE_KEY` = Your service role key (NOT anon key)
-7. Railway will auto-detect build and start commands
-8. Deploy!
-
-Your backend will be available at: `https://your-app.railway.app`
-
-### Option 2: Render
-
-1. Go to https://render.com
-2. Click "New +" → "Web Service"
-3. Connect your GitHub repository
-4. Configure:
-   - **Name**: amori-backend
-   - **Root Directory**: backend
-   - **Environment**: Node
-   - **Build Command**: `npm install && npm run build`
-   - **Start Command**: `npm start`
-5. Add environment variables:
-   - `SUPABASE_URL`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-6. Click "Create Web Service"
-
-### Option 3: VPS (DigitalOcean, AWS EC2, etc.)
-
-```bash
-# On your server
-git clone your-repo
-cd amori/backend
-npm install
-npm run build
-
-# Set environment variables
-export SUPABASE_URL=your-url
-export SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-
-# Use PM2 for process management
-npm install -g pm2
-pm2 start dist/main.js --name amori-backend
-pm2 save
-pm2 startup
-```
-
-### Option 4: Docker
-
-Create `backend/Dockerfile`:
-```dockerfile
-FROM node:20-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-RUN npm run build
-EXPOSE 3000
-CMD ["npm", "start"]
-```
-
-Build and run:
-```bash
-docker build -t amori-backend ./backend
-docker run -p 3000:3000 \
-  -e SUPABASE_URL=your-url \
-  -e SUPABASE_SERVICE_ROLE_KEY=your-key \
-  amori-backend
-```
-
-## Frontend Deployment
-
-### Option 1: Expo (For Mobile Apps)
-
-1. Install EAS CLI:
+1. **Verify your backend is ready:**
    ```bash
-   npm install -g eas-cli
+   cd backend
+   npm install
+   npm run build
    ```
 
-2. Login to Expo:
+2. **Test locally:**
    ```bash
-   eas login
+   npm run start:dev
+   # Should start on http://localhost:3000
    ```
 
-3. Configure your app:
+### Step 2: Set Up Supabase
+
+1. **Create storage buckets** in Supabase Dashboard:
+   - Go to Storage → Create bucket
+   - Create: `moments-photos` (Public)
+   - Create: `date-photos` (Public)
+   - Create: `milestone-photos` (Public)
+
+2. **Get your credentials:**
+   - Supabase URL: Dashboard → Settings → API → Project URL
+   - Service Role Key: Dashboard → Settings → API → Service Role Key (⚠️ Keep secret!)
+
+3. **Set up database:**
+   - Go to SQL Editor in Supabase
+   - Run `backend/schema.sql` to create tables
+
+### Step 3: Deploy to Render
+
+1. **Sign up** at https://render.com (free tier available)
+
+2. **Create New Web Service:**
+   - Click "New +" → "Web Service"
+   - Connect your GitHub repository
+   - Select your repository
+
+3. **Configure the service:**
+   - **Name:** `amori-backend`
+   - **Root Directory:** `backend`
+   - **Environment:** `Node`
+   - **Build Command:** `npm install && npm run build`
+   - **Start Command:** `npm start`
+
+4. **Add Environment Variables:**
+   - Click "Environment" tab
+   - Add:
+     ```
+     NODE_ENV=production
+     SUPABASE_URL=https://your-project-id.supabase.co
+     SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+     ```
+   - ⚠️ **Important:** Use the **Service Role Key**, not the anon key!
+
+5. **Deploy:**
+   - Click "Create Web Service"
+   - Wait for build to complete (2-5 minutes)
+   - Your backend will be available at: `https://amori-backend.onrender.com`
+
+### Step 4: Verify Backend
+
+Test your deployed backend:
+
+```bash
+# Health check
+curl https://amori-backend.onrender.com
+
+# Should return:
+# {"message":"Amori API","version":"1.0.0",...}
+```
+
+**Note:** Render free tier services spin down after 15 minutes of inactivity. The first request may take 30-60 seconds to wake up.
+
+---
+
+## Part 2: Deploy Frontend to Vercel
+
+### Step 1: Prepare Your Frontend
+
+1. **Verify your frontend is ready:**
    ```bash
    cd frontend
-   eas build:configure
+   npm install
+   npm run build:pwa
+   # Should create web-build/ folder
    ```
 
-4. Update API URL in `src/services/api.ts`:
-   ```typescript
-   const API_URL = Platform.OS === "web"
-     ? "https://your-backend.railway.app"
-     : "https://your-backend.railway.app"; // Use production URL for mobile too
-   ```
+2. **Update API URL** (we'll do this via environment variables in Vercel)
 
-5. Build for Android:
+### Step 2: Deploy to Vercel
+
+#### Option A: Using Vercel CLI (Recommended)
+
+1. **Install Vercel CLI:**
    ```bash
-   eas build --platform android
+   npm install -g vercel
    ```
 
-6. Build for iOS:
+2. **Login:**
    ```bash
-   eas build --platform ios
+   vercel login
    ```
 
-7. Submit to stores:
+3. **Deploy:**
    ```bash
-   eas submit --platform android
-   eas submit --platform ios
+   cd frontend
+   vercel --prod
    ```
 
-### Option 2: Web Deployment (PWA)
+4. **Follow prompts:**
+   - Link to existing project? → No (first time)
+   - Project name? → `amori` (or your choice)
+   - Directory? → `frontend`
+   - Override settings? → No (uses `vercel.json`)
 
-Build for web:
-```bash
-cd frontend
-npm run build
-```
+5. **Add Environment Variables:**
+   - Go to https://vercel.com/dashboard
+   - Select your project → Settings → Environment Variables
+   - Add:
+     ```
+     EXPO_PUBLIC_API_URL=https://amori-backend.onrender.com
+     ```
+   - Apply to: Production, Preview, Development
 
-Deploy to Netlify:
-```bash
-npm install -g netlify-cli
-netlify deploy --prod --dir web-build
-```
+6. **Redeploy:**
+   ```bash
+   vercel --prod
+   ```
 
-Or use Vercel:
-```bash
-npm install -g vercel
-cd frontend
-vercel --prod
-```
+#### Option B: Using Vercel Dashboard
 
-### Option 3: Standalone Mobile Apps
+1. **Sign up** at https://vercel.com
 
-#### Android
-```bash
-cd frontend/android
-./gradlew assembleRelease
-```
-APK will be in `android/app/build/outputs/apk/release/`
+2. **Import Project:**
+   - Click "Add New" → "Project"
+   - Import from GitHub
+   - Select your repository
 
-#### iOS
-1. Open `frontend/ios/amori.xcworkspace` in Xcode
-2. Select "Generic iOS Device"
-3. Product → Archive
-4. Upload to App Store Connect
+3. **Configure:**
+   - **Framework Preset:** Other
+   - **Root Directory:** `frontend`
+   - **Build Command:** `npm run build:pwa`
+   - **Output Directory:** `web-build`
+   - **Install Command:** `npm install`
 
-## Environment Configuration
+4. **Add Environment Variables:**
+   - Before deploying, add:
+     ```
+     EXPO_PUBLIC_API_URL=https://amori-backend.onrender.com
+     ```
+   - (Replace with your actual Render backend URL)
 
-### Production Backend (.env)
+5. **Deploy:**
+   - Click "Deploy"
+   - Wait for build to complete (2-5 minutes)
+   - Your frontend will be available at: `https://amori.vercel.app` (or your custom domain)
 
-```
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-NODE_ENV=production
-PORT=3000
-```
+### Step 3: Verify Frontend
 
-**Important:** Never commit `.env` files. Use your hosting platform's environment variable settings.
+1. **Visit your Vercel URL**
+2. **Test the app:**
+   - Create a moment
+   - Upload a photo
+   - Verify API calls work
 
-### Production Frontend
+---
 
-Update `src/services/api.ts`:
-```typescript
-const API_URL = Platform.OS === "web"
-  ? process.env.EXPO_PUBLIC_API_URL || "https://your-backend.railway.app"
-  : "https://your-backend.railway.app";
-```
+## Part 3: Update Configuration
 
-For Expo, you can use environment variables:
-```bash
-# Create .env.production
-EXPO_PUBLIC_API_URL=https://your-backend.railway.app
-```
+### Update Backend CORS (Optional)
+
+If you want to restrict CORS to only your Vercel domain:
+
+1. **In Render Dashboard:**
+   - Go to your service → Environment
+   - Add:
+     ```
+     ALLOWED_ORIGINS=https://amori.vercel.app,https://amori-git-main.vercel.app
+     ```
+   - (Add all your Vercel preview URLs if needed)
+
+2. **Redeploy backend** (Render will auto-redeploy)
+
+### Update Frontend API URL
+
+The frontend uses `EXPO_PUBLIC_API_URL` environment variable. Make sure it's set in Vercel:
+
+1. **Vercel Dashboard:**
+   - Project → Settings → Environment Variables
+   - Verify `EXPO_PUBLIC_API_URL` is set to your Render backend URL
+
+2. **Redeploy frontend** if you changed it
+
+---
 
 ## Post-Deployment Checklist
 
-- [ ] Backend is accessible at production URL
-- [ ] Environment variables are set correctly (service role key!)
-- [ ] Database schema is created in production Supabase
-- [ ] Storage buckets are created and set to Public
-- [ ] Frontend API URL points to production backend
-- [ ] CORS is enabled on backend (already configured)
-- [ ] SSL/HTTPS is working
-- [ ] Test all API endpoints
-- [ ] Test image upload functionality
-- [ ] Test the mobile app on real devices
-- [ ] Verify RLS is enabled
-- [ ] Set up monitoring (optional: Sentry, LogRocket)
-- [ ] Set up analytics (optional: Google Analytics, Mixpanel)
+- [ ] Backend is accessible at Render URL
+- [ ] Frontend is accessible at Vercel URL
+- [ ] API calls work from frontend
+- [ ] Image upload works
+- [ ] Database operations work (create, read, update, delete)
+- [ ] CORS is configured correctly
+- [ ] Environment variables are set correctly
 
-## Monitoring & Maintenance
+---
 
-### Backend Monitoring
-- Use Railway/Render built-in metrics
-- Set up error tracking with Sentry
-- Monitor API response times
-- Check image processing performance
-
-### Database Monitoring
-- Use Supabase Dashboard for metrics
-- Set up alerts for high usage
-- Regular backups (automatic in Supabase)
-- Monitor storage bucket usage
-
-### Frontend Monitoring
-- Expo provides analytics in EAS dashboard
-- Consider adding Sentry for crash reporting
-- Monitor app performance
-- Track image loading performance
-
-## Scaling Considerations
-
-As your app grows:
-
-1. **Database**: Supabase free tier handles 500MB/2GB. Upgrade as needed.
-2. **Backend**: Add more instances on Railway/Render
-3. **CDN**: Use Cloudflare for static assets
-4. **Caching**: Implement Redis for frequently accessed data
-5. **Image Storage**: Supabase Storage scales automatically
-6. **Image Processing**: Consider queue system for high volume
-
-## Security Best Practices
-
-1. ✅ Never commit `.env` files
-2. ✅ Use HTTPS everywhere
-3. ✅ Row Level Security is enabled
-4. ✅ Service role key stored securely (never in frontend)
-5. ✅ Validate all user inputs (DTOs)
-6. ✅ File size limits (10MB max)
-7. ✅ MIME type validation
-8. ✅ Keep dependencies updated
-9. ✅ Regular security audits
-10. ✅ Monitor for suspicious activity
-
-## Image Storage Considerations
-
-- **Supabase Storage**: Free tier includes 1GB, then $0.021/GB
-- **Compression**: Images are automatically compressed to save space
-- **Thumbnails**: Generated for faster loading
-- **Cleanup**: Images are deleted when entries are deleted
-
-## Cost Estimates (Monthly)
-
-**Free Tier:**
-- Supabase: $0 (500MB database, 2GB bandwidth, 1GB storage)
-- Railway: $0 (500 hours, then $5/month)
-- Render: $0 (750 hours free tier)
-- Expo: $0 (community plan)
-- **Total**: ~$0-5/month
-
-**Production:**
-- Supabase Pro: $25/month (8GB database, 50GB bandwidth, 100GB storage)
-- Railway Pro: $20/month (higher limits)
-- Render: $7/month (starter plan)
-- Expo: Free for most apps
-- **Total**: ~$32-52/month
-
-## Troubleshooting Production Issues
+## Troubleshooting
 
 ### Backend Issues
-- Check logs in Railway/Render dashboard
-- Verify environment variables are set
-- Test API endpoints with curl/Postman
-- Check Supabase connection
 
-### Image Upload Issues
-- Verify storage buckets exist and are public
-- Check file size limits
-- Verify MIME types are allowed
-- Check Supabase Storage policies
+**Backend won't start:**
+- Check Render logs: Service → Logs
+- Verify environment variables are set
+- Check that `SUPABASE_SERVICE_ROLE_KEY` is correct (not anon key)
+
+**Database connection errors:**
+- Verify Supabase URL is correct
+- Check that database schema is set up
+- Verify service role key has correct permissions
+
+**CORS errors:**
+- Check `ALLOWED_ORIGINS` environment variable
+- Or set `origin: true` in `app.constants.ts` for development
+
+**Render service is slow:**
+- Free tier services spin down after 15 minutes
+- First request after spin-down takes 30-60 seconds
+- Consider upgrading to paid tier for always-on service
 
 ### Frontend Issues
-- Verify API URL is correct
-- Check CORS settings
-- Test on multiple devices
+
+**API calls failing:**
+- Check `EXPO_PUBLIC_API_URL` is set correctly in Vercel
+- Verify backend URL is accessible
+- Check browser console for CORS errors
+- Ensure backend CORS allows your Vercel domain
+
+**Build fails:**
+- Check Vercel build logs
+- Verify `npm run build:pwa` works locally
+- Check that all dependencies are in `package.json`
+
+**Icons not showing:**
+- Verify icons exist in `frontend/assets/`
+- Check `app.json` paths are correct
+- Rebuild: `npm run build:pwa`
+
+### General Issues
+
+**Images not loading:**
+- Check Supabase Storage buckets are public
+- Verify image URLs are correct
 - Check browser console for errors
+
+**PWA not installing:**
+- Must use HTTPS (Vercel provides this automatically)
+- Check browser console for errors
+- Verify `manifest.json` is correct
+
+---
+
+## Cost Estimates
+
+### Free Tier (Perfect for Starting)
+
+- **Render:** 750 hours/month free (enough for 24/7 single service)
+- **Vercel:** Unlimited free tier for personal projects
+- **Supabase:** 500MB database, 1GB storage free
+
+**Total: $0/month** 🎉
+
+### If You Need More
+
+- **Render:** $7/month (always-on service, no spin-down)
+- **Vercel:** Free tier is generous, Pro is $20/month
+- **Supabase Pro:** $25/month (8GB database, 100GB storage)
+
+---
+
+## Next Steps
+
+1. ✅ **Custom Domain** (Optional)
+   - Add custom domain in Vercel
+   - Update `EXPO_PUBLIC_API_URL` if needed
+
+2. ✅ **Monitoring**
+   - Set up error tracking (Sentry, LogRocket)
+   - Monitor Render logs
+   - Set up uptime monitoring
+
+3. ✅ **Backups**
+   - Supabase provides automatic backups
+   - Consider manual backups for important data
+
+4. ✅ **Performance**
+   - Enable Vercel Analytics
+   - Monitor Render service performance
+   - Optimize images (already done!)
+
+---
 
 ## Support
 
-Need help with deployment?
-- Railway Docs: https://docs.railway.app
-- Render Docs: https://render.com/docs
-- Expo Docs: https://docs.expo.dev
-- Supabase Docs: https://supabase.com/docs
+Need help?
+- **Render Docs:** https://render.com/docs
+- **Vercel Docs:** https://vercel.com/docs
+- **Supabase Docs:** https://supabase.com/docs
+- **Backend README:** `backend/README.md`
+- **Frontend PWA Guide:** `frontend/docs/PWA_SETUP.md`
 
-Happy deploying! 🚀
+Happy deploying! 🚀💕
