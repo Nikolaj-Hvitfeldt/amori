@@ -1,9 +1,10 @@
 {
   "buildCommand": "npm run build:pwa",
-  "outputDirectory": "web-build",
+  "outputDirectory": "dist",
   "devCommand": "npm run web",
   "installCommand": "npm install",
   "framework": null,
+  "regions": ["fra1"],
   "rewrites": [
     {
       "source": "/(.*)",

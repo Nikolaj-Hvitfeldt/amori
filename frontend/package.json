@@ -9,8 +9,8 @@
     "web": "expo start --web",
     "web:lan": "expo start --web --lan",
     "web:tunnel": "expo start --web --tunnel",
-    "build:web": "expo export:web",
-    "build:pwa": "expo export:web",
+    "build:web": "expo export",
+    "build:pwa": "expo export",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
