@@ -14,14 +14,22 @@
 
 ## Step 1: Deploy Backend to Render (5 min)
 
+**Note:** Use Manual Web Service setup (not Blueprint) due to a known path resolution issue with Blueprint.
+
 1. Go to https://render.com → Sign up/Login
-2. Click **"New +"** → **"Blueprint"**
+2. Click **"New +"** → **"Web Service"** (NOT Blueprint)
 3. Connect your GitHub repository
-4. Render will auto-detect `render.yaml` in the root
-5. Add environment variables:
+4. **Configure:**
+   - **Name:** `amori-backend`
+   - **Root Directory:** `backend`
+   - **Environment:** `Node`
+   - **Build Command:** `npm install && npm run build`
+   - **Start Command:** `npm start`
+5. **Add Environment Variables:**
+   - `NODE_ENV` = `production`
    - `SUPABASE_URL` = `https://your-project.supabase.co`
    - `SUPABASE_SERVICE_ROLE_KEY` = `your-service-role-key`
-6. Click **"Apply"** → Wait for deployment
+6. Click **"Create Web Service"** → Wait for deployment
 7. **Copy your backend URL:** `https://amori-backend.onrender.com`
 
 ---

@@ -60,17 +60,32 @@ Before deploying, ensure you have:
 
 1. **Sign up** at https://render.com (free tier available)
 
-2. **Option A: Using Blueprint (Easiest - Recommended)**
-   - Click "New +" → "Blueprint"
+2. **Manual Web Service Setup (Recommended)**
+   
+   **Note:** Use manual setup instead of Blueprint due to a known path resolution issue with Blueprint for nested directories.
+   
+   - Click "New +" → "Web Service"
    - Connect your GitHub repository
-   - Render will auto-detect `render.yaml` in the root
-   - Add environment variables:
-     - `SUPABASE_URL` = Your Supabase project URL
-     - `SUPABASE_SERVICE_ROLE_KEY` = Your service role key
-   - Click "Apply" → Wait for deployment
-   - Your backend will be available at: `https://amori-backend.onrender.com`
-
-3. **Option B: Manual Web Service Setup**
+   - Select your repository
+   - **Configure:**
+     - **Name:** `amori-backend`
+     - **Root Directory:** `backend`
+     - **Environment:** `Node`
+     - **Build Command:** `npm install && npm run build`
+     - **Start Command:** `npm start`
+   - **Add Environment Variables:**
+     - Click "Environment" tab
+     - Add:
+       ```
+       NODE_ENV=production
+       SUPABASE_URL=https://your-project-id.supabase.co
+       SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+       ```
+     - ⚠️ **Important:** Use the **Service Role Key**, not the anon key!
+   - **Deploy:**
+     - Click "Create Web Service"
+     - Wait for build to complete (2-5 minutes)
+     - Your backend will be available at: `https://amori-backend.onrender.com`
    - Click "New +" → "Web Service"
    - Connect your GitHub repository
    - Select your repository
