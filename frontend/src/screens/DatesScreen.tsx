@@ -43,9 +43,14 @@ import {
   DATE_SCREEN_PURPLE_LIGHT,
   DATE_SCREEN_GRAY_DARK,
 } from "../constants/theme";
+import { useAutoRefresh } from "../hooks/useAutoRefresh";
 
 
-export default function DatesScreen() {
+interface DatesScreenProps {
+  isFocused?: boolean;
+}
+
+export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
   const [dates, setDates] = useState<DateEntry[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isDetailVisible, setIsDetailVisible] = useState(false);
@@ -94,7 +99,14 @@ export default function DatesScreen() {
     loadDates();
   }, []);
 
-  const loadDates = async (reset: boolean = true) => {
+  // Auto-check for changes and refresh only if data has changed
+  useAutoRefresh({
+    onRefresh: () => loadDates(true, true), // Bypass cache for fresh data
+    resourceType: "dates",
+    isFocused,
+  });
+
+  const loadDates = async (reset: boolean = true, bypassCache: boolean = false) => {
     try {
       if (reset) {
         setLoading(true);
@@ -104,7 +116,7 @@ export default function DatesScreen() {
       }
 
       const offset = reset ? 0 : dates.length;
-      const result = await datesService.getAll(ITEMS_PER_PAGE, offset);
+      const result = await datesService.getAll(ITEMS_PER_PAGE, offset, bypassCache);
       
       // Safety check: ensure result and result.data exist
       if (!result || !result.data || !Array.isArray(result.data)) {

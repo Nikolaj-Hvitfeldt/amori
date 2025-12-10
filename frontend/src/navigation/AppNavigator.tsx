@@ -13,17 +13,17 @@ export default function AppNavigator() {
   const renderScreen = () => {
     switch (activeScreen) {
       case "Home":
-        return <TimelineScreen />;
+        return <TimelineScreen isFocused={activeScreen === "Home"} />;
       case "Stories":
-        return <MomentsScreen />;
+        return <MomentsScreen isFocused={activeScreen === "Stories"} />;
       case "Dates":
-        return <DatesScreen />;
+        return <DatesScreen isFocused={activeScreen === "Dates"} />;
       case "Pictures":
-        return <PicturesScreen />;
+        return <PicturesScreen isFocused={activeScreen === "Pictures"} />;
       case "Milestones":
-        return <MilestonesScreen />;
+        return <MilestonesScreen isFocused={activeScreen === "Milestones"} />;
       default:
-        return <TimelineScreen />;
+        return <TimelineScreen isFocused={activeScreen === "Home"} />;
     }
   };
 

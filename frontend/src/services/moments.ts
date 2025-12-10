@@ -11,16 +11,18 @@ const CACHE_KEY_PREFIX = "moments_";
 class MomentsService {
   private baseUrl = `${API_BASE_URL}/moments`;
 
-  async getAllMoments(limit?: number, offset?: number): Promise<{ data: Moment[]; total: number }> {
+  async getAllMoments(limit?: number, offset?: number, bypassCache: boolean = false): Promise<{ data: Moment[]; total: number }> {
     try {
       const cacheKey = limit !== undefined || offset !== undefined 
         ? `${CACHE_KEY_ALL}_${limit || 'all'}_${offset || 0}`
         : CACHE_KEY_ALL;
       
-      // Check cache first for all requests
-      const cached = await getCachedData<{ data: Moment[]; total: number }>(cacheKey);
-      if (cached !== null) {
-        return cached;
+      // Check cache first for all requests (unless bypassing)
+      if (!bypassCache) {
+        const cached = await getCachedData<{ data: Moment[]; total: number }>(cacheKey);
+        if (cached !== null) {
+          return cached;
+        }
       }
 
       // Build URL with query parameters

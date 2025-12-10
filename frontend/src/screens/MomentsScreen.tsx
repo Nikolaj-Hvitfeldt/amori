@@ -39,8 +39,13 @@ import {
   MOMENT_GRADIENT,
 } from "../constants/theme";
 import { ITEMS_PER_PAGE } from "../constants/spacing";
+import { useAutoRefresh } from "../hooks/useAutoRefresh";
 
-export default function MomentsScreen() {
+interface MomentsScreenProps {
+  isFocused?: boolean;
+}
+
+export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) {
   const [moments, setMoments] = useState<Moment[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -66,7 +71,14 @@ export default function MomentsScreen() {
     loadMoments();
   }, []);
 
-  const loadMoments = async (reset: boolean = true) => {
+  // Auto-check for changes and refresh only if data has changed
+  useAutoRefresh({
+    onRefresh: () => loadMoments(true, true), // Bypass cache for fresh data
+    resourceType: "moments",
+    isFocused,
+  });
+
+  const loadMoments = async (reset: boolean = true, bypassCache: boolean = false) => {
     try {
       if (reset) {
         setLoading(true);
@@ -76,7 +88,7 @@ export default function MomentsScreen() {
       }
 
       const offset = reset ? 0 : moments.length;
-      const result = await momentsService.getAllMoments(ITEMS_PER_PAGE, offset);
+      const result = await momentsService.getAllMoments(ITEMS_PER_PAGE, offset, bypassCache);
 
       // Safety check: ensure result and result.data exist
       if (!result || !result.data || !Array.isArray(result.data)) {

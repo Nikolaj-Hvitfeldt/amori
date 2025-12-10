@@ -53,8 +53,13 @@ import {
   MILESTONE_BORDER_OPACITY_30,
   MILESTONE_BORDER_OPACITY_40,
 } from "../constants/theme";
+import { useAutoRefresh } from "../hooks/useAutoRefresh";
 
-export default function MilestonesScreen() {
+interface MilestonesScreenProps {
+  isFocused?: boolean;
+}
+
+export default function MilestonesScreen({ isFocused = true }: MilestonesScreenProps) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isDetailVisible, setIsDetailVisible] = useState(false);
@@ -86,7 +91,14 @@ export default function MilestonesScreen() {
     loadMilestones();
   }, []);
 
-  const loadMilestones = async (reset: boolean = true, skipCleanup: boolean = false) => {
+  // Auto-check for changes and refresh only if data has changed
+  useAutoRefresh({
+    onRefresh: () => loadMilestones(true, false, true), // Bypass cache for fresh data
+    resourceType: "milestones",
+    isFocused,
+  });
+
+  const loadMilestones = async (reset: boolean = true, skipCleanup: boolean = false, bypassCache: boolean = false) => {
     try {
       if (reset) {
         setLoading(true);
@@ -98,7 +110,7 @@ export default function MilestonesScreen() {
       }
 
       const offset = reset ? 0 : milestones.length;
-      const result = await milestonesService.getAll(ITEMS_PER_PAGE, offset);
+      const result = await milestonesService.getAll(ITEMS_PER_PAGE, offset, bypassCache);
       
       // Safety check: ensure result and result.data exist
       if (!result || !result.data || !Array.isArray(result.data)) {
