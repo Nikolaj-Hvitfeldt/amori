@@ -11,8 +11,8 @@ export default function App() {
       existingIcons.forEach((icon) => icon.remove());
 
       // Add new apple-touch-icon with cache-busting
-      // Expo web serves static files from root, so use /icon.png
-      const iconPath = "/icon.png";
+      // Expo web exports assets to /assets/ folder
+      const iconPath = "/assets/icon.png";
       
       const icon = document.createElement("link");
       icon.rel = "apple-touch-icon";
