@@ -17,7 +17,7 @@
 1. Go to https://render.com → Sign up/Login
 2. Click **"New +"** → **"Blueprint"**
 3. Connect your GitHub repository
-4. Render will auto-detect `backend/render.yaml`
+4. Render will auto-detect `render.yaml` in the root
 5. Add environment variables:
    - `SUPABASE_URL` = `https://your-project.supabase.co`
    - `SUPABASE_SERVICE_ROLE_KEY` = `your-service-role-key`

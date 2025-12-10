@@ -98,10 +98,10 @@ Render offers a free tier with automatic deployments and a simple configuration 
 
 1. **Sign up** at https://render.com
 2. **Option A: Using render.yaml (Easiest)**
-   - The `render.yaml` file in the backend directory is already configured
+   - The `render.yaml` file in the root directory is already configured
    - In Render Dashboard: "New +" → "Blueprint"
    - Connect GitHub repository
-   - Render will automatically detect `render.yaml` and configure the service
+   - Render will automatically detect `render.yaml` in the root and configure the service
    - Add environment variables:
      - `SUPABASE_URL` = Your Supabase project URL
      - `SUPABASE_SERVICE_ROLE_KEY` = Your service role key
