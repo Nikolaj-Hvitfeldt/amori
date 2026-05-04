@@ -1,284 +1,246 @@
-# Amori 💕
+# Amori
 
-A React Native journal app for documenting your relationship journey with love stories, special dates, cherished milestones, and photo memories.
+Cross-platform relationship journal built with React Native (Expo) and NestJS. Capture moments, dates, milestones, and photos in one place—with a timeline, memory wall, and optional PWA install on the web.
+
+## Table of contents
+
+- [Features](#features)
+- [Tech stack](#tech-stack)
+- [Repository layout](#repository-layout)
+- [Prerequisites](#prerequisites)
+- [Getting started](#getting-started)
+  - [Backend](#backend)
+  - [Frontend](#frontend)
+- [Database schema](#database-schema)
+- [API reference](#api-reference)
+- [Implementation notes](#implementation-notes)
+- [Security](#security)
+- [Deployment](#deployment)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Features
 
-- 📱 **Cross-platform** React Native app (iOS, Android, Web)
-- 💕 **Moments** - Capture and preserve your special romantic moments with photos
-- 📅 **Dates** - Track memorable dates with mood-based theming and location
-- 🏆 **Milestones** - Celebrate relationship milestones (first date, engagement, wedding, etc.)
-- 📸 **Memory Wall** - Beautiful gallery view of all your photos
-- 📊 **Timeline** - Chronological view of all your entries with visual timeline
-- 🎨 **Beautiful Animations** - Smooth, polished UI with React Native Reanimated
-- 🖼️ **Image Optimization** - Automatic compression and thumbnail generation
-- 📱 **PWA Support** - Install as an app on mobile devices
+| Area | Description |
+|------|-------------|
+| **Platforms** | iOS, Android, and web from a single Expo codebase |
+| **Moments** | Stories with photos and narrative |
+| **Dates** | Outings with mood theming, location, and media |
+| **Milestones** | Structured markers (first date, engagement, wedding, and similar) |
+| **Memory wall** | Gallery-oriented view of shared photos |
+| **Timeline** | Chronological feed with a visual timeline |
+| **UX** | Animations via React Native Reanimated; skeleton loading where appropriate |
+| **Media** | Upload-side compression, thumbnails, HEIC/HEIF handling |
+| **Web** | PWA-friendly export for installable web use |
 
-## Tech Stack
+## Tech stack
 
-### Frontend
-- **React Native** with Expo
-- **TypeScript** for type safety
-- **React Native Reanimated** for smooth animations
-- **Expo Image** for optimized image loading
-- **React DatePicker** for date selection
-- **AsyncStorage** for local caching
+**Client (`frontend/`)** — Expo ~54, React 19, TypeScript, React Native Reanimated, Expo Image, `@react-native-community/datetimepicker` / `react-datepicker` (web), AsyncStorage (native) and browser storage patterns on web.
 
-### Backend
-- **NestJS** REST API
-- **TypeScript**
-- **Supabase** (PostgreSQL database + Storage)
-- **Sharp** for image processing and thumbnail generation
-- **HEIC Convert** for iOS image format support
+**API (`backend/`)** — NestJS 11, TypeScript, Supabase (PostgreSQL + Storage), Sharp for raster work, HEIC conversion for iOS uploads.
 
-## Project Structure
+## Repository layout
 
 ```
 amori/
-├── frontend/              # React Native app
+├── frontend/                 # Expo app
 │   ├── src/
-│   │   ├── screens/       # Screen components
-│   │   │   ├── TimelineScreen.tsx
-│   │   │   ├── MomentsScreen.tsx
-│   │   │   ├── DatesScreen.tsx
-│   │   │   ├── MilestonesScreen.tsx
-│   │   │   └── PicturesScreen.tsx
-│   │   ├── components/   # Reusable components
-│   │   │   ├── AnimatedCard.tsx
-│   │   │   ├── AnimatedFAB.tsx
-│   │   │   ├── AnimatedModal.tsx
-│   │   │   ├── AnimatedTabBar.tsx
-│   │   │   ├── PressableCard.tsx
-│   │   │   ├── SkeletonLoader.tsx
-│   │   │   ├── SuccessCheckmark.tsx
-│   │   │   ├── HeartPulse.tsx
-│   │   │   ├── WebDatePicker.tsx
-│   │   │   └── ThumbnailImage.tsx
-│   │   ├── navigation/    # Navigation setup
-│   │   ├── services/      # API services
-│   │   ├── utils/         # Utility functions
-│   │   ├── constants/     # Constants and themes
-│   │   └── types/         # TypeScript types
+│   │   ├── screens/          # Timeline, Moments, Dates, Milestones, Pictures
+│   │   ├── components/       # Animated UI, pickers, thumbnails, etc.
+│   │   ├── navigation/
+│   │   ├── services/         # API client (see api.ts)
+│   │   ├── utils/
+│   │   ├── constants/
+│   │   └── types/
 │   └── package.json
-│
-├── backend/               # NestJS API
+├── backend/                  # NestJS API
 │   ├── src/
-│   │   ├── moments/       # Moments module
-│   │   ├── dates/         # Dates module
-│   │   ├── milestones/    # Milestones module
-│   │   ├── supabase/      # Supabase integration
-│   │   ├── utils/         # Utilities (image processing, etc.)
+│   │   ├── moments/
+│   │   ├── dates/
+│   │   ├── milestones/
+│   │   ├── supabase/
+│   │   ├── utils/
 │   │   └── main.ts
-│   ├── migrations/        # Database migrations
+│   ├── migrations/
 │   └── package.json
-│
+├── docs/                     # Top-level deployment docs
+├── DEPLOYMENT_QUICKSTART.md
+├── render.yaml               # Render Blueprint (API)
+├── LICENSE
 └── README.md
 ```
 
-## Quick Start
+## Prerequisites
 
-### Prerequisites
+- **Node.js** 20 or newer
+- **npm** or **yarn**
+- **Supabase** project (free tier is sufficient for development)
+- For device testing: **Expo Go** or a full native toolchain (Xcode / Android Studio) as needed
 
-- Node.js (v20 or higher)
-- npm or yarn
-- Supabase account (free tier available)
-- For mobile development: Expo Go app or development environment
+## Getting started
 
-### Backend Setup
+### Backend
 
-1. Navigate to backend directory:
+1. Install dependencies:
+
    ```bash
    cd backend
-   ```
-
-2. Install dependencies:
-   ```bash
    npm install
    ```
 
-3. Create `.env` file:
+2. Create `backend/.env`:
+
    ```bash
    SUPABASE_URL=https://your-project.supabase.co
    SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
    ```
 
-4. Set up database:
-   - Run migrations in `backend/migrations/` folder
-   - Enable RLS policies (see `backend/migrations/009_enable_rls_policies.sql`)
+3. Apply SQL in `backend/migrations/` to your Supabase database in order, then enable Row Level Security as described in `backend/migrations/009_enable_rls_policies.sql`.
 
-5. Start the server:
+4. Start the API in development mode:
+
    ```bash
    npm run start:dev
    ```
-   
-   Server runs on `http://localhost:3000`
 
-### Frontend Setup
+   Default base URL: `http://localhost:3000`
 
-1. Navigate to frontend directory:
+### Frontend
+
+1. Install dependencies:
+
    ```bash
    cd frontend
-   ```
-
-2. Install dependencies:
-   ```bash
    npm install
    ```
 
-3. Update API URL in `src/services/api.ts`:
-   ```typescript
-   const API_URL = Platform.OS === "web"
-     ? "http://localhost:3000"
-     : "http://YOUR_LOCAL_IP:3000"; // For mobile devices
+2. Point the app at your API. Configuration lives in `frontend/src/services/api.ts` and follows this priority:
+
+   - **`EXPO_PUBLIC_API_URL`** — preferred for hosted builds (e.g. Vercel) and consistent environments.
+   - **Web on localhost** — uses `http://localhost:3000` when the site is opened on localhost.
+   - **Web on LAN hostname** — uses `http://<hostname>:3000` when opened via your machine’s IP on the LAN.
+   - **Fallback** — update `PRODUCTION_API_URL` in `api.ts` after you deploy the API, or set `EXPO_PUBLIC_API_URL` instead.
+
+   For **physical devices** hitting a machine on your network, set `EXPO_PUBLIC_API_URL` to `http://<your-computer-ip>:3000`, or temporarily return that URL from `getApiUrl()` for native builds. You can discover a suitable IP from the backend with:
+
+   ```bash
+   cd backend
+   npm run get:ip
    ```
 
-4. Start the app:
+3. Start Expo:
+
    ```bash
    npm start
    ```
 
-5. Choose platform:
-   - Press `w` for web
-   - Press `a` for Android
-   - Press `i` for iOS
-   - Scan QR code with Expo Go app
+   Then press `w` (web), `a` (Android), or `i` (iOS), or scan the QR code with Expo Go.
 
-## Database Schema
+## Database schema
 
-The app uses three main tables:
+Three primary tables back the product surface:
 
 ### `moments`
-- `id` (UUID): Primary key
-- `title` (TEXT): Moment title
-- `story_date` (DATE): Date of the moment
-- `description` (TEXT): Moment description
-- `photos` (TEXT[]): Array of photo URLs
-- `created_at`, `updated_at` (TIMESTAMP)
+
+| Column | Type | Notes |
+|--------|------|--------|
+| `id` | UUID | Primary key |
+| `title` | TEXT | |
+| `story_date` | DATE | When the moment occurred |
+| `description` | TEXT | |
+| `photos` | TEXT[] | Storage URLs |
+| `created_at`, `updated_at` | TIMESTAMP | |
 
 ### `date_entries`
-- `id` (UUID): Primary key
-- `title` (TEXT): Optional title
-- `date` (DATE): Date of the event
-- `location` (TEXT): Location
-- `description` (TEXT): Description
-- `mood` (TEXT): Mood type (magical, romantic, adventurous, etc.)
-- `highlights` (TEXT[]): Array of highlights
-- `weather` (TEXT): Optional weather info
-- `favorite_moment` (TEXT): Optional favorite moment
-- `photos` (TEXT[]): Array of photo URLs
-- `created_at`, `updated_at` (TIMESTAMP)
+
+| Column | Type | Notes |
+|--------|------|--------|
+| `id` | UUID | Primary key |
+| `title` | TEXT | Optional |
+| `date` | DATE | |
+| `location` | TEXT | |
+| `description` | TEXT | |
+| `mood` | TEXT | e.g. magical, romantic, adventurous |
+| `highlights` | TEXT[] | |
+| `weather` | TEXT | Optional |
+| `favorite_moment` | TEXT | Optional |
+| `photos` | TEXT[] | |
+| `created_at`, `updated_at` | TIMESTAMP | |
 
 ### `milestones`
-- `id` (UUID): Primary key
-- `milestone_type` (TEXT): Type (met, first_date, official, etc.)
-- `title` (TEXT): Milestone title
-- `date` (DATE): Date of the milestone
-- `description` (TEXT): Optional description
-- `photos` (TEXT[]): Array of photo URLs
-- `created_at`, `updated_at` (TIMESTAMP)
 
-## API Endpoints
+| Column | Type | Notes |
+|--------|------|--------|
+| `id` | UUID | Primary key |
+| `milestone_type` | TEXT | e.g. met, first_date, official |
+| `title` | TEXT | |
+| `date` | DATE | |
+| `description` | TEXT | Optional |
+| `photos` | TEXT[] | |
+| `created_at`, `updated_at` | TIMESTAMP | |
 
-### Moments
-- `GET /moments` - Get all moments (with pagination)
-- `GET /moments/:id` - Get a specific moment
-- `POST /moments` - Create a new moment
-- `PATCH /moments/:id` - Update a moment
-- `DELETE /moments/:id` - Delete a moment
-- `POST /moments/upload-image` - Upload image for moment
+## API reference
 
-### Dates
-- `GET /dates` - Get all date entries (with pagination)
-- `GET /dates/:id` - Get a specific date entry
-- `POST /dates` - Create a new date entry
-- `PATCH /dates/:id` - Update a date entry
-- `DELETE /dates/:id` - Delete a date entry
-- `POST /dates/upload-image` - Upload image for date
+Base path: `/moments`, `/dates`, `/milestones` (NestJS controllers). Typical verbs:
 
-### Milestones
-- `GET /milestones` - Get all milestones (with pagination)
-- `GET /milestones/:id` - Get a specific milestone
-- `POST /milestones` - Create a new milestone
-- `PATCH /milestones/:id` - Update a milestone
-- `DELETE /milestones/:id` - Delete a milestone
-- `POST /milestones/upload-image` - Upload image for milestone
+| Resource | List / create | Read / update / delete | Upload |
+|----------|----------------|-------------------------|--------|
+| Moments | `GET`, `POST` `/moments` | `GET`, `PATCH`, `DELETE` `/moments/:id` | `POST` `/moments/upload-image` |
+| Dates | `GET`, `POST` `/dates` | `GET`, `PATCH`, `DELETE` `/dates/:id` | `POST` `/dates/upload-image` |
+| Milestones | `GET`, `POST` `/milestones` | `GET`, `PATCH`, `DELETE` `/milestones/:id` | `POST` `/milestones/upload-image` |
 
-## Features in Detail
+List endpoints support pagination where implemented.
 
-### Image Handling
-- Automatic image compression on upload
-- Thumbnail generation for faster loading
-- HEIC/HEIF format support (iOS)
-- Progressive compression fallback
-- Storage cleanup on deletion
+## Implementation notes
 
-### Animations
-- Card entrance animations with stagger
-- Floating Action Button with bounce
-- Press feedback on cards
-- Modal slide-in animations
-- Success checkmark animation
-- Heart pulse animation
-- Tab bar indicator animation
-- Loading skeleton shimmer
+**Images** — Compression on upload, thumbnail generation, HEIC/HEIF support, progressive fallback, and storage cleanup when records are removed.
 
-### Date Picker
-- Native date picker on mobile
-- Custom themed date picker on web
-- Prevents future date selection
-- Defaults to today's date
+**Motion** — Card stagger, FAB, press feedback, modals, success and heart motifs, tab indicator, and shimmer skeletons.
 
-### Caching
-- Local caching with AsyncStorage (native) / localStorage (web)
-- Automatic cache invalidation on updates
-- Configurable TTL per resource type
+**Dates** — Native picker on mobile; themed web picker; future dates are blocked; sensible default to “today” where applicable.
+
+**Caching** — AsyncStorage on native and equivalent patterns on web, with invalidation on writes and TTL tuned per resource type.
 
 ## Security
 
-- Row Level Security (RLS) enabled on all tables
-- Service role key used by backend (bypasses RLS)
-- Frontend uses backend API (no direct database access)
-- Image upload validation and size limits
+- Row Level Security (RLS) on Supabase tables.
+- Backend uses the **service role** key (bypasses RLS for trusted server operations).
+- Clients talk only to the REST API, not directly to the database with elevated credentials.
+- Upload validation and size limits on the API.
 
 ## Deployment
 
-### Quick Start
+**Fast path** — Step-by-step checklist: [`DEPLOYMENT_QUICKSTART.md`](./DEPLOYMENT_QUICKSTART.md).
 
-**Deploy in 15 minutes!** See [`DEPLOYMENT_QUICKSTART.md`](./DEPLOYMENT_QUICKSTART.md) for step-by-step instructions.
+**Suggested hosting**
 
-### Recommended Setup
+| Layer | Typical host | Notes |
+|-------|----------------|-------|
+| Web (PWA) | Vercel | Connect repo; set `EXPO_PUBLIC_API_URL` to your API origin |
+| API | Render | Root [`render.yaml`](./render.yaml); set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` |
 
-- **Frontend (PWA):** Vercel - Free tier, automatic deployments
-- **Backend (API):** Render - Free tier, simple configuration
+**Deeper docs**
 
-### Detailed Guides
+- [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) — end-to-end deployment
+- [`backend/docs/DEPLOYMENT.md`](./backend/docs/DEPLOYMENT.md) — API-only details
+- [`frontend/docs/PWA_SETUP.md`](./frontend/docs/PWA_SETUP.md) — PWA / export notes
 
-- **Full Deployment Guide:** [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) - Complete deployment instructions
-- **Backend Deployment:** [`backend/docs/DEPLOYMENT.md`](./backend/docs/DEPLOYMENT.md) - Backend-specific guide
-- **PWA Setup:** [`frontend/docs/PWA_SETUP.md`](./frontend/docs/PWA_SETUP.md) - PWA configuration
+**Render (API)** — Link the GitHub repository, confirm root `render.yaml`, add the Supabase variables, deploy.
 
-### Quick Deploy Commands
+**Vercel (web)** — From `frontend/`, use the Vercel CLI or dashboard; set `EXPO_PUBLIC_API_URL` in project settings. Example CLI flow:
 
-**Backend (Render):**
-1. Connect GitHub repo to Render
-2. Render auto-detects `backend/render.yaml`
-3. Add environment variables: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
-4. Deploy!
-
-**Frontend (Vercel):**
 ```bash
 cd frontend
 npm install -g vercel
 vercel --prod
 ```
-Then add `EXPO_PUBLIC_API_URL` environment variable in Vercel dashboard.
 
-For mobile apps, use EAS Build or build locally.
+Store builds for iOS and Android are out of scope here; use **EAS Build** or local release builds when you need store binaries.
 
 ## Contributing
 
-Feel free to submit issues and enhancement requests!
+Issues and pull requests are welcome. For larger changes, open an issue first so direction and scope stay aligned.
 
 ## License
 
-ISC
+[ISC License](./LICENSE) — Copyright (c) 2024 Nikolaj Hvitfeldt.
