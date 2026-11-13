@@ -26,7 +26,7 @@ import {
   MilestoneTypeTag,
   PhotoImage,
   SaveState,
-  ScreenBackground,
+  ScreenColumn,
   Sheet,
   Skeleton,
   Text,
@@ -523,7 +523,7 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
   const showSkeleton = loading && milestones.length === 0;
 
   return (
-    <ScreenBackground>
+    <ScreenColumn>
       <Header title="Milestones" section="milestones" />
 
       {showSkeleton ? (
@@ -715,7 +715,7 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
           maximumDate={new Date()}
         />
       )}
-    </ScreenBackground>
+    </ScreenColumn>
   );
 }
 

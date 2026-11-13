@@ -25,7 +25,7 @@ import {
   Input,
   PhotoImage,
   SaveState,
-  ScreenBackground,
+  ScreenColumn,
   Sheet,
   Skeleton,
   Text,
@@ -399,12 +399,12 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
 
   if (loading && moments.length === 0) {
     return (
-      <ScreenBackground>
+      <ScreenColumn>
         <View style={styles.column}>
           {header}
           <Skeleton count={3} />
         </View>
-      </ScreenBackground>
+      </ScreenColumn>
     );
   }
 
@@ -435,7 +435,7 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
   };
 
   return (
-    <ScreenBackground>
+    <ScreenColumn>
       <Thread
         items={threadItems}
         onPressItem={onPressItem}
@@ -614,7 +614,7 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
           />
         )}
       </Sheet>
-    </ScreenBackground>
+    </ScreenColumn>
   );
 }
 

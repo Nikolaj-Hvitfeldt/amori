@@ -22,7 +22,7 @@ import {
   EmptySlip,
   ErrorSlip,
   Header,
-  ScreenBackground,
+  ScreenColumn,
   Skeleton,
   Thread,
   ThreadItem,
@@ -454,7 +454,7 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
   }
 
   return (
-    <ScreenBackground testID="story-screen">
+    <ScreenColumn testID="story-screen">
       {body}
 
       {/* Detail view, read-only from Story. A plain timed slide, no spring [5C]. */}
@@ -493,7 +493,7 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
           </>
         )}
       </Modal>
-    </ScreenBackground>
+    </ScreenColumn>
   );
 }
 

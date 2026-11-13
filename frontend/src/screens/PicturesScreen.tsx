@@ -16,12 +16,13 @@ import {
   ErrorSlip,
   Header,
   Polaroid,
-  ScreenBackground,
+  ScreenColumn,
   Text,
   haptics,
   paperLift,
   polaroidTilt,
   useNavLock,
+  useWebFrame,
   withAlpha,
 } from "../ui";
 import { Lightbox } from "./wall/Lightbox";
@@ -54,6 +55,8 @@ interface PicturesScreenProps {
 }
 
 export default function PicturesScreen({ isFocused = true }: PicturesScreenProps) {
+  const { wallColumns } = useWebFrame();
+  const cellWidth = { width: `${100 / wallColumns}%` as const };
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoItem | null>(null);
@@ -200,7 +203,7 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
           testID="wall-skeleton"
         >
           {Array.from({ length: SKELETON_COUNT }, (_, i) => (
-            <View key={i} style={styles.cell}>
+            <View key={i} style={[styles.cell, cellWidth]}>
               <View
                 style={[styles.skeletonFrame, { transform: [{ rotate: `${polaroidTilt(`skeleton-${i}`)}deg` }] }]}
               >
@@ -240,7 +243,8 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
       <FlatList
         data={photos}
         keyExtractor={(item) => item.id}
-        numColumns={2}
+        key={`wall-${wallColumns}`}
+        numColumns={wallColumns}
         ListHeaderComponent={
           <View>
             {header}
@@ -250,7 +254,7 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
           </View>
         }
         renderItem={({ item }) => (
-          <View style={styles.cell}>
+          <View style={[styles.cell, cellWidth]}>
             <Polaroid
               id={item.id}
               title={item.sourceTitle}
@@ -272,7 +276,7 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
   }
 
   return (
-    <ScreenBackground>
+    <ScreenColumn kind="wall">
       {body}
 
       <Lightbox
@@ -319,7 +323,7 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
           )}
         </View>
       </Modal>
-    </ScreenBackground>
+    </ScreenColumn>
   );
 }
 
@@ -336,7 +340,7 @@ const styles = StyleSheet.create({
   },
   row: { paddingHorizontal: gutter - CELL_INSET },
   listContent: { paddingBottom: space.xxl },
-  cell: { width: "50%", paddingHorizontal: CELL_INSET, paddingTop: space.sm, paddingBottom: space.xl },
+  cell: { paddingHorizontal: CELL_INSET, paddingTop: space.sm, paddingBottom: space.xl },
   skeletonFrame: {
     backgroundColor: color.outline,
     borderRadius: radius.print,
