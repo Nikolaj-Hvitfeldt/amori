@@ -27,6 +27,7 @@ import { SkeletonList } from "../components/SkeletonLoader";
 import AnimatedModal from "../components/AnimatedModal";
 import SuccessCheckmark from "../components/SuccessCheckmark";
 import EmptyState from "../components/common/EmptyState";
+import ErrorState, { SavedCopyNotice } from "../components/common/ErrorState";
 import LoadingMore from "../components/common/LoadingMore";
 import ThumbnailImage from "../components/ThumbnailImage";
 import WebDatePicker from "../components/WebDatePicker";
@@ -75,6 +76,12 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
   const [favoriteMoment, setFavoriteMoment] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
+  // Save double-tap guard: the ref blocks re-entry synchronously, the state drives the button.
+  const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
+  // Error vs empty [2A]: "failed" = nothing to show, "stale" = showing the last good copy.
+  const [loadError, setLoadError] = useState<null | "failed" | "stale">(null);
+  const lastGoodDatesRef = useRef<DateEntry[]>([]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   // Get time of day from date input
@@ -157,7 +164,9 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
 
       if (reset) {
         setDates(sortedDates);
+        lastGoodDatesRef.current = sortedDates;
         setHasMore(sortedDates.length < (result.total || 0));
+        setLoadError(null);
       } else {
         setDates((prev) => {
           // Deduplicate by ID to prevent duplicate keys
@@ -166,6 +175,7 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
             (d) => d.id && !existingIds.has(d.id)
           );
           const newDates = [...prev, ...uniqueNewDates];
+          lastGoodDatesRef.current = newDates;
           setHasMore(newDates.length < (result.total || 0));
           return newDates;
         });
@@ -174,7 +184,15 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
       setTotal(result.total || 0);
     } catch (error) {
       console.error("Error loading dates:", error);
-      Alert.alert("Error", "Failed to load dates");
+      if (reset) {
+        // A failed load must never look like "no dates": restore the last good copy, or show the error state.
+        const lastGood = lastGoodDatesRef.current;
+        setDates(lastGood);
+        setLoadError(lastGood.length > 0 ? "stale" : "failed");
+        if (lastGood.length === 0) setHasMore(false); // no pagination from an empty failed list
+      } else {
+        Alert.alert("Error", "Failed to load dates");
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -239,7 +257,14 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
     [handleViewDate, handleDeleteDate]
   );
 
-  const renderEmpty = () => (
+  const renderEmpty = () =>
+    loadError === "failed" ? (
+      <ErrorState
+        subject="your dates"
+        onRetry={() => loadDates(true, true)}
+        backgroundColor={DATE_SCREEN_BG}
+      />
+    ) : (
     <EmptyState
       icon="📅"
       title="No special dates recorded yet"
@@ -365,6 +390,7 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
   };
 
   const handleSaveDate = async () => {
+    if (isSavingRef.current) return;
     if (!date || !location || !description) {
       Alert.alert(
         "Missing Information",
@@ -373,6 +399,8 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
       return;
     }
 
+    isSavingRef.current = true;
+    setIsSaving(true);
     try {
       const filteredHighlights = highlights.filter((h) => h.trim() !== "");
       const validPhotos = filterValidPhotos(photos);
@@ -401,6 +429,9 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
     } catch (error) {
       console.error("Error saving date:", error);
       Alert.alert("Error", "Failed to save date entry");
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
     }
   };
 
@@ -618,6 +649,11 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
         renderItem={renderDateItem}
         keyExtractor={(item, index) => item.id || `date-${index}`}
         ListEmptyComponent={renderEmpty}
+        ListHeaderComponent={
+          loadError === "stale" ? (
+            <SavedCopyNotice onRetry={() => loadDates(true, true)} />
+          ) : null
+        }
         ListFooterComponent={renderFooter}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
@@ -727,11 +763,15 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
                 </Text>
                 <TouchableOpacity
                   onPress={handleSaveDate}
+                  disabled={isSaving}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isSaving, busy: isSaving }}
                   style={{
                     paddingHorizontal: 16,
                     paddingVertical: 8,
                     borderRadius: 20,
                     backgroundColor: moodColor,
+                    opacity: isSaving ? 0.6 : 1,
                   }}
                 >
                   <Text

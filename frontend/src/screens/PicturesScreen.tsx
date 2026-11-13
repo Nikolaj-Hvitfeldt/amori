@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import AnimatedPolaroid from "../components/AnimatedPolaroid";
 import AnimatedCard from "../components/AnimatedCard";
 import AnimatedModal from "../components/AnimatedModal";
 import ThumbnailImage from "../components/ThumbnailImage";
+import ErrorState, { SavedCopyNotice } from "../components/common/ErrorState";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -71,6 +72,11 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
   const [momentsData, setMomentsData] = useState<Moment[]>([]);
   const [datesData, setDatesData] = useState<DateEntry[]>([]);
   const [milestonesData, setMilestonesData] = useState<Milestone[]>([]);
+
+  // Error vs empty [2A]: "failed" = nothing to show, "stale" = still showing the last good copy.
+  // A failed load leaves the previous photos in place; the ref says whether there are any.
+  const [loadError, setLoadError] = useState<null | "failed" | "stale">(null);
+  const lastGoodPhotoCountRef = useRef(0);
 
   const loadAllPhotos = useCallback(async (bypassCache: boolean = false) => {
     setLoading(true);
@@ -157,8 +163,11 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
       // Shuffle photos for a natural feel
       const shuffled = allPhotos.sort(() => Math.random() - 0.5);
       setPhotos(shuffled);
+      lastGoodPhotoCountRef.current = shuffled.length;
+      setLoadError(null);
     } catch (error) {
       console.error("Error loading photos:", error);
+      setLoadError(lastGoodPhotoCountRef.current > 0 ? "stale" : "failed");
     } finally {
       setLoading(false);
     }
@@ -469,7 +478,13 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
         </Text>
       </View>
 
-      {photos.length === 0 ? (
+      {loadError === "stale" && photos.length > 0 && (
+        <SavedCopyNotice onRetry={() => loadAllPhotos(true)} />
+      )}
+
+      {photos.length === 0 && loadError === "failed" ? (
+        <ErrorState subject="your memory wall" onRetry={() => loadAllPhotos(true)} />
+      ) : photos.length === 0 ? (
         <View
           style={{
             flex: 1,
