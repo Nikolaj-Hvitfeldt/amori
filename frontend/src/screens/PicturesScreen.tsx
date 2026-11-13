@@ -11,6 +11,7 @@ import DateDetailView from "../components/DateDetailView";
 import MilestoneDetailView from "../components/MilestoneDetailView";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
 import { color, gutter, motion, polaroid, radius, space } from "../theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   EMPTY_COPY,
   ErrorSlip,
@@ -78,6 +79,8 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
 
   // Separate locks: opening the lightbox must not swallow a quick "Open …" tap.
   const guardLightbox = useNavLock();
+  // The entry detail opens in a full-screen, status-bar-translucent Modal: keep its top bar below the notch.
+  const insets = useSafeAreaInsets();
   const guardDetail = useNavLock();
 
   const loadAllPhotos = useCallback(async (bypassCache: boolean = false) => {
@@ -302,7 +305,7 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
 
       {/* Entry detail, read-only from the Wall */}
       <Modal visible={showDetailModal} animationType="fade" transparent onRequestClose={closeDetail} statusBarTranslucent>
-        <View style={styles.detail}>
+        <View style={[styles.detail, { paddingTop: insets.top }]}>
           {detailData?.type === "moment" && (
             <MomentDetailView
               moment={detailData.data as Moment}

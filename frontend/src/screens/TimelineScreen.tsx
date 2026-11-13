@@ -30,7 +30,8 @@ import {
   useNavLock,
   useReducedEffects,
 } from "../ui";
-import { gutter, space } from "../theme";
+import { color, gutter, space } from "../theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Unified timeline item type
 type TimelineItemType = "moment" | "date" | "milestone";
@@ -92,6 +93,8 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
   const [selectedItem, setSelectedItem] = useState<TimelineItem | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const reduced = useReducedEffects();
+  // The detail opens in a full-screen, status-bar-translucent Modal: keep its top bar below the notch.
+  const insets = useSafeAreaInsets();
   const guard = useNavLock();
 
   // Track pagination state for each type
@@ -464,6 +467,7 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
         animationType={reduced ? "none" : "slide"}
         statusBarTranslucent
       >
+        <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: color.surface }}>
         {selectedItem && (
           <>
             {selectedItem.type === "moment" && selectedItem.moment && (
@@ -492,6 +496,7 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
             )}
           </>
         )}
+        </View>
       </Modal>
     </ScreenColumn>
   );
