@@ -126,7 +126,9 @@ npm run android
 
 ## Adding Sample Data
 
-To test the app with some sample data, see `EXAMPLE_DATA.md` for examples.
+The quickest way to see the app with sample data is mock mode: synthetic fixtures, no backend
+needed (`npm run web:mock` in `frontend/`; see "Mock mode" in `frontend/README.md`).
+To add real entries to your local backend instead:
 
 ### Option 1: Using the App UI
 

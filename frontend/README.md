@@ -26,30 +26,16 @@ src/
 │   ├── MilestonesScreen.tsx    # Relationship milestones
 │   └── PicturesScreen.tsx      # Memory wall - Photo gallery
 │
-├── components/          # Reusable components
-│   ├── AnimatedCard.tsx        # Card entrance animations
-│   ├── AnimatedFAB.tsx          # Floating Action Button
-│   ├── AnimatedModal.tsx       # Modal slide-in animations
-│   ├── AnimatedTabBar.tsx      # Tab bar with indicator
-│   ├── PressableCard.tsx      # Card press feedback
-│   ├── SkeletonLoader.tsx     # Loading skeleton shimmer
-│   ├── SuccessCheckmark.tsx    # Success animation
-│   ├── HeartPulse.tsx          # Heart pulse animation
-│   ├── WebDatePicker.tsx       # Custom date picker for web
-│   ├── ThumbnailImage.tsx      # Image with thumbnail fallback
-│   ├── MomentCard.tsx          # Moment card component
-│   ├── MomentDetailView.tsx    # Moment detail modal
-│   ├── DateCard.tsx            # Date card component
-│   ├── DateDetailView.tsx      # Date detail modal
-│   ├── MilestoneCard.tsx       # Milestone card component
-│   ├── MilestoneDetailView.tsx # Milestone detail modal
-│   ├── RotatingPhotoBackground.tsx # Rotating photo background
-│   ├── TimelineRope.tsx        # Timeline visual element
-│   └── common/                 # Common components
-│       ├── EmptyState.tsx
-│       ├── LoadingState.tsx
-│       ├── LoadingMore.tsx
-│       └── DecorativeAccent.tsx
+├── theme/               # Design tokens (colours, type, space, motion, atmosphere) — see /DESIGN.md
+├── ui/                  # Candlelit Scrapbook primitives: Text, Button, Input, Chip, FormSheet,
+│                        #   Thread, PaperPrint, Polaroid, PhotoPager, ActionMenu, states, …
+│                        #   (dev gallery: run the web app and open ?gallery=1)
+├── components/          # Screen-specific views
+│   ├── WebDatePicker.tsx       # Date picker for web (themed)
+│   ├── AnimatedTabBar.tsx      # Tab bar (Story · Moments · Dates · Milestones · Wall)
+│   ├── MomentDetailView.tsx    # Moment detail
+│   ├── DateDetailView.tsx      # Date detail
+│   └── MilestoneDetailView.tsx # Milestone detail
 │
 ├── navigation/          # Navigation configuration
 │   └── AppNavigator.tsx        # Main navigation with tab bar
@@ -246,12 +232,9 @@ For production, use your deployed backend URL.
 
 ### Theme Colors
 
-Colors are defined in `src/constants/theme.ts`:
-
-- **Moments**: Pink theme (`#FF6B9D`)
-- **Dates**: Mood-based colors (purple, warm tones)
-- **Milestones**: Gold theme (`#ffd700`)
-- **Timeline**: Warm beige/cream
+The look ("Candlelit Scrapbook") is documented in `/DESIGN.md`, and every colour, size and
+duration lives in `src/theme`. `npm run check:tokens` fails on any colour literal or emoji
+icon outside `src/theme`, so always use the tokens and the `src/ui` primitives.
 
 ### Spacing
 
@@ -296,8 +279,8 @@ Layout constants in `src/constants/spacing.ts`:
 
 1. Create component in `src/screens/`
 2. Add route in `src/navigation/AppNavigator.tsx`
-3. Add tab icon in `src/components/AnimatedTabBar.tsx`
-4. Update theme colors if needed
+3. Add tab icon (Lucide) and label in `src/components/AnimatedTabBar.tsx`
+4. Build it from `src/ui` primitives and `src/theme` tokens
 
 ### Adding a New Animation
 
