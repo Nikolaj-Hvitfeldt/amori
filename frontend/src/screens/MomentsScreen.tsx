@@ -203,9 +203,13 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
     [loadMoment, resetForm]
   );
 
-  /** ✕, backdrop, Android back, Esc: ask first when there are unsaved edits [7A]. */
+  /**
+   * ✕, backdrop, Android back, Esc: ignored while a save is in flight (the sheet
+   * closes itself once it lands); otherwise ask first when there are unsaved edits [7A].
+   */
   const requestCloseModal = () => {
-    if (form.isDirty && saveState !== "saved" && !isSaving) {
+    if (isSavingRef.current) return;
+    if (form.isDirty && saveState !== "saved") {
       setConfirmDiscard(true);
     } else {
       closeModal();
@@ -376,14 +380,19 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
     [moments]
   );
 
+  // Thread item ids are the moment ids (or "moment-<index>" for an id-less row).
+  const momentsById = useMemo(
+    () => new Map(moments.map((m, index) => [m.id || `moment-${index}`, m])),
+    [moments]
+  );
+
   const onPressItem = useMemo(
     () =>
       guard((item: ThreadItem) => {
-        const index = threadItems.indexOf(item);
-        const moment = index >= 0 ? moments[index] : undefined;
+        const moment = momentsById.get(item.id);
         if (moment) handleViewMoment(moment);
       }),
-    [guard, threadItems, moments, handleViewMoment]
+    [guard, momentsById, handleViewMoment]
   );
 
   const header = <Header title={SCREEN_TITLE} section="moments" style={styles.header} />;
@@ -589,7 +598,7 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
         visible={isDetailVisible}
         onRequestClose={() => setIsDetailVisible(false)}
         accessibilityLabel={selectedMoment?.title}
-        style={styles.detailSheet}
+        size="tall"
       >
         {selectedMoment && (
           <MomentDetailView
@@ -643,5 +652,4 @@ const styles = StyleSheet.create({
   thumbRow: { gap: space.md, paddingBottom: space.md },
   thumb: { width: THUMB, height: THUMB, borderRadius: radius.print, overflow: "hidden" },
   thumbRemove: { position: "absolute", top: 0, right: 0, backgroundColor: color.scrim },
-  detailSheet: { height: "92%" },
 });

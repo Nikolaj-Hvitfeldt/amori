@@ -7,7 +7,6 @@ import { CalendarDays, ImagePlus, X } from "lucide-react-native";
 import { Milestone, CreateMilestoneDto } from "../types/milestones";
 import { milestonesService } from "../services/milestones";
 import MilestoneDetailView from "../components/MilestoneDetailView";
-import AnimatedModal from "../components/AnimatedModal";
 import WebDatePicker from "../components/WebDatePicker";
 import { filterValidPhotos } from "../utils/imageUtils";
 import { ITEMS_PER_PAGE } from "../constants/spacing";
@@ -28,6 +27,7 @@ import {
   PhotoImage,
   SaveState,
   ScreenBackground,
+  Sheet,
   Skeleton,
   Text,
   Thread,
@@ -251,14 +251,14 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
 
   const closeDetailView = () => {
     setIsDetailVisible(false);
-    setTimeout(() => setSelectedMilestone(null), 300);
+    setTimeout(() => setSelectedMilestone(null), motion.sheetClose);
   };
 
   const handleEditFromDetail = () => {
     if (!selectedMilestone) return;
     const milestoneToEdit = selectedMilestone;
     setIsDetailVisible(false);
-    setTimeout(() => openModal(milestoneToEdit), 250);
+    setTimeout(() => openModal(milestoneToEdit), motion.sheetClose);
   };
 
   const handleDeleteFromDetail = async () => {
@@ -285,8 +285,12 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
     setTimeout(resetForm, 300);
   };
 
-  /** ✕, backdrop, Android back and Esc: ask before throwing away unsaved edits [7A]. */
+  /**
+   * ✕, backdrop, Android back and Esc: ignored while a save is in flight (the sheet
+   * closes itself once it lands); otherwise ask before throwing away unsaved edits [7A].
+   */
   const requestCloseModal = () => {
+    if (isSavingRef.current) return;
     if (form.isDirty && !saveSucceeded) {
       haptics.warning();
       setConfirmDiscard(true);
@@ -443,7 +447,7 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
             uploadImage(asset.uri)
           );
           const uploadedUrls = await Promise.all(uploadPromises);
-          setPhotos([...photos, ...uploadedUrls]);
+          setPhotos((prev) => [...prev, ...uploadedUrls]);
         } catch (uploadError) {
           console.error("Error uploading images:", uploadError);
           Alert.alert(
@@ -547,7 +551,13 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
 
       <AddButton onPress={() => openModal()} accessibilityLabel={EMPTY_COPY.milestones.action} />
 
-      <AnimatedModal visible={isDetailVisible} onClose={closeDetailView}>
+      {/* Detail view: the same tall sheet as Moments and Dates. */}
+      <Sheet
+        visible={isDetailVisible}
+        onRequestClose={closeDetailView}
+        accessibilityLabel={selectedMilestone?.title || "Milestone"}
+        size="tall"
+      >
         {selectedMilestone && (
           <MilestoneDetailView
             milestone={selectedMilestone}
@@ -556,7 +566,7 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
             onDelete={handleDeleteFromDetail}
           />
         )}
-      </AnimatedModal>
+      </Sheet>
 
       {/* Create / edit form [7A]: required fields first, then Photos and Description. */}
       <FormSheet

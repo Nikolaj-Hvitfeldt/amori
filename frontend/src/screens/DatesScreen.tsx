@@ -251,8 +251,12 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
     }, RESET_DELAY_MS);
   };
 
-  /** ✕, backdrop, Android back, Esc: ask first when there are unsaved edits [7A]. */
+  /**
+   * ✕, backdrop, Android back, Esc: ignored while a save is in flight (the sheet
+   * closes itself once it lands); otherwise ask first when there are unsaved edits [7A].
+   */
   const requestCloseModal = () => {
+    if (isSavingRef.current) return;
     if (form.isDirty && saveState !== "saved") {
       setConfirmDiscard(true);
     } else {
@@ -544,7 +548,7 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
         visible={isDetailVisible}
         onRequestClose={() => setIsDetailVisible(false)}
         accessibilityLabel={selectedDate?.title || "Date"}
-        style={styles.detailSheet}
+        size="tall"
       >
         {selectedDate ? (
           <DateDetailView
@@ -622,5 +626,4 @@ const styles = StyleSheet.create({
   highlightRow: { flexDirection: "row", alignItems: "flex-end", gap: space.xs },
   removeHighlight: { marginBottom: (field.height - hitTarget) / 2 },
   flex: { flex: 1 },
-  detailSheet: { height: "92%" },
 });
