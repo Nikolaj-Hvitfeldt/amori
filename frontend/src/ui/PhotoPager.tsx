@@ -37,9 +37,11 @@ const DOT = space.sm;
 export function PhotoPager({ photos, title, aspectRatio = HERO_ASPECT, testID }: PhotoPagerProps) {
   const { width: windowWidth } = useWindowDimensions();
   const [width, setWidth] = useState(Math.min(windowWidth, webFrame.column));
-  const [index, setIndex] = useState(0);
+  const [rawIndex, setIndex] = useState(0);
 
   if (photos.length === 0) return null;
+  // Clamp: the photo list can shrink while the view stays mounted (e.g. a refetch).
+  const index = Math.min(rawIndex, photos.length - 1);
 
   const onLayout = (e: LayoutChangeEvent) => {
     const w = e.nativeEvent.layout.width;
