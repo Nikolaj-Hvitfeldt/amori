@@ -1,9 +1,20 @@
-import React, { useState } from "react";
-import { NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Ellipsis, Pencil, Trash2, X } from "lucide-react-native";
+import React from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { Pencil, Trash2, X } from "lucide-react-native";
 import { DateEntry } from "../types/dates";
-import { color, gutter, hitTarget, polaroid, radius, space } from "../theme";
-import { Button, ICON_STROKE, MoodTag, PhotoImage, Text, formatLongDate, iconSize, paperLift } from "../ui";
+import { color, gutter, polaroid, radius, space } from "../theme";
+import {
+  ActionMenu,
+  ActionMenuItem,
+  Button,
+  ICON_STROKE,
+  MoodTag,
+  PhotoPager,
+  Text,
+  formatLongDate,
+  iconSize,
+  paperLift,
+} from "../ui";
 import { parseLocalDate } from "../utils/daysTogether";
 
 interface DateDetailViewProps {
@@ -15,8 +26,6 @@ interface DateDetailViewProps {
   onDelete?: () => void;
 }
 
-/** Hero photo aspect (width / height). */
-const HERO_ASPECT = 4 / 3;
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 function daysSince(dateString: string): number {
@@ -40,15 +49,12 @@ function daysAgo(dateString: string): string {
 }
 
 /**
- * Date detail [1A]: photo hero (all photos, swipeable), title, italic date,
+ * Date detail [1A]: photo hero (PhotoPager: all photos, paged), title, italic date,
  * mood tag, then place, highlights and weather, the favourite moment as a paper
- * note, and the description. Edit and Delete live in the ⋯ menu.
+ * note, and the description. Edit and Delete live in the shared ⋯ ActionMenu.
+ * Renders inside any container (the tall Sheet on Dates, the Story/Wall modal).
  */
 export default function DateDetailView({ dateEntry, onClose, onEdit, allowEdit = true, onDelete }: DateDetailViewProps) {
-  const [heroWidth, setHeroWidth] = useState(0);
-  const [photoIndex, setPhotoIndex] = useState(0);
-  const [menuOpen, setMenuOpen] = useState(false);
-
   // Support both photos array and single image_url for backward compatibility
   const photos =
     dateEntry.photos && dateEntry.photos.length > 0
@@ -59,13 +65,8 @@ export default function DateDetailView({ dateEntry, onClose, onEdit, allowEdit =
 
   const title = dateEntry.title || formatLongDate(dateEntry.date);
   const highlights = (dateEntry.highlights || []).filter((h) => h && h.trim() !== "");
-  const showMenu = allowEdit;
-
-  const onHeroScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (!heroWidth) return;
-    const i = Math.round(e.nativeEvent.contentOffset.x / heroWidth);
-    if (i !== photoIndex) setPhotoIndex(i);
-  };
+  const actions: ActionMenuItem[] = [{ label: "Edit", icon: Pencil, onPress: onEdit }];
+  if (onDelete) actions.push({ label: "Delete", icon: Trash2, onPress: onDelete, destructive: true });
 
   return (
     <View style={styles.container}>
@@ -76,46 +77,13 @@ export default function DateDetailView({ dateEntry, onClose, onEdit, allowEdit =
           icon={<X size={iconSize.lg} color={color.text} strokeWidth={ICON_STROKE} />}
           onPress={onClose}
         />
-        {showMenu ? (
-          <Button
-            variant="icon"
-            accessibilityLabel="More options"
-            accessibilityHint="Edit or delete this date"
-            icon={<Ellipsis size={iconSize.lg} color={color.text} strokeWidth={ICON_STROKE} />}
-            onPress={() => setMenuOpen((o) => !o)}
-          />
+        {allowEdit ? (
+          <ActionMenu actions={actions} accessibilityHint="Edit or delete this date" menuLabel="Date options" />
         ) : null}
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        {photos.length > 0 ? (
-          <View onLayout={(e) => setHeroWidth(e.nativeEvent.layout.width)}>
-            {heroWidth === 0 ? <View style={styles.hero} /> : null}
-            {heroWidth > 0 ? (
-            <ScrollView
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onScroll={onHeroScroll}
-              scrollEventThrottle={16}
-            >
-              {photos.map((photo, index) => (
-                <PhotoImage
-                  key={`${photo}-${index}`}
-                  source={photo}
-                  accessibilityLabel={`Photo ${index + 1} of ${photos.length} from ${title}`}
-                  style={[styles.hero, { width: heroWidth }]}
-                />
-              ))}
-            </ScrollView>
-            ) : null}
-            {photos.length > 1 ? (
-              <Text variant="caption" tone="muted" style={styles.counter} accessibilityLiveRegion="polite">
-                {`${photoIndex + 1} / ${photos.length}`}
-              </Text>
-            ) : null}
-          </View>
-        ) : null}
+        <PhotoPager photos={photos} title={title} />
 
         <View style={styles.body}>
           <View style={styles.titleBlock}>
@@ -173,38 +141,6 @@ export default function DateDetailView({ dateEntry, onClose, onEdit, allowEdit =
           </Field>
         </View>
       </ScrollView>
-
-      {menuOpen ? (
-        <>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setMenuOpen(false)}
-            accessible={false}
-            focusable={false}
-            importantForAccessibility="no"
-          />
-          <View style={styles.menu} accessibilityRole="menu">
-            <MenuItem
-              label="Edit"
-              icon={<Pencil size={iconSize.md} color={color.text} strokeWidth={ICON_STROKE} />}
-              onPress={() => {
-                setMenuOpen(false);
-                onEdit();
-              }}
-            />
-            {onDelete ? (
-              <MenuItem
-                label="Delete"
-                icon={<Trash2 size={iconSize.md} color={color.text} strokeWidth={ICON_STROKE} />}
-                onPress={() => {
-                  setMenuOpen(false);
-                  onDelete();
-                }}
-              />
-            ) : null}
-          </View>
-        </>
-      ) : null}
     </View>
   );
 }
@@ -220,22 +156,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function MenuItem({ label, icon, onPress }: { label: string; icon: React.ReactNode; onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="menuitem"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-    >
-      {icon}
-      <Text variant="body">{label}</Text>
-    </Pressable>
-  );
-}
-
-const MENU_WIDTH = 180;
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: color.surface },
   bar: {
@@ -247,8 +167,6 @@ const styles = StyleSheet.create({
   },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: space.xxxl },
-  hero: { width: "100%", aspectRatio: HERO_ASPECT },
-  counter: { textAlign: "center", marginTop: space.sm },
   body: { paddingHorizontal: gutter, paddingTop: space.xl, gap: space.xl },
   titleBlock: { gap: space.xs },
   field: { gap: space.sm },
@@ -279,23 +197,4 @@ const styles = StyleSheet.create({
     height: polaroid.tape.height,
     backgroundColor: color.tape,
   },
-  menu: {
-    position: "absolute",
-    top: space.sm + hitTarget,
-    right: space.sm,
-    width: MENU_WIDTH,
-    backgroundColor: color.surfaceRaised,
-    borderRadius: radius.field,
-    borderWidth: 1,
-    borderColor: color.outline,
-    paddingVertical: space.xs,
-  },
-  menuItem: {
-    minHeight: hitTarget,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.md,
-    paddingHorizontal: space.lg,
-  },
-  menuItemPressed: { backgroundColor: color.outline },
 });
