@@ -1,6 +1,9 @@
-import React, { forwardRef, useEffect } from "react";
+import React, { forwardRef, useEffect, useState } from "react";
 import { Platform } from "react-native";
 import DatePicker from "react-datepicker";
+import { CalendarDays } from "lucide-react-native";
+import { color, field, focus, fontFamily, radius, space, type } from "../theme";
+import { ICON_STROKE, iconSize, withAlpha } from "../ui";
 
 // Import CSS for react-datepicker (warning is harmless - falls back to file-based resolution)
 // This warning occurs because react-datepicker doesn't export the CSS path in package.json exports
@@ -15,12 +18,15 @@ interface WebDateInputProps {
   value: Date;
   onChange: (date: Date) => void;
   maxDate?: Date;
+  /** Selected day. Default color.accent. */
   accentColor?: string;
+  /** Field background. Default color.surfaceRaised. */
   backgroundColor?: string;
+  /** Field text. Default color.text. */
   textColor?: string;
 }
 
-// Custom input component that looks like our app's style
+// Custom input component: the 52px form field [7A]
 interface CustomInputProps {
   value?: string;
   onClick?: () => void;
@@ -28,10 +34,11 @@ interface CustomInputProps {
   backgroundColor: string;
   textColor: string;
   displayDate: string;
+  open: boolean;
 }
 
 const CustomInput = forwardRef<HTMLDivElement, CustomInputProps>(
-  ({ onClick, accentColor, backgroundColor, textColor, displayDate }, ref) => (
+  ({ onClick, accentColor, backgroundColor, textColor, displayDate, open }, ref) => (
     <div
       ref={ref}
       onClick={onClick}
@@ -40,10 +47,13 @@ const CustomInput = forwardRef<HTMLDivElement, CustomInputProps>(
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "18px",
-        borderRadius: "16px",
-        border: `2px solid ${accentColor}60`,
-        backgroundColor: backgroundColor,
+        gap: space.md,
+        minHeight: field.height,
+        paddingLeft: space.lg,
+        paddingRight: space.lg,
+        borderRadius: radius.field,
+        border: `${focus.width}px solid ${open ? accentColor : "transparent"}`,
+        backgroundColor,
         cursor: "pointer",
         boxSizing: "border-box",
         width: "100%",
@@ -51,32 +61,119 @@ const CustomInput = forwardRef<HTMLDivElement, CustomInputProps>(
     >
       <span
         style={{
-          fontSize: "17px",
-          fontWeight: 500,
+          fontFamily: fontFamily.sans,
+          fontSize: type.body.fontSize,
+          lineHeight: `${type.body.lineHeight}px`,
           color: textColor,
         }}
       >
         {displayDate}
       </span>
-      <span style={{ fontSize: "20px" }}>📅</span>
+      <CalendarDays size={iconSize.md} color={color.textMuted} strokeWidth={ICON_STROKE} />
     </div>
   )
 );
 
 CustomInput.displayName = "CustomInput";
 
+/** Scopes the popup theme to this picker; see buildPopupCss. */
+const CALENDAR_CLASS = "amori-datepicker";
+/** Calendar day cell edge, px. */
+const DAY = space.xxl + space.xs;
+
 /**
- * Customizable date picker for web using react-datepicker
- * Colors match the respective screen themes
+ * The react-datepicker popup themed from tokens [7A]: a dark `surface` panel with a
+ * hairline outline (flat: no shadow [4B]), Figtree text, the serif month title,
+ * and an amber selected day with onAccent text. Built at runtime from token values.
+ */
+function buildPopupCss(accentColor: string): string {
+  const c = `.${CALENDAR_CLASS}`;
+  return `
+    .react-datepicker-popper { z-index: 9999 !important; }
+    .react-datepicker-wrapper,
+    .react-datepicker__input-container { width: 100%; }
+    ${c} {
+      font-family: ${fontFamily.sans}, sans-serif;
+      background-color: ${color.surface} !important;
+      color: ${color.text};
+      border: 1px solid ${color.outline} !important;
+      border-radius: ${radius.field}px !important;
+      box-shadow: none !important;
+      overflow: hidden;
+    }
+    ${c} .react-datepicker__month-container { background-color: ${color.surface}; float: none; }
+    ${c} .react-datepicker__header {
+      background-color: ${color.surfaceRaised};
+      border-bottom: 1px solid ${color.hairline};
+      border-radius: 0 !important;
+      padding: ${space.md}px;
+    }
+    ${c} .react-datepicker__current-month {
+      font-family: ${fontFamily.serif}, serif;
+      font-weight: 400;
+      font-size: ${type.title.fontSize - space.xs}px;
+      color: ${color.text};
+      margin-bottom: ${space.sm}px;
+    }
+    ${c} .react-datepicker__day-names { margin-top: ${space.sm}px; }
+    ${c} .react-datepicker__day-name {
+      font-family: ${fontFamily.sansMedium}, sans-serif;
+      font-size: ${type.caption.fontSize}px;
+      color: ${color.textMuted};
+      width: ${DAY}px;
+      margin: 2px;
+    }
+    ${c} .react-datepicker__month { margin: ${space.sm}px; background-color: ${color.surface}; }
+    ${c} .react-datepicker__day {
+      color: ${color.text};
+      width: ${DAY}px;
+      height: ${DAY}px;
+      line-height: ${DAY}px;
+      margin: 2px;
+      border-radius: ${radius.pill}px;
+      font-size: ${type.body.fontSize - 2}px;
+    }
+    ${c} .react-datepicker__day:hover { background-color: ${color.outline}; color: ${color.text}; border-radius: ${radius.pill}px; }
+    ${c} .react-datepicker__day--keyboard-selected { background-color: ${withAlpha(accentColor, 0.3)}; color: ${color.text}; }
+    ${c} .react-datepicker__day--today { font-weight: 600; box-shadow: inset 0 0 0 1px ${color.textMuted}; }
+    ${c} .react-datepicker__day--selected,
+    ${c} .react-datepicker__day--selected:hover {
+      background-color: ${accentColor} !important;
+      color: ${color.onAccent} !important;
+      font-weight: 600;
+    }
+    ${c} .react-datepicker__day--disabled,
+    ${c} .react-datepicker__day--disabled:hover {
+      color: ${color.textMuted} !important;
+      opacity: 0.4;
+      background-color: transparent;
+    }
+    ${c} .react-datepicker__day--outside-month { color: ${color.textMuted}; }
+    ${c} .react-datepicker__navigation { top: ${space.md + 2}px; }
+    ${c} .react-datepicker__navigation-icon::before { border-color: ${color.textMuted}; border-width: 2px 2px 0 0; }
+    ${c} .react-datepicker__navigation:hover *::before { border-color: ${color.text}; }
+    ${c} .react-datepicker__navigation:focus-visible {
+      outline: ${focus.width}px solid ${color.accent};
+      outline-offset: ${focus.offset}px;
+    }
+    ${c} .react-datepicker__triangle { display: none; }
+  `;
+}
+
+/**
+ * Date field for web using react-datepicker [7A]: a 52px Figtree field on
+ * surfaceRaised with a Lucide calendar icon, and a token-themed popup.
  */
 export default function WebDateInput({
   value,
   onChange,
   maxDate = new Date(),
-  accentColor = "#FF6B9D",
-  backgroundColor = "#1e293b",
-  textColor = "#fff",
+  accentColor = color.accent,
+  backgroundColor = color.surfaceRaised,
+  textColor = color.text,
 }: WebDateInputProps) {
+  const [open, setOpen] = useState(false);
+
   // Create portal container at document body level
   useEffect(() => {
     if (Platform.OS === "web") {
@@ -115,129 +212,25 @@ export default function WebDateInput({
     }
   };
 
-  // Generate dynamic CSS for the datepicker based on accent color
-  // Using dark background for good contrast, accent color for highlights
-  const dynamicStyles = `
-    .react-datepicker-popper {
-      z-index: 9999 !important;
-    }
-    .react-datepicker-wrapper,
-    .react-datepicker__input-container {
-      width: 100%;
-    }
-    .react-datepicker {
-      border: none !important;
-      background-color: transparent !important;
-    }
-    .custom-datepicker-${accentColor.replace("#", "")} {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background-color: #1a1a2e !important;
-      border: 2px solid ${accentColor} !important;
-      border-radius: 16px !important;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
-      overflow: hidden;
-    }
-    .custom-datepicker-${accentColor.replace("#", "")} .react-datepicker {
-      background-color: #1a1a2e !important;
-      border: none !important;
-      border-radius: 0 !important;
-      box-shadow: none !important;
-    }
-    .custom-datepicker-${accentColor.replace("#", "")} .react-datepicker__month-container {
-      background-color: #1a1a2e;
-      float: none;
-    }
-    .custom-datepicker-${accentColor.replace("#", "")} .react-datepicker__header {
-      background-color: #252542;
-      border-bottom: 1px solid ${accentColor}60;
-      padding: 12px;
-    }
-    .custom-datepicker-${accentColor.replace("#", "")} .react-datepicker__current-month {
-      color: ${accentColor};
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-    .custom-datepicker-${accentColor.replace("#", "")} .react-datepicker__day-names {
-      margin-top: 8px;
-    }
-    .custom-datepicker-${accentColor.replace("#", "")} .react-datepicker__day-name {
-      color: #9ca3af;
-      font-size: 12px;
-      font-weight: 600;
-      width: 36px;
-      margin: 2px;
-    }
-    .custom-datepicker-${accentColor.replace("#", "")} .react-datepicker__month {
-      margin: 8px;
-      background-color: #1a1a2e;
-    }
-    .custom-datepicker-${accentColor.replace("#", "")} .react-datepicker__day {
-      color: #e5e7eb;
-      width: 36px;
-      height: 36px;
-      line-height: 36px;
-      margin: 2px;
-      border-radius: 50%;
-      font-size: 14px;
-      font-weight: 500;
-    }
-    .custom-datepicker-${accentColor.replace("#", "")} .react-datepicker__day:hover {
-      background-color: ${accentColor}50;
-      color: #fff;
-      border-radius: 50%;
-    }
-    .custom-datepicker-${accentColor.replace("#", "")} .react-datepicker__day--selected {
-      background-color: ${accentColor} !important;
-      color: #fff !important;
-      font-weight: 600;
-    }
-    .custom-datepicker-${accentColor.replace("#", "")} .react-datepicker__day--keyboard-selected {
-      background-color: ${accentColor}70;
-      color: #fff;
-    }
-    .custom-datepicker-${accentColor.replace("#", "")} .react-datepicker__day--today {
-      font-weight: 700;
-      border: 2px solid ${accentColor};
-      color: ${accentColor};
-    }
-    .custom-datepicker-${accentColor.replace("#", "")} .react-datepicker__day--disabled {
-      color: #4b5563 !important;
-    }
-    .custom-datepicker-${accentColor.replace("#", "")} .react-datepicker__day--outside-month {
-      color: #6b7280;
-    }
-    .custom-datepicker-${accentColor.replace("#", "")} .react-datepicker__navigation {
-      top: 14px;
-    }
-    .custom-datepicker-${accentColor.replace("#", "")} .react-datepicker__navigation-icon::before {
-      border-color: ${accentColor};
-      border-width: 2px 2px 0 0;
-    }
-    .custom-datepicker-${accentColor.replace("#", "")} .react-datepicker__navigation:hover *::before {
-      border-color: #fff;
-    }
-    .custom-datepicker-${accentColor.replace("#", "")} .react-datepicker__triangle {
-      display: none;
-    }
-  `;
-
   return (
     <div style={{ width: "100%" }}>
-      <style>{dynamicStyles}</style>
+      <style>{buildPopupCss(accentColor)}</style>
       <DatePicker
         selected={value}
         onChange={handleChange}
         maxDate={maxDate}
+        onCalendarOpen={() => setOpen(true)}
+        onCalendarClose={() => setOpen(false)}
         customInput={
           <CustomInput
             accentColor={accentColor}
             backgroundColor={backgroundColor}
             textColor={textColor}
             displayDate={displayDate}
+            open={open}
           />
         }
-        calendarClassName={`custom-datepicker-${accentColor.replace("#", "")}`}
+        calendarClassName={CALENDAR_CLASS}
         popperPlacement="bottom-start"
         showPopperArrow={false}
         portalId="datepicker-portal-root"
