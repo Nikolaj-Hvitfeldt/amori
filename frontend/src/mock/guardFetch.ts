@@ -14,7 +14,12 @@ export function isAllowedMockUrl(url: string, base?: string): boolean {
   const value = String(url).trim();
   if (ALLOWED_SCHEMES.test(value)) return true;
 
-  if (/^[/\\]{2}/.test(value)) {
+  // Browsers treat "\" as "/" and strip tabs/newlines, so the regex below could
+  // disagree with the browser about the host (e.g. "http://evil.com\@localhost/").
+  // Fail closed: any such character is rejected outright.
+  if (/[\\\s]/.test(value)) return false;
+
+  if (/^\/\//.test(value)) {
     // Protocol-relative (//host/...): check the host it points at.
     return isAllowedMockUrl("http://" + value.replace(/^[/\\]+/, ""));
   }
@@ -56,5 +61,22 @@ export function installGuardFetch(): void {
     }
     return original.call(globalThis, input, init);
   };
+
+  // Same check for XMLHttpRequest, so a library that uses XHR instead of fetch
+  // can't reach the network either.
+  const xhrProto = g.XMLHttpRequest?.prototype;
+  if (xhrProto && typeof xhrProto.open === "function") {
+    const originalOpen = xhrProto.open;
+    xhrProto.open = function guardedOpen(this: unknown, method: string, url: unknown, ...rest: unknown[]) {
+      const target = urlOf(url);
+      const base: string | undefined = g.window?.location?.href;
+      if (!isAllowedMockUrl(target, base)) {
+        throw new Error(
+          `[mock mode] Blocked network request to ${target}. Only blob:, data:, file: and localhost are allowed.`
+        );
+      }
+      return originalOpen.call(this, method, url, ...rest);
+    };
+  }
   installed = true;
 }
