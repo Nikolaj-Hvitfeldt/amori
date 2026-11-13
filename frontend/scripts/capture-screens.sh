@@ -35,6 +35,17 @@ click_button() {
   case "$r" in *clicked*) return 0 ;; *) echo "  ! could not find button '$1'" >&2; FAILED=1; return 1 ;; esac
 }
 
+# Click the last element whose aria-label is exactly $1, e.g. "More options" or "Add a date".
+click_label() {
+  local r
+  r=$("$B" js "(() => { const t = $(printf %s "$1" | node -e 'process.stdout.write(JSON.stringify(require("fs").readFileSync(0,"utf8")))'); const el = [...document.querySelectorAll('[aria-label]')].filter(e => e.getAttribute('aria-label') === t).pop(); if (el) el.click(); return el ? 'clicked' : 'missing'; })()" 2>&1)
+  sleep "$SETTLE"
+  case "$r" in *clicked*) return 0 ;; *) echo "  ! could not find label '$1'" >&2; FAILED=1; return 1 ;; esac
+}
+
+# Open the ⋯ menu of the open detail view and choose Edit.
+edit_from_detail() { click_label "More options" && click_button "Edit"; }
+
 shot() {
   if "$B" screenshot --viewport "$DIR/$1.png" >/dev/null; then echo "  $1"
   else echo "  ! screenshot failed: $1" >&2; FAILED=1; fi
@@ -59,18 +70,18 @@ for VP in 375x812 1280x800; do
   fresh ""
   click_text "Moments" && shot moments
   click_text "The night the kettle sang the wrong song" && shot moment-detail
-  click_button "Edit" && shot moment-form-edit
-  fresh ""; click_text "Moments" && click_button "💕" && shot moment-form-new
+  edit_from_detail && shot moment-form-edit
+  fresh ""; click_text "Moments" && click_label "Add a moment" && shot moment-form-new
 
   fresh ""; click_text "Dates" && shot dates
   click_text "Lantern walk by the canal" && shot date-detail
-  click_button "Edit" && shot date-form-edit
-  fresh ""; click_text "Dates" && click_button "📅" && shot date-form-new
+  edit_from_detail && shot date-form-edit
+  fresh ""; click_text "Dates" && click_label "Add a date" && shot date-form-new
 
   fresh ""; click_text "Milestones" && shot milestones
   click_text "Planted the apple tree" && shot milestone-detail
-  click_button "Edit" && shot milestone-form-edit
-  fresh ""; click_text "Milestones" && click_button "⭐" && shot milestone-form-new
+  edit_from_detail && shot milestone-form-edit
+  fresh ""; click_text "Milestones" && click_label "Add a milestone" && shot milestone-form-new
 
   fresh ""; click_text "Memories" && shot wall
   R=$("$B" js "(() => { const img = document.querySelector('img'); if (!img) return 'missing'; let n = img; while (n && !(n.getAttribute && (n.getAttribute('role') === 'button' || n.hasAttribute('tabindex')))) n = n.parentElement; (n || img).click(); return 'clicked'; })()" 2>&1)
