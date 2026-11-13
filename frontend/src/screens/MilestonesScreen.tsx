@@ -35,6 +35,7 @@ import { SkeletonList } from "../components/SkeletonLoader";
 import AnimatedModal from "../components/AnimatedModal";
 import SuccessCheckmark from "../components/SuccessCheckmark";
 import EmptyState from "../components/common/EmptyState";
+import ErrorState, { SavedCopyNotice } from "../components/common/ErrorState";
 import LoadingMore from "../components/common/LoadingMore";
 import ThumbnailImage from "../components/ThumbnailImage";
 import WebDatePicker from "../components/WebDatePicker";
@@ -85,6 +86,12 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
   const [description, setDescription] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
+  // Save double-tap guard: the ref blocks re-entry synchronously, the state drives the button.
+  const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
+  // Error vs empty [2A]: "failed" = nothing to show, "stale" = showing the last good copy.
+  const [loadError, setLoadError] = useState<null | "failed" | "stale">(null);
+  const lastGoodMilestonesRef = useRef<Milestone[]>([]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -164,7 +171,9 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
 
       if (reset) {
         setMilestones(sortedMilestones);
+        lastGoodMilestonesRef.current = sortedMilestones;
         setHasMore(sortedMilestones.length < (result.total || 0));
+        setLoadError(null);
       } else {
         setMilestones((prev) => {
           // Deduplicate by ID to prevent duplicate keys
@@ -173,6 +182,7 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
             (m) => m.id && !existingIds.has(m.id)
           );
           const newMilestones = [...prev, ...uniqueNewMilestones];
+          lastGoodMilestonesRef.current = newMilestones;
           setHasMore(newMilestones.length < (result.total || 0));
           return newMilestones;
         });
@@ -181,7 +191,14 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
       setTotal(result.total || 0);
     } catch (error) {
       console.error("Error loading milestones:", error);
-      Alert.alert("Error", "Failed to load milestones");
+      if (reset) {
+        // A failed load must never look like "no milestones": restore the last good copy, or show the error state.
+        const lastGood = lastGoodMilestonesRef.current;
+        setMilestones(lastGood);
+        setLoadError(lastGood.length > 0 ? "stale" : "failed");
+      } else {
+        Alert.alert("Error", "Failed to load milestones");
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -246,7 +263,14 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
     [handleViewMilestone, handleDeleteMilestone]
   );
 
-  const renderEmpty = () => (
+  const renderEmpty = () =>
+    loadError === "failed" ? (
+      <ErrorState
+        subject="your milestones"
+        onRetry={() => loadMilestones(true, false, true)}
+        backgroundColor={MILESTONE_SCREEN_BG}
+      />
+    ) : (
     <EmptyState
       icon="⭐"
       title="No milestones recorded yet"
@@ -357,11 +381,14 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
   };
 
   const handleSaveMilestone = async () => {
+    if (isSavingRef.current) return;
     if (!date || !title) {
       Alert.alert("Missing Information", "Please fill in the date and title");
       return;
     }
 
+    isSavingRef.current = true;
+    setIsSaving(true);
     try {
       const validPhotos = filterValidPhotos(photos);
 
@@ -387,6 +414,9 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
     } catch (error) {
       console.error("Error saving milestone:", error);
       Alert.alert("Error", "Failed to save milestone");
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
     }
   };
 
@@ -561,6 +591,11 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
         renderItem={renderMilestoneItem}
         keyExtractor={(item, index) => item.id || `milestone-${index}`}
         ListEmptyComponent={renderEmpty}
+        ListHeaderComponent={
+          loadError === "stale" ? (
+            <SavedCopyNotice onRetry={() => loadMilestones(true, false, true)} />
+          ) : null
+        }
         ListFooterComponent={renderFooter}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
@@ -679,11 +714,15 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
                 </Text>
                 <TouchableOpacity
                   onPress={handleSaveMilestone}
+                  disabled={isSaving}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isSaving, busy: isSaving }}
                   style={{
                     paddingHorizontal: 16,
                     paddingVertical: 8,
                     borderRadius: 20,
                     backgroundColor: "#ffd700",
+                    opacity: isSaving ? 0.6 : 1,
                   }}
                 >
                   <Text

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   ScrollView,
@@ -22,6 +22,7 @@ import TimelineRope from "../components/TimelineRope";
 import { TimelineSkeleton } from "../components/SkeletonLoader";
 import AnimatedModal from "../components/AnimatedModal";
 import EmptyState from "../components/common/EmptyState";
+import ErrorState, { SavedCopyNotice } from "../components/common/ErrorState";
 import LoadingMore from "../components/common/LoadingMore";
 import { getCachedData, setCachedData } from "../utils/cache";
 import { TIMELINE_BG, PRIMARY_PINK } from "../constants/theme";
@@ -74,6 +75,15 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
   const [datesTotal, setDatesTotal] = useState(0);
   const [milestonesTotal, setMilestonesTotal] = useState(0);
 
+  // Error vs empty [2A]: "failed" = nothing to show, "stale" = showing the last good copy.
+  const [loadError, setLoadError] = useState<null | "failed" | "stale">(null);
+  const lastGoodRef = useRef<{
+    items: TimelineItem[];
+    momentsOffset: number;
+    datesOffset: number;
+    milestonesOffset: number;
+  } | null>(null);
+
   useEffect(() => {
     loadTimelineFromCacheOrAPI(true);
   }, []);
@@ -113,6 +123,12 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
           setDatesTotal(cachedState.datesTotal);
           setMilestonesTotal(cachedState.milestonesTotal);
           setHasMore(cachedState.hasMore);
+          lastGoodRef.current = {
+            items: cachedItems,
+            momentsOffset: cachedState.momentsOffset,
+            datesOffset: cachedState.datesOffset,
+            milestonesOffset: cachedState.milestonesOffset,
+          };
           setLoading(false);
 
           // Still load fresh data in background to update cache
@@ -227,6 +243,13 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
       setMomentsOffset(newMomentsOffset);
       setDatesOffset(newDatesOffset);
       setMilestonesOffset(newMilestonesOffset);
+      lastGoodRef.current = {
+        items: allItems,
+        momentsOffset: newMomentsOffset,
+        datesOffset: newDatesOffset,
+        milestonesOffset: newMilestonesOffset,
+      };
+      if (reset) setLoadError(null);
 
       // Check if there's more data
       const hasMoreMoments = newMomentsOffset < momentsTotal;
@@ -260,6 +283,19 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
       }
     } catch (error) {
       console.error("Error loading timeline:", error);
+      if (reset) {
+        // A failed load must never look like an empty story: restore the last good copy, or show the error state.
+        const lastGood = lastGoodRef.current;
+        if (lastGood && lastGood.items.length > 0) {
+          setTimelineItems(lastGood.items);
+          setMomentsOffset(lastGood.momentsOffset);
+          setDatesOffset(lastGood.datesOffset);
+          setMilestonesOffset(lastGood.milestonesOffset);
+          setLoadError("stale");
+        } else {
+          setLoadError("failed");
+        }
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -347,6 +383,15 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
   }
 
   if (timelineItems.length === 0) {
+    if (loadError === "failed") {
+      return (
+        <ErrorState
+          subject="your story"
+          onRetry={() => loadTimeline(true, true)}
+          backgroundColor={TIMELINE_BG}
+        />
+      );
+    }
     return (
       <EmptyState
         icon="📅"
@@ -366,6 +411,10 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
         onScroll={handleScroll}
         scrollEventThrottle={400}
       >
+        {loadError === "stale" && (
+          <SavedCopyNotice onRetry={() => loadTimeline(true, true)} />
+        )}
+
         {/* Golden Rope Timeline - represents the bond between moments */}
         <TimelineRope />
 

@@ -28,6 +28,7 @@ import AnimatedModal from "../components/AnimatedModal";
 import SuccessCheckmark from "../components/SuccessCheckmark";
 import { PulsingHeart } from "../components/HeartPulse";
 import EmptyState from "../components/common/EmptyState";
+import ErrorState, { SavedCopyNotice } from "../components/common/ErrorState";
 import LoadingMore from "../components/common/LoadingMore";
 import ThumbnailImage from "../components/ThumbnailImage";
 import WebDatePicker from "../components/WebDatePicker";
@@ -65,6 +66,12 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
   const [description, setDescription] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
+  // Save double-tap guard: the ref blocks re-entry synchronously, the state drives the button.
+  const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
+  // Error vs empty [2A]: "failed" = nothing to show, "stale" = showing the last good copy.
+  const [loadError, setLoadError] = useState<null | "failed" | "stale">(null);
+  const lastGoodMomentsRef = useRef<Moment[]>([]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -103,7 +110,9 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
 
       if (reset) {
         setMoments(sortedMoments);
+        lastGoodMomentsRef.current = sortedMoments;
         setHasMore(sortedMoments.length < (result.total || 0));
+        setLoadError(null);
       } else {
         setMoments((prev) => {
           // Deduplicate by ID to prevent duplicate keys
@@ -112,6 +121,7 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
             (m) => m.id && !existingIds.has(m.id)
           );
           const newMoments = [...prev, ...uniqueNewMoments];
+          lastGoodMomentsRef.current = newMoments;
           setHasMore(newMoments.length < (result.total || 0));
           return newMoments;
         });
@@ -120,7 +130,14 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
       setTotal(result.total || 0);
     } catch (error) {
       console.error("Error loading moments:", error);
-      Alert.alert("Error", "Failed to load your moments");
+      if (reset) {
+        // A failed load must never look like "no moments": restore the last good copy, or show the error state.
+        const lastGood = lastGoodMomentsRef.current;
+        setMoments(lastGood);
+        setLoadError(lastGood.length > 0 ? "stale" : "failed");
+      } else {
+        Alert.alert("Error", "Failed to load your moments");
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -162,11 +179,14 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
   };
 
   const handleSaveMoment = async () => {
+    if (isSavingRef.current) return;
     if (!storyDate || !description || !title.trim()) {
       Alert.alert("Error", "Please fill in all required fields");
       return;
     }
 
+    isSavingRef.current = true;
+    setIsSaving(true);
     try {
       const validPhotos = filterValidPhotos(photos);
       const momentData: CreateMomentDto = {
@@ -188,6 +208,9 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
     } catch (error) {
       console.error("Error saving moment:", error);
       Alert.alert("Error", "Failed to save moment");
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
     }
   };
 
@@ -458,7 +481,14 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
     );
   }
 
-  const renderEmpty = () => (
+  const renderEmpty = () =>
+    loadError === "failed" ? (
+      <ErrorState
+        subject="your moments"
+        onRetry={() => loadMoments(true, true)}
+        backgroundColor={MOMENT_BG}
+      />
+    ) : (
     <EmptyState
       icon="💕"
       title="No special moments yet"
@@ -479,6 +509,11 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
         renderItem={renderMoment}
         keyExtractor={(item, index) => item.id || `moment-${index}`}
         ListEmptyComponent={renderEmpty}
+        ListHeaderComponent={
+          loadError === "stale" ? (
+            <SavedCopyNotice onRetry={() => loadMoments(true, true)} />
+          ) : null
+        }
         ListFooterComponent={renderFooter}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
@@ -574,11 +609,15 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
                 </Text>
                 <TouchableOpacity
                   onPress={handleSaveMoment}
+                  disabled={isSaving}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isSaving, busy: isSaving }}
                   style={{
                     paddingHorizontal: 16,
                     paddingVertical: 8,
                     borderRadius: 20,
                     backgroundColor: MOMENT_COLOR,
+                    opacity: isSaving ? 0.6 : 1,
                   }}
                 >
                   <Text
