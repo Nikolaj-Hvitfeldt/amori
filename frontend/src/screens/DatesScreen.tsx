@@ -18,7 +18,6 @@ import * as FileSystem from "expo-file-system/legacy";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { DateEntry, CreateDateEntryDto, DateMood } from "../types/dates";
 import { datesService } from "../services/dates";
-import { API_BASE_URL } from "../services/api";
 import DateDetailView from "../components/DateDetailView";
 import DateCard from "../components/DateCard";
 import AnimatedCard from "../components/AnimatedCard";
@@ -532,26 +531,7 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
       const base64data = `data:${mimeType};base64,${base64}`;
 
       // Upload to backend
-      const uploadResponse = await fetch(`${API_BASE_URL}/dates/upload-image`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ image: base64data }),
-      });
-
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        throw new Error(
-          `Failed to upload image: ${uploadResponse.status} ${errorText}`
-        );
-      }
-
-      const result = await uploadResponse.json();
-      if (!result.url) {
-        throw new Error("No URL returned from upload");
-      }
-      return result.url;
+      return await datesService.uploadImage(base64data);
     } catch (error) {
       console.error("Error uploading image:", error);
       throw error;

@@ -1,6 +1,13 @@
 import React, { useEffect } from "react";
 import { Platform } from "react-native";
 import AppNavigator from "./src/navigation/AppNavigator";
+import { isMockMode } from "./src/mock/mode";
+
+// Mock mode only (EXPO_PUBLIC_MOCK=1 in a dev build): make fetch fail closed so
+// nothing can reach a non-local host. The __DEV__ guard keeps it out of production.
+if (__DEV__ && isMockMode()) {
+  require("./src/mock/guardFetch").installGuardFetch();
+}
 
 export default function App() {
   useEffect(() => {

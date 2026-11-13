@@ -3,7 +3,7 @@ import {
   CreateMilestoneDto,
   UpdateMilestoneDto,
 } from "../types/milestones";
-import { API_BASE_URL } from "./api";
+import { apiFetch, withPagination } from "./api";
 import { getCachedData, setCachedData, invalidateResourceCache } from "../utils/cache";
 
 const CACHE_KEY_ALL = "milestones_all";
@@ -23,13 +23,8 @@ export const milestonesService = {
       }
     }
 
-    // Build URL with query parameters
-    const url = new URL(`${API_BASE_URL}/milestones`);
-    if (limit !== undefined) url.searchParams.set("limit", limit.toString());
-    if (offset !== undefined) url.searchParams.set("offset", offset.toString());
-
-    // Fetch from API
-    const response = await fetch(url.toString());
+    // Fetch from API (with ?limit=&offset= when given)
+    const response = await apiFetch(withPagination("/milestones", limit, offset));
 
     if (!response.ok) {
       throw new Error(`Failed to fetch milestones: ${response.statusText}`);
@@ -53,7 +48,7 @@ export const milestonesService = {
     }
 
     // Fetch from API
-    const response = await fetch(`${API_BASE_URL}/milestones/${id}`);
+    const response = await apiFetch(`/milestones/${id}`);
 
     if (!response.ok) {
       throw new Error(`Failed to fetch milestone: ${response.statusText}`);
@@ -68,7 +63,7 @@ export const milestonesService = {
   },
 
   async create(milestone: CreateMilestoneDto): Promise<Milestone> {
-    const response = await fetch(`${API_BASE_URL}/milestones`, {
+    const response = await apiFetch(`/milestones`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -93,7 +88,7 @@ export const milestonesService = {
   },
 
   async update(id: string, milestone: UpdateMilestoneDto): Promise<Milestone> {
-    const response = await fetch(`${API_BASE_URL}/milestones/${id}`, {
+    const response = await apiFetch(`/milestones/${id}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -118,7 +113,7 @@ export const milestonesService = {
   },
 
   async delete(id: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/milestones/${id}`, {
+    const response = await apiFetch(`/milestones/${id}`, {
       method: "DELETE",
     });
 
@@ -132,6 +127,33 @@ export const milestonesService = {
 
     // Invalidate cache since we removed an entry
     await invalidateResourceCache("milestones");
+  },
+
+  /**
+   * Upload an image given as a data URL ("data:<mime>;base64,<data>").
+   * Returns the stored image URL.
+   */
+  async uploadImage(image: string): Promise<string> {
+    const uploadResponse = await apiFetch("/milestones/upload-image", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ image }),
+    });
+
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      throw new Error(
+        `Failed to upload image: ${uploadResponse.status} ${errorText}`
+      );
+    }
+
+    const result = await uploadResponse.json();
+    if (!result.url) {
+      throw new Error("No URL returned from upload");
+    }
+    return result.url;
   },
 };
 

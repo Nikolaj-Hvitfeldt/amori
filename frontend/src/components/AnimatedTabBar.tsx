@@ -183,6 +183,7 @@ const styles = StyleSheet.create({
   },
 });
 
-export { Screen, TABS };
+export type { Screen };
+export { TABS };
 
 

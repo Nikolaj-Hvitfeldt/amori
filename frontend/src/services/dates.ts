@@ -3,7 +3,7 @@ import {
   CreateDateEntryDto,
   UpdateDateEntryDto,
 } from "../types/dates";
-import { API_BASE_URL } from "./api";
+import { apiFetch, withPagination } from "./api";
 import { getCachedData, setCachedData, invalidateResourceCache } from "../utils/cache";
 
 const CACHE_KEY_ALL = "dates_all";
@@ -23,13 +23,8 @@ export const datesService = {
       }
     }
 
-    // Build URL with query parameters
-    const url = new URL(`${API_BASE_URL}/dates`);
-    if (limit !== undefined) url.searchParams.set("limit", limit.toString());
-    if (offset !== undefined) url.searchParams.set("offset", offset.toString());
-
-    // Fetch from API
-    const response = await fetch(url.toString());
+    // Fetch from API (with ?limit=&offset= when given)
+    const response = await apiFetch(withPagination("/dates", limit, offset));
 
     if (!response.ok) {
       throw new Error(`Failed to fetch dates: ${response.statusText}`);
@@ -53,7 +48,7 @@ export const datesService = {
     }
 
     // Fetch from API
-    const response = await fetch(`${API_BASE_URL}/dates/${id}`);
+    const response = await apiFetch(`/dates/${id}`);
 
     if (!response.ok) {
       throw new Error(`Failed to fetch date: ${response.statusText}`);
@@ -68,7 +63,7 @@ export const datesService = {
   },
 
   async create(dateEntry: CreateDateEntryDto): Promise<DateEntry> {
-    const response = await fetch(`${API_BASE_URL}/dates`, {
+    const response = await apiFetch(`/dates`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -93,7 +88,7 @@ export const datesService = {
   },
 
   async update(id: string, dateEntry: UpdateDateEntryDto): Promise<DateEntry> {
-    const response = await fetch(`${API_BASE_URL}/dates/${id}`, {
+    const response = await apiFetch(`/dates/${id}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -118,7 +113,7 @@ export const datesService = {
   },
 
   async delete(id: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/dates/${id}`, {
+    const response = await apiFetch(`/dates/${id}`, {
       method: "DELETE",
     });
 
@@ -132,5 +127,32 @@ export const datesService = {
 
     // Invalidate cache since we removed an entry
     await invalidateResourceCache("dates");
+  },
+
+  /**
+   * Upload an image given as a data URL ("data:<mime>;base64,<data>").
+   * Returns the stored image URL.
+   */
+  async uploadImage(image: string): Promise<string> {
+    const uploadResponse = await apiFetch("/dates/upload-image", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ image }),
+    });
+
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      throw new Error(
+        `Failed to upload image: ${uploadResponse.status} ${errorText}`
+      );
+    }
+
+    const result = await uploadResponse.json();
+    if (!result.url) {
+      throw new Error("No URL returned from upload");
+    }
+    return result.url;
   },
 };

@@ -3,6 +3,26 @@
  * Compresses images before upload to reduce bandwidth and storage
  */
 
+// This file is web-only and uses browser globals. The project tsconfig has no
+// "dom" lib, so declare the small slice used here, scoped to this module.
+interface WebImageElement {
+  width: number;
+  height: number;
+  onload: (() => void) | null;
+  onerror: ((error: unknown) => void) | null;
+  src: string;
+}
+interface WebCanvasElement {
+  width: number;
+  height: number;
+  getContext(type: "2d"): {
+    drawImage(image: WebImageElement, x: number, y: number, w: number, h: number): void;
+  } | null;
+  toDataURL(type: string, quality?: number): string;
+}
+declare const Image: { new (): WebImageElement };
+declare const document: { createElement(tag: "canvas"): WebCanvasElement };
+
 /**
  * Resize and compress image on client-side
  * @param uri - Image URI (file://, blob:, or data:)

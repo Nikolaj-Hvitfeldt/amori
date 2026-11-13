@@ -18,7 +18,6 @@ import * as FileSystem from "expo-file-system/legacy";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { momentsService } from "../services/moments";
 import { Moment, CreateMomentDto } from "../types/moments";
-import { API_BASE_URL } from "../services/api";
 import MomentDetailView from "../components/MomentDetailView";
 import MomentCard from "../components/MomentCard";
 import AnimatedCard from "../components/AnimatedCard";
@@ -331,24 +330,7 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
       }
 
       async function uploadBase64() {
-        const response = await fetch(`${API_BASE_URL}/moments/upload-image`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            image: `data:${mimeType};base64,${base64}`,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("Upload failed:", response.status, errorText);
-          throw new Error(`Upload failed: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        return data.url;
+        return momentsService.uploadImage(`data:${mimeType};base64,${base64}`);
       }
 
       return uploadBase64();
