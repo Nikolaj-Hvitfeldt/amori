@@ -38,7 +38,7 @@ There is one dark theme. Tokens are layered: `palette` holds the raw values, and
 
 Timeline dots use the colour of the entry's own section.
 
-**Contrast:** every text/background pair is at least 4.5:1 (WCAG 2). The pairs are listed in `contrastPairs` and enforced by `src/__tests__/contrast.test.ts` (25 pairs; all pass). Add a pair whenever a new combination appears.
+**Contrast:** every text/background pair is at least 4.5:1 (WCAG 2). The pairs are listed in `contrastPairs` and enforced by `src/__tests__/contrast.test.ts` (24 pairs; all pass). Add a pair whenever a new combination appears.
 
 **Amber discipline [4C]:** amber appears only on the hero number, the thread, and active or focused states. There are no amber accent words in headings.
 
@@ -60,6 +60,8 @@ Timeline dots use the colour of the entry's own section.
 
 ## 3. Space, shape and elevation (`theme/layout.ts`)
 - **Spacing:** 4, 8, 12, 16, 24, 32, 48. The side gutter is 16. Touch targets are at least 44×44.
+- **Fields and focus:** fields are 52px tall (`field.height`). Focus uses a 2px amber outline, and on web a 2px ring with a 2px offset (`focus`).
+- **Easing:** `easing.out` (ease-out cubic) and `easing.in` (ease-in cubic). The durations are in §5.
 - **Radius:** print 3, field and chip 12, sheet 20 (top corners only), button as a full pill.
 - **Polaroid:** an 8px frame and a 28px caption.
   - Tilt is within ±2°, *seeded from the entry id*.
@@ -87,7 +89,7 @@ All effects are hidden from assistive tech.
 - **Banned:** looping pulses or rotations, bounce, and spring overshoot. `HeartPulse` and `SuccessCheckmark` are retired.
 
 ## 6. Icons [5B]
-- **Library:** Lucide line icons at a 1.75 stroke.
+- **Library:** Lucide line icons at a 1.75 stroke. The mood and milestone-type map is code in `frontend/src/ui` (T2, Phase 2).
 - **Moods and milestone types** always show an icon *plus* the word, in the section colour:
   - Moods: magical `sparkles`, romantic `heart`, adventurous `mountain`, cozy `flame`, spontaneous `zap`, dreamy `moon`.
   - Milestone types: met `handshake`, first_date `wine`, official `heart-handshake`, moved_in `house`, engagement `gem`, wedding `church`, kid `baby`, custom `star`.

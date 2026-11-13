@@ -15,6 +15,15 @@ export const radius = {
 /** Minimum touch target. */
 export const hitTarget = 44;
 
+/** Form field geometry [7A]. Fields sit on color.surfaceRaised. */
+export const field = { height: 52 } as const;
+
+/**
+ * Focus indication. Native fields: a 2px amber outline [7A].
+ * Web keyboard focus: 2px amber ring with a 2px offset [6B].
+ */
+export const focus = { width: 2, offset: 2 } as const;
+
 export const polaroid = {
   frame: 8,
   caption: 28,
@@ -46,6 +55,15 @@ export const motion = {
   contentFade: 160, // from an already visible state
   develop: 600, // polaroid "develop", once per photo per session
   savedHold: 480, // "Saved" state before the sheet closes [2A]
+} as const;
+
+/**
+ * Easing curves as cubic-bezier control points, e.g. Easing.bezier(...easing.out).
+ * out = ease-out cubic (tab indicator, sheet open), in = ease-in cubic (sheet close).
+ */
+export const easing = {
+  out: [0.33, 1, 0.68, 1] as const,
+  in: [0.32, 0, 0.67, 0] as const,
 } as const;
 
 /** Web frame at 768px and wider [6A]. */
