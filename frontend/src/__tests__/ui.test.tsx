@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import React from "react";
 import { StyleSheet } from "react-native";
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { color, motion, section, type } from "../theme";
 import {
   ActionMenu,
@@ -265,7 +265,9 @@ describe("ActionMenu", () => {
     expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
     await fireEvent.press(screen.getByRole("button", { name: "Delete" }));
     expect(onDelete).not.toHaveBeenCalled();
-    jest.advanceTimersByTime(motion.sheetClose);
+    await act(async () => {
+      jest.advanceTimersByTime(motion.sheetClose);
+    });
     expect(onDelete).toHaveBeenCalledTimes(1);
     expect(onEdit).not.toHaveBeenCalled();
     jest.useRealTimers();
