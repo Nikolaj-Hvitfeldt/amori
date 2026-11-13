@@ -37,7 +37,6 @@ const LEGACY = [
   "constants/milestoneConfig.ts", // Phase 3: shrinks to empty by the end of Phase 4
   "constants/theme.ts", // legacy theme, retired by the end of Phase 4
   "navigation/AppNavigator.tsx", // Phase 4 (chrome): shrinks to empty by the end of Phase 4
-  "screens/PicturesScreen.tsx", // Phase 3: shrinks to empty by the end of Phase 4
   "utils/moodUtils.ts", // Phase 3: shrinks to empty by the end of Phase 4
 ];
 
