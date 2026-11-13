@@ -183,7 +183,12 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
     <View>
       <Header title="Memory wall" section="wall" />
       {photos.length > 0 ? (
-        <Text variant="title" tone="accent" style={styles.count}>
+        <Text
+          variant="title"
+          tone="accent"
+          style={styles.count}
+          accessibilityLabel={`${photos.length} ${photos.length === 1 ? "photo" : "photos"}`}
+        >
           {`✦ ${photos.length} ${photos.length === 1 ? "photo" : "photos"} ✦`}
         </Text>
       ) : null}
@@ -197,6 +202,7 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
         {header}
         <View
           style={styles.grid}
+          accessible
           accessibilityRole="progressbar"
           accessibilityLabel="Loading"
           accessibilityState={{ busy: true }}

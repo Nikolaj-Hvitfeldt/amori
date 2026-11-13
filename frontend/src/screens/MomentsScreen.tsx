@@ -597,7 +597,7 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
       <Sheet
         visible={isDetailVisible}
         onRequestClose={() => setIsDetailVisible(false)}
-        accessibilityLabel={selectedMoment?.title}
+        accessibilityLabel={selectedMoment?.title || "Moment"}
         size="tall"
       >
         {selectedMoment && (
