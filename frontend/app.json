@@ -43,7 +43,9 @@
         "statusBarStyle": "black-translucent"
       }
     },
-    "plugins": [],
+    "plugins": [
+      "expo-font"
+    ],
     "experiments": {
       "typedRoutes": false
     }
