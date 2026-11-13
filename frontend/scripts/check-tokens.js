@@ -50,8 +50,8 @@ const LEGACY = [
 
 /** A hex colour that sits inside a quoted string or template on the same line. */
 const HEX_IN_STRING = /(["'`])(?:(?!\1).)*?#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![0-9a-zA-Z_])/;
-/** rgb( / rgba( with a numeric first channel: a literal, not a runtime build. */
-const RGB_LITERAL = /\brgba?\(\s*[\d.]/;
+/** rgb(/rgba(/hsl(/hsla( in any case with a numeric first channel: a literal, not a runtime build. */
+const RGB_LITERAL = /\b(?:rgba?|hsla?)\(\s*[\d.]/i;
 const EMOJI = /\p{Extended_Pictographic}/u;
 
 function isSkipped(rel) {

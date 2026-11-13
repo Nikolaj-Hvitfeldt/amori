@@ -5,6 +5,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Easing, LayoutChangeEvent, Platform, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import Svg, { Circle } from "react-native-svg";
+import { LinearGradient } from "expo-linear-gradient";
 import type { SectionKey } from "../theme";
 import { color, polaroid, radius, space, type } from "../theme";
 import { Button } from "./Button";
@@ -69,7 +70,15 @@ export function Skeleton({ count = 3, withPhotos = true, style }: SkeletonProps)
             <Animated.View
               pointerEvents="none"
               style={[StyleSheet.absoluteFill, styles.shimmer, { transform: [{ translateX }] }]}
-            />
+            >
+              {/* Soft-edged sweep: transparent → hairline → transparent. */}
+              <LinearGradient
+                colors={[color.transparent, color.hairline, color.transparent]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={StyleSheet.absoluteFill}
+              />
+            </Animated.View>
           ) : null}
         </View>
       ))}
@@ -214,7 +223,7 @@ const styles = StyleSheet.create({
   skeletonLine: { height: type.body.fontSize, backgroundColor: color.hairline, borderRadius: radius.print },
   skeletonTitle: { width: "70%" },
   skeletonDate: { width: "40%" },
-  shimmer: { backgroundColor: color.hairline, width: "50%" },
+  shimmer: { width: "50%" },
   slip: {
     backgroundColor: color.paper,
     borderRadius: radius.print,

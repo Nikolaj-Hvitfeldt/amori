@@ -51,7 +51,7 @@ export function Chip({ label, icon: Icon, section, selected, onPaper, onPress, r
 
   if (!onPress) {
     return (
-      <View style={[chipStyle, style]} testID={testID} accessibilityLabel={label}>
+      <View style={[chipStyle, style]} testID={testID} accessible accessibilityRole="text" accessibilityLabel={label}>
         {body}
       </View>
     );

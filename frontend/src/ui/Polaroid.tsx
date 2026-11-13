@@ -87,7 +87,7 @@ export function Polaroid({ id, title, date, photo, onPress, style, testID }: Pol
   const formatted = formatLongDate(date);
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole={onPress ? "button" : "image"}
       accessibilityLabel={`Photo from ${title}, ${formatted}`}
       onPress={onPress}
       disabled={!onPress}
