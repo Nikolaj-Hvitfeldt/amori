@@ -4,9 +4,9 @@
     "slug": "amori",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "splash": {
-      "backgroundColor": "#FFF5F7",
+      "backgroundColor": "#241a16",
       "image": "./assets/splash.png",
       "resizeMode": "contain"
     },
@@ -16,7 +16,7 @@
       "bundleIdentifier": "com.amori.app"
     },
     "android": {
-      "backgroundColor": "#FFFFFF",
+      "backgroundColor": "#241a16",
       "package": "com.amori.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -30,8 +30,8 @@
       "shortName": "Amori",
       "lang": "en",
       "scope": "/",
-      "themeColor": "#FFF5F7",
-      "backgroundColor": "#FFF5F7",
+      "themeColor": "#241a16",
+      "backgroundColor": "#241a16",
       "display": "standalone",
       "orientation": "portrait",
       "startUrl": "/",

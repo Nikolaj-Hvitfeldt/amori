@@ -4,8 +4,8 @@
   "description": "A beautiful journal app for couples to capture and cherish their special moments together",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FFF5F7",
-  "theme_color": "#FFF5F7",
+  "background_color": "#241a16",
+  "theme_color": "#241a16",
   "orientation": "portrait",
   "icons": [
     {
