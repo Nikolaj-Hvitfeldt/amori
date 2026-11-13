@@ -1,15 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  Modal,
-  Dimensions,
-  ActivityIndicator,
-  Platform,
-} from "react-native";
-import { Image } from "expo-image";
+import { FlatList, Modal, StyleSheet, View } from "react-native";
 import { momentsService } from "../services/moments";
 import { datesService } from "../services/dates";
 import { milestonesService } from "../services/milestones";
@@ -19,40 +9,45 @@ import { Milestone } from "../types/milestones";
 import MomentDetailView from "../components/MomentDetailView";
 import DateDetailView from "../components/DateDetailView";
 import MilestoneDetailView from "../components/MilestoneDetailView";
-import AnimatedPolaroid from "../components/AnimatedPolaroid";
-import AnimatedCard from "../components/AnimatedCard";
-import AnimatedModal from "../components/AnimatedModal";
-import ThumbnailImage from "../components/ThumbnailImage";
-import ErrorState, { SavedCopyNotice } from "../components/common/ErrorState";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
+import { color, gutter, polaroid, radius, space } from "../theme";
+import {
+  EMPTY_COPY,
+  ErrorSlip,
+  Header,
+  Polaroid,
+  ScreenBackground,
+  Text,
+  haptics,
+  paperLift,
+  polaroidTilt,
+  useNavLock,
+  withAlpha,
+} from "../ui";
+import { Lightbox } from "./wall/Lightbox";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const POLAROID_WIDTH = (SCREEN_WIDTH - 60) / 2;
+type SourceType = "moment" | "date" | "milestone";
 
 // Photo item with source info
 interface PhotoItem {
   id: string;
   url: string;
-  sourceType: "moment" | "date" | "milestone";
+  sourceType: SourceType;
   sourceId: string;
   sourceTitle: string;
   sourceDate: string;
-  rotation: number;
-  offsetX: number;
-  offsetY: number;
 }
 
-// Decorative tape styles
-const TAPE_STYLES = [
-  { rotation: -12, color: "rgba(255, 200, 200, 0.85)" },
-  { rotation: 8, color: "rgba(200, 230, 255, 0.85)" },
-  { rotation: -5, color: "rgba(255, 240, 200, 0.85)" },
-  { rotation: 15, color: "rgba(220, 255, 220, 0.85)" },
-  { rotation: -18, color: "rgba(255, 220, 240, 0.85)" },
-];
+/** Newest source date first; ties keep a stable order by id. */
+function byNewest(a: PhotoItem, b: PhotoItem): number {
+  const d = (b.sourceDate || "").localeCompare(a.sourceDate || "");
+  return d !== 0 ? d : a.id.localeCompare(b.id);
+}
 
-// Pin colors for variety
-const PIN_COLORS = ["#e74c3c", "#3498db", "#f39c12", "#9b59b6", "#1abc9c"];
+/** Grey polaroid frames while the wall loads [2A]. */
+const SKELETON_COUNT = 6;
+/** The blank square inside the empty polaroid: a faint ink wash on paper. */
+const EMPTY_PHOTO_WASH = 0.12;
 
 interface PicturesScreenProps {
   isFocused?: boolean;
@@ -64,7 +59,7 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoItem | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailData, setDetailData] = useState<{
-    type: "moment" | "date" | "milestone";
+    type: SourceType;
     data: Moment | DateEntry | Milestone;
   } | null>(null);
 
@@ -77,6 +72,8 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
   // A failed load leaves the previous photos in place; the ref says whether there are any.
   const [loadError, setLoadError] = useState<null | "failed" | "stale">(null);
   const lastGoodPhotoCountRef = useRef(0);
+
+  const guard = useNavLock();
 
   const loadAllPhotos = useCallback(async (bypassCache: boolean = false) => {
     setLoading(true);
@@ -96,74 +93,36 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
       setMilestonesData(milestones);
 
       const allPhotos: PhotoItem[] = [];
-
-      // Extract photos from moments
-      moments.forEach((moment) => {
-        const momentId = moment.id;
-        if (!momentId) return;
-        (moment.photos || []).forEach((url, index) => {
+      const collect = (
+        sourceType: SourceType,
+        sourceId: string | undefined,
+        urls: string[] | undefined,
+        sourceTitle: string,
+        sourceDate: string
+      ) => {
+        if (!sourceId) return;
+        (urls || []).forEach((url, index) => {
           if (url && typeof url === "string" && url.startsWith("http")) {
             allPhotos.push({
-              id: `moment-${momentId}-${index}`,
+              id: `${sourceType}-${sourceId}-${index}`,
               url,
-              sourceType: "moment",
-              sourceId: momentId,
-              sourceTitle: moment.title,
-              sourceDate: moment.story_date,
-              rotation: (Math.random() - 0.5) * 12,
-              offsetX: (Math.random() - 0.5) * 8,
-              offsetY: (Math.random() - 0.5) * 8,
+              sourceType,
+              sourceId,
+              sourceTitle,
+              sourceDate,
             });
           }
         });
-      });
+      };
 
-      // Extract photos from dates
-      dates.forEach((dateEntry) => {
-        const dateId = dateEntry.id;
-        if (!dateId) return;
-        (dateEntry.photos || []).forEach((url, index) => {
-          if (url && typeof url === "string" && url.startsWith("http")) {
-            allPhotos.push({
-              id: `date-${dateId}-${index}`,
-              url,
-              sourceType: "date",
-              sourceId: dateId,
-              sourceTitle: dateEntry.title || dateEntry.location || "Date",
-              sourceDate: dateEntry.date,
-              rotation: (Math.random() - 0.5) * 12,
-              offsetX: (Math.random() - 0.5) * 8,
-              offsetY: (Math.random() - 0.5) * 8,
-            });
-          }
-        });
-      });
+      moments.forEach((m) => collect("moment", m.id, m.photos, m.title, m.story_date));
+      dates.forEach((d) => collect("date", d.id, d.photos, d.title || d.location || "Date", d.date));
+      milestones.forEach((m) => collect("milestone", m.id, m.photos, m.title, m.date));
 
-      // Extract photos from milestones
-      milestones.forEach((milestone) => {
-        const milestoneId = milestone.id;
-        if (!milestoneId) return;
-        (milestone.photos || []).forEach((url, index) => {
-          if (url && typeof url === "string" && url.startsWith("http")) {
-            allPhotos.push({
-              id: `milestone-${milestoneId}-${index}`,
-              url,
-              sourceType: "milestone",
-              sourceId: milestoneId,
-              sourceTitle: milestone.title,
-              sourceDate: milestone.date,
-              rotation: (Math.random() - 0.5) * 12,
-              offsetX: (Math.random() - 0.5) * 8,
-              offsetY: (Math.random() - 0.5) * 8,
-            });
-          }
-        });
-      });
-
-      // Shuffle photos for a natural feel
-      const shuffled = allPhotos.sort(() => Math.random() - 0.5);
-      setPhotos(shuffled);
-      lastGoodPhotoCountRef.current = shuffled.length;
+      // Stable layout: newest first (no shuffle; tilt is seeded per photo by the Polaroid).
+      allPhotos.sort(byNewest);
+      setPhotos(allPhotos);
+      lastGoodPhotoCountRef.current = allPhotos.length;
       setLoadError(null);
     } catch (error) {
       console.error("Error loading photos:", error);
@@ -180,15 +139,16 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
   // Auto-check for changes and refresh only if data has changed
   useAutoRefresh({
     onRefresh: () => loadAllPhotos(true), // Bypass cache for fresh data
-    resourceType: "all", // Pictures screen shows all resource types
+    resourceType: "all", // The Wall shows all resource types
     isFocused,
   });
 
-  const handlePhotoPress = (photo: PhotoItem) => {
+  const handlePhotoPress = guard((photo: PhotoItem) => {
+    haptics.select();
     setSelectedPhoto(photo);
-  };
+  });
 
-  const handleViewEntry = () => {
+  const handleViewEntry = guard(() => {
     if (!selectedPhoto) return;
 
     let data: Moment | DateEntry | Milestone | undefined;
@@ -202,508 +162,205 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
     }
 
     if (data) {
+      haptics.navigate();
       setDetailData({ type: selectedPhoto.sourceType, data });
       setSelectedPhoto(null);
       setShowDetailModal(true);
     }
-  };
+  });
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
+  const closeDetail = () => setShowDetailModal(false);
+  const retry = () => loadAllPhotos(true);
 
-  const getSourceIcon = (type: "moment" | "date" | "milestone") => {
-    switch (type) {
-      case "moment":
-        return "💕";
-      case "date":
-        return "📅";
-      case "milestone":
-        return "⭐";
-    }
-  };
-
-  const getSourceColor = (type: "moment" | "date" | "milestone") => {
-    switch (type) {
-      case "moment":
-        return "#FF6B9D";
-      case "date":
-        return "#7c3aed";
-      case "milestone":
-        return "#ffd700";
-    }
-  };
-
-  const renderPolaroid = (photo: PhotoItem, index: number) => {
-    const tapeStyle = TAPE_STYLES[index % TAPE_STYLES.length];
-    const pinColor = PIN_COLORS[index % PIN_COLORS.length];
-    const usePin = index % 3 === 0;
-
-    return (
-      <AnimatedCard
-        key={photo.id}
-        index={index}
-        animationType="fade-scale"
-        staggerDelay={50}
-        style={{ width: POLAROID_WIDTH }}
-      >
-        <AnimatedPolaroid
-          width={POLAROID_WIDTH}
-          initialRotation={photo.rotation}
-          initialOffsetX={photo.offsetX}
-          initialOffsetY={photo.offsetY}
-          onTap={() => handlePhotoPress(photo)}
-        >
-          {/* Polaroid frame */}
-          <View
-            style={{
-              backgroundColor: "#fefefe",
-              padding: 8,
-              paddingBottom: 36,
-              borderRadius: 2,
-            }}
-          >
-            {/* Photo - using thumbnail for faster loading with fallback */}
-            <ThumbnailImage
-              source={photo.url}
-              style={{
-                width: POLAROID_WIDTH - 16,
-                height: POLAROID_WIDTH - 16,
-                backgroundColor: "#e8e8e8",
-              }}
-              contentFit="cover"
-              cachePolicy="disk"
-              transition={200}
-            />
-
-          {/* Caption area */}
-          <View
-            style={{
-              position: "absolute",
-              bottom: 8,
-              left: 8,
-              right: 8,
-              alignItems: "center",
-            }}
-          >
-            <Text
-              style={{
-                fontFamily: Platform.select({
-                  ios: "Noteworthy-Bold",
-                  android: "serif",
-                  default: "cursive",
-                }),
-                fontSize: 11,
-                color: "#555",
-                textAlign: "center",
-              }}
-              numberOfLines={1}
-            >
-              {formatDate(photo.sourceDate)}
-            </Text>
-          </View>
-
-          {/* Source type indicator */}
-          <View
-            style={{
-              position: "absolute",
-              top: 12,
-              right: 12,
-              backgroundColor: getSourceColor(photo.sourceType),
-              borderRadius: 12,
-              width: 24,
-              height: 24,
-              alignItems: "center",
-              justifyContent: "center",
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.2,
-              shadowRadius: 2,
-              elevation: 3,
-            }}
-          >
-            <Text style={{ fontSize: 12 }}>{getSourceIcon(photo.sourceType)}</Text>
-          </View>
-        </View>
-
-        {/* Decorative tape or pin */}
-        {usePin ? (
-          <View
-            style={{
-              position: "absolute",
-              top: -8,
-              left: "50%",
-              marginLeft: -8,
-              width: 16,
-              height: 16,
-              borderRadius: 8,
-              backgroundColor: pinColor,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.3,
-              shadowRadius: 2,
-              elevation: 4,
-              // Pin highlight
-              borderWidth: 2,
-              borderColor: "rgba(255,255,255,0.4)",
-            }}
-          />
-        ) : (
-          <View
-            style={{
-              position: "absolute",
-              top: -6,
-              left: "50%",
-              marginLeft: -20,
-              width: 40,
-              height: 14,
-              backgroundColor: tapeStyle.color,
-              transform: [{ rotate: `${tapeStyle.rotation}deg` }],
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.1,
-              shadowRadius: 1,
-              elevation: 2,
-            }}
-          />
-        )}
-        </AnimatedPolaroid>
-      </AnimatedCard>
-    );
-  };
-
-  if (loading) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "#2A1F1A",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <ActivityIndicator size="large" color="#D4A574" />
-        <Text
-          style={{
-            marginTop: 16,
-            color: "#D4A574",
-            fontSize: 16,
-            fontFamily: Platform.select({ ios: "Georgia", android: "serif" }),
-          }}
-        >
-          Gathering your memories...
+  const header = (
+    <View>
+      <Header title="Memory wall" section="wall" />
+      {photos.length > 0 ? (
+        <Text variant="title" tone="accent" style={styles.count}>
+          {`✦ ${photos.length} ${photos.length === 1 ? "photo" : "photos"} ✦`}
         </Text>
+      ) : null}
+    </View>
+  );
+
+  let body: React.ReactNode;
+  if (loading) {
+    body = (
+      <View>
+        {header}
+        <View
+          style={styles.grid}
+          accessibilityRole="progressbar"
+          accessibilityLabel="Loading"
+          accessibilityState={{ busy: true }}
+          testID="wall-skeleton"
+        >
+          {Array.from({ length: SKELETON_COUNT }, (_, i) => (
+            <View key={i} style={styles.cell}>
+              <View
+                style={[styles.skeletonFrame, { transform: [{ rotate: `${polaroidTilt(`skeleton-${i}`)}deg` }] }]}
+              >
+                <View style={styles.skeletonPhoto} />
+                <View style={styles.captionBox} />
+              </View>
+            </View>
+          ))}
+        </View>
       </View>
+    );
+  } else if (photos.length === 0 && loadError === "failed") {
+    body = (
+      <View>
+        {header}
+        <ErrorSlip what="your memory wall" onRetry={retry} style={styles.slip} />
+      </View>
+    );
+  } else if (photos.length === 0) {
+    body = (
+      <View>
+        {header}
+        <View
+          style={[styles.emptyPolaroid, paperLift, { transform: [{ rotate: `${polaroidTilt("wall-empty")}deg` }] }]}
+          testID="empty-slip"
+        >
+          <View style={styles.emptyPhoto} />
+          <Text variant="body" tone="ink" style={styles.emptyText}>
+            {EMPTY_COPY.wall.message}
+          </Text>
+          <View pointerEvents="none" style={styles.tape} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
+        </View>
+      </View>
+    );
+  } else {
+    body = (
+      <FlatList
+        data={photos}
+        keyExtractor={(item) => item.id}
+        numColumns={2}
+        ListHeaderComponent={
+          <View>
+            {header}
+            {loadError === "stale" ? (
+              <ErrorSlip what="your memory wall" onRetry={retry} showingSavedCopy style={styles.slip} />
+            ) : null}
+          </View>
+        }
+        renderItem={({ item }) => (
+          <View style={styles.cell}>
+            <Polaroid
+              id={item.id}
+              title={item.sourceTitle}
+              date={item.sourceDate}
+              photo={item.url}
+              onPress={() => handlePhotoPress(item)}
+            />
+          </View>
+        )}
+        columnWrapperStyle={styles.row}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        // Virtualization settings - only render visible items
+        initialNumToRender={6}
+        maxToRenderPerBatch={4}
+        windowSize={5}
+      />
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#2A1F1A" }}>
-      {/* Vintage photo album texture background */}
-      <View
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: "#2A1F1A",
-          opacity: 1,
-        }}
-      >
-        {/* Subtle texture dots */}
-        {Array.from({ length: 50 }).map((_, i) => (
-          <View
-            key={i}
-            style={{
-              position: "absolute",
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              width: 2 + Math.random() * 3,
-              height: 2 + Math.random() * 3,
-              borderRadius: 2,
-              backgroundColor: `rgba(212, 165, 116, ${0.05 + Math.random() * 0.1})`,
-            }}
-          />
-        ))}
-      </View>
+    <ScreenBackground>
+      {body}
 
-      {/* Header */}
-      <View
-        style={{
-          paddingHorizontal: 20,
-          paddingTop: 12,
-          paddingBottom: 16,
-          borderBottomWidth: 0,
-        }}
-      >
-        <Text
-          style={{
-            fontSize: 13,
-            color: "#8B7355",
-            textAlign: "center",
-            fontFamily: Platform.select({ ios: "Georgia", android: "serif" }),
-            letterSpacing: 0.5,
-            fontStyle: "italic",
-          }}
-        >
-          {photos.length === 0
-            ? "Your story awaits..."
-            : photos.length === 1
-            ? "Where it all began"
-            : photos.length <= 5
-            ? "The first chapters of us"
-            : photos.length <= 15
-            ? "A growing collection of us"
-            : photos.length <= 30
-            ? "So many beautiful moments"
-            : "A lifetime of memories together"}
-        </Text>
-        <Text
-          style={{
-            fontSize: 22,
-            color: "#D4A574",
-            textAlign: "center",
-            fontFamily: Platform.select({ ios: "Georgia", android: "serif" }),
-            letterSpacing: 1,
-            marginTop: 4,
-          }}
-        >
-          {photos.length > 0 && `✦ ${photos.length} ✦`}
-        </Text>
-      </View>
+      <Lightbox
+        photo={
+          selectedPhoto
+            ? {
+                url: selectedPhoto.url,
+                title: selectedPhoto.sourceTitle,
+                date: selectedPhoto.sourceDate,
+                type: selectedPhoto.sourceType,
+              }
+            : null
+        }
+        onClose={() => setSelectedPhoto(null)}
+        onOpenEntry={handleViewEntry}
+      />
 
-      {loadError === "stale" && photos.length > 0 && (
-        <SavedCopyNotice onRetry={() => loadAllPhotos(true)} />
-      )}
-
-      {photos.length === 0 && loadError === "failed" ? (
-        <ErrorState subject="your memory wall" onRetry={() => loadAllPhotos(true)} />
-      ) : photos.length === 0 ? (
-        <View
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            padding: 40,
-          }}
-        >
-          <Text style={{ fontSize: 64, marginBottom: 20 }}>📷</Text>
-          <Text
-            style={{
-              fontSize: 20,
-              color: "#D4A574",
-              textAlign: "center",
-              fontFamily: Platform.select({ ios: "Georgia", android: "serif" }),
-              marginBottom: 8,
-            }}
-          >
-            Your memory wall is empty
-          </Text>
-          <Text
-            style={{
-              fontSize: 14,
-              color: "#8B7355",
-              textAlign: "center",
-              lineHeight: 22,
-            }}
-          >
-            Add photos to your moments, dates, and milestones to see them here
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={photos}
-          renderItem={({ item, index }) => renderPolaroid(item, index)}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          columnWrapperStyle={{
-            justifyContent: "space-around",
-            paddingHorizontal: 15,
-          }}
-          contentContainerStyle={{
-            paddingTop: 25,
-            paddingBottom: 30,
-          }}
-          showsVerticalScrollIndicator={false}
-          // Virtualization settings - only render visible items
-          initialNumToRender={6}
-          maxToRenderPerBatch={4}
-          windowSize={5}
-          removeClippedSubviews={Platform.OS !== "web"}
-          // Optimize re-renders
-          getItemLayout={(_, index) => ({
-            length: POLAROID_WIDTH + 20,
-            offset: (POLAROID_WIDTH + 20) * Math.floor(index / 2),
-            index,
-          })}
-        />
-      )}
-
-      {/* Photo preview modal */}
-      <Modal
-        visible={selectedPhoto !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSelectedPhoto(null)}
-      >
-        <TouchableOpacity
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.85)",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-          activeOpacity={1}
-          onPress={() => setSelectedPhoto(null)}
-        >
-          {selectedPhoto && (
-            <View style={{ alignItems: "center", width: "100%" }}>
-              {/* Large polaroid */}
-              <View
-                style={{
-                  backgroundColor: "#fefefe",
-                  padding: 12,
-                  paddingBottom: 60,
-                  marginHorizontal: 20,
-                  maxWidth: SCREEN_WIDTH - 40,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 10 },
-                  shadowOpacity: 0.5,
-                  shadowRadius: 20,
-                  elevation: 20,
-                }}
-              >
-                <Image
-                  source={selectedPhoto.url}
-                  style={{
-                    width: SCREEN_WIDTH - 64,
-                    height: SCREEN_WIDTH - 64,
-                    backgroundColor: "#e8e8e8",
-                  }}
-                  contentFit="cover"
-                  cachePolicy="disk"
-                  transition={300}
-                />
-                <View
-                  style={{
-                    position: "absolute",
-                    bottom: 12,
-                    left: 12,
-                    right: 12,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontFamily: Platform.select({
-                        ios: "Noteworthy-Bold",
-                        android: "serif",
-                        default: "cursive",
-                      }),
-                      fontSize: 16,
-                      color: "#333",
-                      textAlign: "center",
-                      marginBottom: 4,
-                    }}
-                    numberOfLines={1}
-                  >
-                    {selectedPhoto.sourceTitle}
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: Platform.select({
-                        ios: "Noteworthy",
-                        android: "serif",
-                        default: "cursive",
-                      }),
-                      fontSize: 13,
-                      color: "#666",
-                      textAlign: "center",
-                    }}
-                  >
-                    {formatDate(selectedPhoto.sourceDate)}
-                  </Text>
-                </View>
-              </View>
-
-              {/* View entry button */}
-              <TouchableOpacity
-                onPress={handleViewEntry}
-                style={{
-                  marginTop: 24,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  backgroundColor: getSourceColor(selectedPhoto.sourceType),
-                  paddingHorizontal: 24,
-                  paddingVertical: 14,
-                  borderRadius: 30,
-                  gap: 8,
-                }}
-              >
-                <Text style={{ fontSize: 18 }}>
-                  {getSourceIcon(selectedPhoto.sourceType)}
-                </Text>
-                <Text
-                  style={{
-                    color: selectedPhoto.sourceType === "milestone" ? "#1a0f00" : "#fff",
-                    fontSize: 16,
-                    fontWeight: "600",
-                  }}
-                >
-                  View {selectedPhoto.sourceType === "date" ? "Date" : selectedPhoto.sourceType === "milestone" ? "Milestone" : "Moment"}
-                </Text>
-              </TouchableOpacity>
-
-              {/* Close hint */}
-              <Text
-                style={{
-                  marginTop: 20,
-                  color: "rgba(255,255,255,0.5)",
-                  fontSize: 13,
-                }}
-              >
-                Tap anywhere to close
-              </Text>
-            </View>
+      {/* Entry detail, read-only from the Wall */}
+      <Modal visible={showDetailModal} animationType="fade" transparent onRequestClose={closeDetail} statusBarTranslucent>
+        <View style={styles.detail}>
+          {detailData?.type === "moment" && (
+            <MomentDetailView
+              moment={detailData.data as Moment}
+              onClose={closeDetail}
+              onEdit={() => {}}
+              allowEdit={false}
+            />
           )}
-        </TouchableOpacity>
+          {detailData?.type === "date" && (
+            <DateDetailView
+              dateEntry={detailData.data as DateEntry}
+              onClose={closeDetail}
+              onEdit={() => {}}
+              allowEdit={false}
+            />
+          )}
+          {detailData?.type === "milestone" && (
+            <MilestoneDetailView
+              milestone={detailData.data as Milestone}
+              onClose={closeDetail}
+              onEdit={() => {}}
+              allowEdit={false}
+            />
+          )}
+        </View>
       </Modal>
-
-      {/* Entry detail modal */}
-      <AnimatedModal
-        visible={showDetailModal}
-        onClose={() => setShowDetailModal(false)}
-      >
-        {detailData?.type === "moment" && (
-          <MomentDetailView
-            moment={detailData.data as Moment}
-            onClose={() => setShowDetailModal(false)}
-            onEdit={() => {}}
-            allowEdit={false}
-          />
-        )}
-        {detailData?.type === "date" && (
-          <DateDetailView
-            dateEntry={detailData.data as DateEntry}
-            onClose={() => setShowDetailModal(false)}
-            onEdit={() => {}}
-            allowEdit={false}
-          />
-        )}
-        {detailData?.type === "milestone" && (
-          <MilestoneDetailView
-            milestone={detailData.data as Milestone}
-            onClose={() => setShowDetailModal(false)}
-            onEdit={() => {}}
-            allowEdit={false}
-          />
-        )}
-      </AnimatedModal>
-    </View>
+    </ScreenBackground>
   );
 }
+
+/** Half of the row gap, as padding on each cell. */
+const CELL_INSET = space.sm;
+
+const styles = StyleSheet.create({
+  count: { textAlign: "center", marginBottom: space.xl },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: gutter - CELL_INSET,
+    paddingTop: space.sm,
+  },
+  row: { paddingHorizontal: gutter - CELL_INSET },
+  listContent: { paddingBottom: space.xxl },
+  cell: { width: "50%", paddingHorizontal: CELL_INSET, paddingTop: space.sm, paddingBottom: space.xl },
+  skeletonFrame: {
+    backgroundColor: color.outline,
+    borderRadius: radius.print,
+    paddingTop: polaroid.frame,
+    paddingHorizontal: polaroid.frame,
+  },
+  skeletonPhoto: { width: "100%", aspectRatio: 1, backgroundColor: color.hairline },
+  captionBox: { height: polaroid.caption },
+  slip: { marginHorizontal: gutter, marginTop: space.sm, marginBottom: space.xl },
+  emptyPolaroid: {
+    alignSelf: "center",
+    width: "60%",
+    marginTop: space.xl,
+    backgroundColor: color.paper,
+    borderRadius: radius.print,
+    padding: polaroid.frame,
+    paddingBottom: space.lg,
+  },
+  emptyPhoto: { width: "100%", aspectRatio: 1, backgroundColor: withAlpha(color.inkMuted, EMPTY_PHOTO_WASH) },
+  emptyText: { textAlign: "center", marginTop: space.md },
+  tape: {
+    position: "absolute",
+    top: -polaroid.tape.height / 2,
+    left: "50%",
+    marginLeft: -polaroid.tape.width / 2,
+    width: polaroid.tape.width,
+    height: polaroid.tape.height,
+    backgroundColor: color.tape,
+  },
+  detail: { flex: 1, backgroundColor: color.surface },
+});
