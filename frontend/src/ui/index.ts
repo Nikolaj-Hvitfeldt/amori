@@ -16,6 +16,10 @@ export { moodIcons, milestoneTypeIcons, MOODS, MILESTONE_TYPES, ICON_STROKE, ico
 export type { IconEntry } from "./icons";
 export { Sheet } from "./Sheet";
 export type { SheetProps } from "./Sheet";
+export { ActionMenu } from "./ActionMenu";
+export type { ActionMenuItem, ActionMenuProps } from "./ActionMenu";
+export { PhotoPager } from "./PhotoPager";
+export type { PhotoPagerProps } from "./PhotoPager";
 export { SelectSheet } from "./SelectSheet";
 export type { SelectOption, SelectSheetProps } from "./SelectSheet";
 export { FormSheet } from "./FormSheet";

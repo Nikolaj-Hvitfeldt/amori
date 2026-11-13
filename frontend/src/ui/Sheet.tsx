@@ -20,6 +20,13 @@ export type SheetProps = {
   onRequestClose: () => void;
   children: React.ReactNode;
   accessibilityLabel?: string;
+  /**
+   * "auto" (default) sizes to its content, up to 92% of the screen: forms, menus.
+   * "tall" is always 92% tall, so a flex:1 child (a detail view with its own
+   * ScrollView) has room to lay out. Moments, Dates and Milestones open their
+   * detail views in a tall sheet.
+   */
+  size?: "auto" | "tall";
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
@@ -38,7 +45,7 @@ const useNative = Platform.OS !== "web";
  * On web, react-native-web's Modal traps focus, closes on Esc (via onRequestClose)
  * and returns focus to the element that had it before opening.
  */
-export function Sheet({ visible, onRequestClose, children, accessibilityLabel, style, testID }: SheetProps) {
+export function Sheet({ visible, onRequestClose, children, accessibilityLabel, size = "auto", style, testID }: SheetProps) {
   const reduced = useReducedEffects();
   const { width, height } = useWindowDimensions();
   const wide = width >= webFrame.breakpoint;
@@ -104,6 +111,7 @@ export function Sheet({ visible, onRequestClose, children, accessibilityLabel, s
           style={[
             styles.sheet,
             wide && styles.sheetWide,
+            size === "tall" && styles.sheetTall,
             { opacity: wide || reduced ? progress : 1, transform: [{ translateY }] },
             style,
           ]}
@@ -128,4 +136,5 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   sheetWide: { maxWidth: webFrame.column, borderRadius: radius.sheet },
+  sheetTall: { height: MAX_HEIGHT },
 });

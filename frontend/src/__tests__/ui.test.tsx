@@ -2,14 +2,16 @@ import { describe, expect, it, jest } from "@jest/globals";
 import React from "react";
 import { StyleSheet } from "react-native";
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import { color, section, type } from "../theme";
+import { color, motion, section, type } from "../theme";
 import {
+  ActionMenu,
   Button,
   Chip,
   EmptySlip,
   ErrorSlip,
   Input,
   PaperPrint,
+  PhotoPager,
   Polaroid,
   SAVE_LABELS,
   Text,
@@ -240,5 +242,52 @@ describe("useNavLock", () => {
     guarded();
     expect(fn).toHaveBeenCalledTimes(2);
     jest.useRealTimers();
+  });
+});
+
+describe("ActionMenu", () => {
+  it("opens from More options, runs an action after the sheet closes, and has Cancel", async () => {
+    jest.useFakeTimers();
+    const onEdit = jest.fn();
+    const onDelete = jest.fn();
+    await render(
+      <ActionMenu
+        actions={[
+          { label: "Edit", onPress: onEdit },
+          { label: "Delete", onPress: onDelete, destructive: true },
+        ]}
+      />
+    );
+    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+    await fireEvent.press(screen.getByRole("button", { name: "More options" }));
+    expect(screen.getByRole("button", { name: "Edit" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
+    await fireEvent.press(screen.getByRole("button", { name: "Delete" }));
+    expect(onDelete).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(motion.sheetClose);
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(onEdit).not.toHaveBeenCalled();
+    jest.useRealTimers();
+  });
+});
+
+describe("PhotoPager", () => {
+  it("renders nothing for zero photos", async () => {
+    await render(<PhotoPager photos={[]} title="Soup" testID="pager" />);
+    expect(screen.queryByTestId("pager")).toBeNull();
+  });
+
+  it("shows no dots for a single photo", async () => {
+    await render(<PhotoPager photos={["file:///a.png"]} title="Soup" testID="pager" />);
+    expect(screen.getByLabelText("Photo from Soup")).toBeTruthy();
+    expect(screen.queryByTestId("pager-dots")).toBeNull();
+  });
+
+  it("labels each photo, and the dots read Photo 1 of 2", async () => {
+    await render(<PhotoPager photos={["file:///a.png", "file:///b.png"]} title="Soup" testID="pager" />);
+    expect(screen.getByLabelText("Photo 1 of 2 from Soup")).toBeTruthy();
+    expect(screen.getByLabelText("Photo 2 of 2 from Soup")).toBeTruthy();
+    expect(screen.getByTestId("pager-dots").props.accessibilityLabel).toBe("Photo 1 of 2");
   });
 });
