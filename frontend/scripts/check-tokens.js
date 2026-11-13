@@ -18,25 +18,12 @@ const path = require("path");
 
 /**
  * Legacy files that still hard-code colours. They migrate to tokens in
- * Phases 3–4; this list SHRINKS TO EMPTY BY THE END OF PHASE 4. Never add to it:
- * new code (src/ui/**, utils/daysTogether.ts, anything new) must be clean.
+ * Phases 3–4; this list reached EMPTY at the end of Phase 4 and stays empty.
+ * Never add to it: all code under src (outside theme/) must be clean.
  * Paths are relative to frontend/src, with forward slashes.
+ * @type {string[]}
  */
-const LEGACY = [
-  "components/AnimatedFAB.tsx", // Phase 3/4: shrinks to empty by the end of Phase 4
-  "components/AnimatedModal.tsx", // Phase 3/4: shrinks to empty by the end of Phase 4
-  "components/AnimatedPolaroid.tsx", // Phase 3/4: shrinks to empty by the end of Phase 4
-  "components/DateCard.tsx", // Phase 3: shrinks to empty by the end of Phase 4
-  "components/MilestoneCard.tsx", // Phase 3: shrinks to empty by the end of Phase 4
-  "components/MomentCard.tsx", // Phase 3: shrinks to empty by the end of Phase 4
-  "components/RotatingPhotoBackground.tsx", // retired in Phase 3: shrinks to empty by the end of Phase 4
-  "components/SkeletonLoader.tsx", // Phase 3: shrinks to empty by the end of Phase 4
-  "components/SuccessCheckmark.tsx", // retired in Phase 3: shrinks to empty by the end of Phase 4
-  "components/TimelineRope.tsx", // Phase 3: shrinks to empty by the end of Phase 4
-  "constants/milestoneConfig.ts", // Phase 3: shrinks to empty by the end of Phase 4
-  "constants/theme.ts", // legacy theme, retired by the end of Phase 4
-  "utils/moodUtils.ts", // Phase 3: shrinks to empty by the end of Phase 4
-];
+const LEGACY = [];
 
 /** A hex colour that sits inside a quoted string or template on the same line. */
 const HEX_IN_STRING = /(["'`])(?:(?!\1).)*?#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![0-9a-zA-Z_])/;
