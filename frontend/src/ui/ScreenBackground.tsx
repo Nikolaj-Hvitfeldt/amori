@@ -1,11 +1,19 @@
 import React from "react";
-import { ImageBackground, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import { ImageBackground, Platform, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { color, grain, vignette } from "../theme";
 import { a11yHidden } from "./styles";
 import { useReducedEffects } from "./useReducedEffects";
 
 const GRAIN = require("../../assets/ui/grain.png");
+
+/** Web-only grain tile: grayscale fractal noise, the same role as grain.png on native. */
+const WEB_GRAIN = `url("data:image/svg+xml;utf8,${encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='${grain.tile}' height='${grain.tile}'>` +
+    "<filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/>" +
+    "<feColorMatrix type='saturate' values='0'/></filter>" +
+    "<rect width='100%' height='100%' filter='url(#n)'/></svg>"
+)}")`;
 
 export type ScreenBackgroundProps = {
   children?: React.ReactNode;
@@ -32,13 +40,30 @@ export function ScreenBackground({ children, style, testID }: ScreenBackgroundPr
             {...a11yHidden}
           />
           <View pointerEvents="none" style={StyleSheet.absoluteFill} {...a11yHidden}>
-            <ImageBackground
-              source={GRAIN}
-              resizeMode="repeat"
-              style={StyleSheet.absoluteFill}
-              imageStyle={styles.grainImage}
-              testID="screen-grain"
-            />
+            {Platform.OS === "web" ? (
+              // react-native-web draws resizeMode="repeat" as a single tile, and has no
+              // resolveAssetSource, so on web the same 128px grain tile is an inline SVG
+              // noise pattern on a plain DOM div.
+              React.createElement("div", {
+                "data-testid": "screen-grain",
+                style: {
+                  position: "absolute",
+                  inset: 0,
+                  opacity: grain.opacity,
+                  backgroundImage: WEB_GRAIN,
+                  backgroundRepeat: "repeat",
+                  backgroundSize: `${grain.tile}px ${grain.tile}px`,
+                },
+              })
+            ) : (
+              <ImageBackground
+                source={GRAIN}
+                resizeMode="repeat"
+                style={StyleSheet.absoluteFill}
+                imageStyle={styles.grainImage}
+                testID="screen-grain"
+              />
+            )}
           </View>
         </>
       ) : null}
