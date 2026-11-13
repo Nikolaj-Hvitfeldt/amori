@@ -22,7 +22,6 @@ import {
   MilestoneType,
 } from "../types/milestones";
 import { milestonesService } from "../services/milestones";
-import { API_BASE_URL } from "../services/api";
 import {
   MILESTONE_CONFIG,
   getMilestoneConfig,
@@ -483,29 +482,7 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
 
       const base64data = `data:${mimeType};base64,${base64}`;
 
-      const uploadResponse = await fetch(
-        `${API_BASE_URL}/milestones/upload-image`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ image: base64data }),
-        }
-      );
-
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        throw new Error(
-          `Failed to upload image: ${uploadResponse.status} ${errorText}`
-        );
-      }
-
-      const result = await uploadResponse.json();
-      if (!result.url) {
-        throw new Error("No URL returned from upload");
-      }
-      return result.url;
+      return await milestonesService.uploadImage(base64data);
     } catch (error) {
       console.error("Error uploading image:", error);
       throw error;

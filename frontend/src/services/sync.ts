@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./api";
+import { apiFetch } from "./api";
 import { getCachedData, setCachedData } from "../utils/cache";
 import { SYNC_TIMESTAMP_CACHE_TTL } from "../constants/sync";
 
@@ -27,7 +27,7 @@ export const syncService = {
     // Make the request
     pendingRequest = (async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/sync/last-updated`);
+        const response = await apiFetch("/sync/last-updated");
 
         if (!response.ok) {
           throw new Error(`Failed to fetch last updated timestamps: ${response.statusText}`);
