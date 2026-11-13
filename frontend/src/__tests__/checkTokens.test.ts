@@ -61,6 +61,16 @@ describe("check-tokens", () => {
     expect(LEGACY.filter((f) => f.startsWith("ui/") || f === "utils/daysTogether.ts")).toEqual([]);
   });
 
+  it("has an empty legacy allowlist after Phase 4", () => {
+    expect(LEGACY).toEqual([]);
+  });
+
+  it("scans every folder under src, including navigation", () => {
+    write("navigation/Nav.tsx", 'const c = "#123456";\n');
+    const { offenders } = scan(root, { legacy: [] });
+    expect(offenders.some((o) => o.file === "navigation/Nav.tsx")).toBe(true);
+  });
+
   it("passes on the real src tree", () => {
     const { offenders } = scan(path.resolve(__dirname, ".."));
     expect(offenders).toEqual([]);

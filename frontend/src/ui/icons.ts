@@ -1,7 +1,7 @@
 /**
  * Icon map [5B, T2]: moods and milestone types → Lucide line icon + word.
  * Always shown together, in the section colour (Dates lavender, Milestones sage).
- * The legacy moodUtils.ts / milestoneConfig.ts stay until the screens migrate (Phase 3).
+ * Default milestone titles (non-visual) live in constants/milestoneConfig.ts.
  */
 import type { LucideIcon } from "lucide-react-native";
 import {

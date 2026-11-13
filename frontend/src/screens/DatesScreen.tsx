@@ -419,7 +419,7 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
           <Text variant="caption" tone="muted" uppercase style={styles.label}>
             Mood
           </Text>
-          <View style={styles.wrapRow} accessibilityRole="radiogroup">
+          <View style={styles.wrapRow} accessibilityRole="radiogroup" accessibilityLabel="Mood">
             {MOODS.map((m) => (
               <MoodTag key={m} mood={m} selected={form.mood === m} role="radio" onPress={() => form.setMood(m)} />
             ))}
@@ -439,7 +439,6 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
                   accessibilityRole="button"
                   accessibilityLabel={`Remove photo ${index + 1}`}
                   onPress={() => form.removePhoto(index)}
-                  hitSlop={space.sm}
                   style={styles.removePhoto}
                 >
                   <X size={iconSize.sm} color={color.text} strokeWidth={ICON_STROKE} />
@@ -606,10 +605,10 @@ const styles = StyleSheet.create({
   thumb: { width: THUMB, height: THUMB, borderRadius: radius.print, overflow: "hidden" },
   removePhoto: {
     position: "absolute",
-    top: space.xs,
-    right: space.xs,
-    width: hitTarget - space.md,
-    height: hitTarget - space.md,
+    top: 0,
+    right: 0,
+    width: hitTarget,
+    height: hitTarget,
     borderRadius: radius.pill,
     backgroundColor: color.scrim,
     alignItems: "center",
