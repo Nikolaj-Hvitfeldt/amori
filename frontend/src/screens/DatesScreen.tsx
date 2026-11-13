@@ -1,105 +1,76 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  FlatList,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  Animated,
-} from "react-native";
-import { Image } from "expo-image";
-import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system/legacy";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { DateEntry, CreateDateEntryDto, DateMood } from "../types/dates";
+import { CalendarDays, ImagePlus, Plus, X } from "lucide-react-native";
+import { DateEntry } from "../types/dates";
 import { datesService } from "../services/dates";
 import DateDetailView from "../components/DateDetailView";
-import DateCard from "../components/DateCard";
-import AnimatedCard from "../components/AnimatedCard";
-import AnimatedFAB from "../components/AnimatedFAB";
-import { SkeletonList } from "../components/SkeletonLoader";
-import AnimatedModal from "../components/AnimatedModal";
-import SuccessCheckmark from "../components/SuccessCheckmark";
-import EmptyState from "../components/common/EmptyState";
-import ErrorState, { SavedCopyNotice } from "../components/common/ErrorState";
-import LoadingMore from "../components/common/LoadingMore";
-import ThumbnailImage from "../components/ThumbnailImage";
 import WebDatePicker from "../components/WebDatePicker";
 import { filterValidPhotos } from "../utils/imageUtils";
-import { getBoxShadow } from "../utils/shadows";
-import { formatDateEU } from "../utils/dateUtils";
-import { MOOD_COLORS, MOOD_OPTIONS } from "../utils/moodUtils";
 import { ITEMS_PER_PAGE } from "../constants/spacing";
-import {
-  TIME_THEMES,
-  TimeOfDay,
-  DATE_SCREEN_BG,
-  DATE_SCREEN_PURPLE,
-  DATE_SCREEN_PURPLE_LIGHT,
-  DATE_SCREEN_GRAY_DARK,
-} from "../constants/theme";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
-
+import { MISSING_FIELDS_MESSAGE, useDateForm } from "../hooks/useDateForm";
+import { color, field, gutter, hitTarget, motion, radius, space } from "../theme";
+import {
+  AddButton,
+  Button,
+  Collapsible,
+  ConfirmDialog,
+  EMPTY_COPY,
+  EmptySlip,
+  ErrorSlip,
+  FormSheet,
+  Header,
+  ICON_STROKE,
+  Input,
+  MOODS,
+  MoodTag,
+  PhotoImage,
+  SaveState,
+  ScreenBackground,
+  Sheet,
+  Skeleton,
+  Text,
+  Thread,
+  ThreadItem,
+  formatLongDate,
+  haptics,
+  iconSize,
+  useNavLock,
+} from "../ui";
 
 interface DatesScreenProps {
   isFocused?: boolean;
 }
+
+/** Shown above the fields when a save fails [2A]. */
+const SAVE_ERROR_MESSAGE = "Couldn't save this date. Check your connection and try again.";
+/** Matches the old close-then-reset delay so the sheet's close animation finishes first. */
+const RESET_DELAY_MS = 300;
+/** Form thumbnails: two field heights square. */
+const THUMB = field.height * 2;
 
 export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
   const [dates, setDates] = useState<DateEntry[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isDetailVisible, setIsDetailVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState<DateEntry | null>(null);
-  const [editingDate, setEditingDate] = useState<DateEntry | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [total, setTotal] = useState(0);
+  const [, setTotal] = useState(0);
 
-  // Form state
-  const [title, setTitle] = useState("");
-  const [date, setDate] = useState("");
-  const [datePickerValue, setDatePickerValue] = useState<Date>(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [webDateInput, setWebDateInput] = useState("");
-  const [location, setLocation] = useState("");
-  const [description, setDescription] = useState("");
-  const [mood, setMood] = useState<DateMood>("romantic");
-  const [highlights, setHighlights] = useState<string[]>([""]);
-  const [weather, setWeather] = useState("");
-  const [favoriteMoment, setFavoriteMoment] = useState("");
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const form = useDateForm();
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   // Save double-tap guard: the ref blocks re-entry synchronously, the state drives the button.
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
   // Error vs empty [2A]: "failed" = nothing to show, "stale" = showing the last good copy.
   const [loadError, setLoadError] = useState<null | "failed" | "stale">(null);
   const lastGoodDatesRef = useRef<DateEntry[]>([]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  // Get time of day from date input
-  const getTimeOfDay = (dateString: string): TimeOfDay => {
-    if (!dateString) return "night";
-    try {
-      const hour = new Date(dateString).getHours();
-      if (hour >= 5 && hour < 12) return "morning";
-      if (hour >= 12 && hour < 17) return "afternoon";
-      if (hour >= 17 && hour < 21) return "evening";
-    } catch {
-      // If date parsing fails, default to night
-    }
-    return "night";
-  };
-
-  const timeOfDay = getTimeOfDay(date);
-  const theme = TIME_THEMES[timeOfDay];
-  const moodColor = MOOD_COLORS[mood];
+  const guard = useNavLock();
 
   useEffect(() => {
     loadDates();
@@ -123,13 +94,13 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
 
       const offset = reset ? 0 : dates.length;
       const result = await datesService.getAll(ITEMS_PER_PAGE, offset, bypassCache);
-      
+
       // Safety check: ensure result and result.data exist
       if (!result || !result.data || !Array.isArray(result.data)) {
         console.error("Invalid API response:", result);
         throw new Error("Invalid response from server");
       }
-      
+
       const fetchedDates = result.data;
       // Filter out invalid photos from all dates and clean up database
       const cleanedDates = fetchedDates.map((dateEntry) => {
@@ -156,7 +127,7 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
           photos: validPhotos,
         };
       });
-      
+
       const sortedDates = cleanedDates.sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
       );
@@ -170,9 +141,7 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
         setDates((prev) => {
           // Deduplicate by ID to prevent duplicate keys
           const existingIds = new Set(prev.map((d) => d.id));
-          const uniqueNewDates = sortedDates.filter(
-            (d) => d.id && !existingIds.has(d.id)
-          );
+          const uniqueNewDates = sortedDates.filter((d) => d.id && !existingIds.has(d.id));
           const newDates = [...prev, ...uniqueNewDates];
           lastGoodDatesRef.current = newDates;
           setHasMore(newDates.length < (result.total || 0));
@@ -204,29 +173,50 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
     }
   };
 
-  const handleViewDate = useCallback((dateEntry: DateEntry) => {
-    setSelectedDate(dateEntry);
-    setIsDetailVisible(true);
-  }, []);
+  const datesById = useMemo(() => new Map(dates.map((d) => [d.id, d])), [dates]);
 
-  const handleDeleteDate = useCallback(async (id: string, title?: string) => {
-    const displayTitle = title || 'this date';
-    const confirmDelete = Platform.OS === "web"
-      ? (globalThis as any).confirm(`Are you sure you want to delete "${displayTitle}"?`)
-      : await new Promise<boolean>((resolve) => {
-          Alert.alert(
-            "Delete Date",
-            `Are you sure you want to delete "${displayTitle}"?`,
-            [
+  const threadItems = useMemo<ThreadItem[]>(
+    () =>
+      dates.map((d, index) => ({
+        id: d.id || `date-${index}`,
+        type: "date",
+        date: d.date,
+        title: d.title || "Our Special Date",
+        coverPhoto: d.photos && d.photos.length > 0 ? d.photos[0] : null,
+        chip: { kind: "mood", value: d.mood },
+        body: d.location || undefined,
+      })),
+    [dates]
+  );
+
+  const handleViewDate = useCallback(
+    guard((item: ThreadItem) => {
+      const dateEntry = datesById.get(item.id);
+      if (!dateEntry) return;
+      haptics.navigate();
+      setSelectedDate(dateEntry);
+      setIsDetailVisible(true);
+    }),
+    [guard, datesById]
+  );
+
+  const handleDeleteDate = async (id: string, title?: string) => {
+    const displayTitle = title || "this date";
+    const confirmDelete =
+      Platform.OS === "web"
+        ? (globalThis as any).confirm(`Are you sure you want to delete "${displayTitle}"?`)
+        : await new Promise<boolean>((resolve) => {
+            Alert.alert("Delete Date", `Are you sure you want to delete "${displayTitle}"?`, [
               { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
               { text: "Delete", style: "destructive", onPress: () => resolve(true) },
-            ]
-          );
-        });
+            ]);
+          });
 
     if (confirmDelete) {
+      haptics.warning();
       try {
         await datesService.delete(id);
+        setIsDetailVisible(false);
         setIsModalVisible(false);
         loadDates();
       } catch (error) {
@@ -238,1303 +228,399 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
         }
       }
     }
-  }, [loadDates]);
-
-  const renderDateItem = useCallback(
-    ({ item: dateEntry, index }: { item: DateEntry; index: number }) => {
-      return (
-        <AnimatedCard index={index} animationType="spring">
-          <DateCard
-            key={dateEntry.id}
-            dateEntry={dateEntry}
-            onPress={() => handleViewDate(dateEntry)}
-            variant="screen"
-          />
-        </AnimatedCard>
-      );
-    },
-    [handleViewDate, handleDeleteDate]
-  );
-
-  const renderEmpty = () =>
-    loadError === "failed" ? (
-      <ErrorState
-        subject="your dates"
-        onRetry={() => loadDates(true, true)}
-        backgroundColor={DATE_SCREEN_BG}
-      />
-    ) : (
-    <EmptyState
-      icon="📅"
-      title="No special dates recorded yet"
-      message="Create your first memory to begin the journey."
-      backgroundColor={DATE_SCREEN_BG}
-    />
-  );
-
-  const renderFooter = () => {
-    if (!loadingMore) return null;
-    return <LoadingMore color={DATE_SCREEN_PURPLE} />;
   };
-
-  const formatDateForDb = (dateObj: Date): string => {
-    const year = dateObj.getFullYear();
-    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-    const day = String(dateObj.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
-  const resetForm = () => {
-    const today = new Date();
-    setTitle("");
-    setDate(formatDateForDb(today)); // Default to today
-    setDatePickerValue(today);
-    setLocation("");
-    setDescription("");
-    setMood("romantic");
-    setHighlights([""]);
-    setWeather("");
-    setFavoriteMoment("");
-    setPhotos([]);
-    setEditingDate(null);
-    setShowDatePicker(false);
-    setWebDateInput("");
-  };
-
-  // Helper function to filter out invalid/blob URLs
 
   const openModal = (dateEntry?: DateEntry) => {
     if (dateEntry) {
-      setEditingDate(dateEntry);
-      setTitle(dateEntry.title || "");
-      setDate(dateEntry.date);
-      // Parse date manually to avoid timezone issues
-      const [year, month, day] = dateEntry.date.split("-").map(Number);
-      const parsedDate = new Date(year, month - 1, day);
-      setDatePickerValue(isNaN(parsedDate.getTime()) ? new Date() : parsedDate);
-      setLocation(dateEntry.location);
-      setDescription(dateEntry.description);
-      setMood(dateEntry.mood);
-      setHighlights(
-        dateEntry.highlights.length > 0 ? dateEntry.highlights : [""]
-      );
-      setWeather(dateEntry.weather || "");
-      setFavoriteMoment(dateEntry.favorite_moment || "");
-      // Support both photos array and legacy image_url
-      // Don't filter photos when opening modal - use photos as-is from database
-      // Filtering will happen on save and on load, not when editing
-      const allPhotos =
-        dateEntry.photos && dateEntry.photos.length > 0
-          ? dateEntry.photos
-          : dateEntry.image_url
-          ? [dateEntry.image_url]
-          : [];
-      setPhotos(allPhotos);
+      form.loadEntry(dateEntry);
     } else {
-      resetForm();
+      form.resetForm();
     }
+    setSaveState("idle");
+    setFormError(null);
     setIsModalVisible(true);
-    // Animate fade in
-    fadeAnim.setValue(0);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: Platform.OS !== "web",
-    }).start();
-  };
-
-  const formatDateForDisplay = (dateString: string | Date): string => {
-    const dateObj =
-      typeof dateString === "string" ? new Date(dateString) : dateString;
-    if (isNaN(dateObj.getTime())) return "";
-
-    // European format: dd-mm-yyyy
-    const day = String(dateObj.getDate()).padStart(2, "0");
-    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-    const year = dateObj.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
-
-  const formatDateForDatabase = (dateObj: Date): string => {
-    const year = dateObj.getFullYear();
-    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-    const day = String(dateObj.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
-  const handleDateChange = (event: any, pickedDate?: Date) => {
-    console.log("Date picker event:", event.type, "pickedDate:", pickedDate);
-
-    // On Android, always close the picker after the event
-    if (Platform.OS === "android") {
-      setShowDatePicker(false);
-    }
-
-    // Handle the date selection
-    if (event.type === "set" && pickedDate) {
-      setDatePickerValue(pickedDate);
-      const formattedDate = formatDateForDatabase(pickedDate);
-      setDate(formattedDate);
-      console.log("Date set to:", formattedDate);
-    } else if (event.type === "dismissed") {
-      // User cancelled on Android
-      setShowDatePicker(false);
-      console.log("Date picker dismissed");
-    }
   };
 
   const closeModal = () => {
     setIsModalVisible(false);
-    setTimeout(resetForm, 300);
+    setConfirmDiscard(false);
+    setTimeout(() => {
+      form.resetForm();
+      setSaveState("idle");
+      setFormError(null);
+    }, RESET_DELAY_MS);
+  };
+
+  /** ✕, backdrop, Android back, Esc: ask first when there are unsaved edits [7A]. */
+  const requestCloseModal = () => {
+    if (form.isDirty && saveState !== "saved") {
+      setConfirmDiscard(true);
+    } else {
+      closeModal();
+    }
   };
 
   const handleSaveDate = async () => {
     if (isSavingRef.current) return;
-    if (!date || !location || !description) {
-      Alert.alert(
-        "Missing Information",
-        "Please fill in the date, location, and description"
-      );
+    if (!form.isValid) {
+      setFormError(MISSING_FIELDS_MESSAGE);
       return;
     }
 
     isSavingRef.current = true;
     setIsSaving(true);
+    setFormError(null);
+    setSaveState("saving");
     try {
-      const filteredHighlights = highlights.filter((h) => h.trim() !== "");
-      const validPhotos = filterValidPhotos(photos);
-
-      const dateData: CreateDateEntryDto = {
-        title: title.trim() || undefined,
-        date,
-        location,
-        description,
-        mood,
-        highlights: filteredHighlights,
-        weather: weather || undefined,
-        favorite_moment: favoriteMoment || undefined,
-        photos: validPhotos,
-      };
-
-      if (editingDate) {
-        await datesService.update(editingDate.id, dateData);
+      const dateData = form.toDto();
+      if (form.editingDate) {
+        await datesService.update(form.editingDate.id, dateData);
       } else {
         await datesService.create(dateData);
       }
-
-      closeModal();
-      await loadDates();
-      setShowSuccess(true); // Show success animation
     } catch (error) {
       console.error("Error saving date:", error);
-      Alert.alert("Error", "Failed to save date entry");
+      setSaveState("error");
+      setFormError(SAVE_ERROR_MESSAGE);
+      isSavingRef.current = false;
+      setIsSaving(false);
+      return;
+    }
+
+    try {
+      setSaveState("saved");
+      haptics.success();
+      await new Promise((resolve) => setTimeout(resolve, motion.savedHold));
+      closeModal();
+      await loadDates();
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
     }
   };
 
-  const addHighlight = () => {
-    setHighlights([...highlights, ""]);
-  };
-
-  const updateHighlight = (index: number, value: string) => {
-    const newHighlights = [...highlights];
-    newHighlights[index] = value;
-    setHighlights(newHighlights);
-  };
-
-  const removeHighlight = (index: number) => {
-    if (highlights.length > 1) {
-      const newHighlights = highlights.filter((_, i) => i !== index);
-      setHighlights(newHighlights);
-    }
-  };
-
-  const uploadImage = async (uri: string): Promise<string> => {
-    try {
-      let base64: string;
-      let mimeType: string;
-
-      if (Platform.OS === "web") {
-        // For web, handle blob URLs and data URLs
-        if (uri.startsWith("blob:") || uri.startsWith("data:")) {
-          // If it's already a data URL, extract the base64
-          if (uri.startsWith("data:")) {
-            const matches = uri.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-            if (matches && matches.length === 3) {
-              mimeType = matches[1];
-              base64 = matches[2];
-            } else {
-              throw new Error("Invalid data URL format");
-            }
-          } else {
-            // For blob URLs, fetch and convert
-            const response = await fetch(uri);
-            const blob = await response.blob();
-
-            // Get mime type from blob
-            mimeType = blob.type || "image/jpeg";
-
-            // Convert blob to base64
-            base64 = await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onloadend = () => {
-                const result = reader.result as string;
-                // Remove data URL prefix
-                const base64Data = result.split(",")[1];
-                resolve(base64Data);
-              };
-              reader.onerror = reject;
-              reader.readAsDataURL(blob);
-            });
-          }
-        } else {
-          // For file:// URLs or other, try to fetch
-          const response = await fetch(uri);
-          const blob = await response.blob();
-
-          // Get mime type from blob
-          mimeType = blob.type || "image/jpeg";
-
-          // Convert blob to base64
-          base64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              const result = reader.result as string;
-              // Remove data URL prefix
-              const base64Data = result.split(",")[1];
-              resolve(base64Data);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-        }
-      } else {
-        // For native platforms, use expo-file-system
-        base64 = await FileSystem.readAsStringAsync(uri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-
-        // Determine mime type from file extension
-        const extension = uri.split(".").pop()?.toLowerCase() || "jpg";
-        const mimeTypes: Record<string, string> = {
-          jpg: "image/jpeg",
-          jpeg: "image/jpeg",
-          png: "image/png",
-          gif: "image/gif",
-          webp: "image/webp",
-        };
-        mimeType = mimeTypes[extension] || "image/jpeg";
-      }
-
-      const base64data = `data:${mimeType};base64,${base64}`;
-
-      // Upload to backend
-      return await datesService.uploadImage(base64data);
-    } catch (error) {
-      console.error("Error uploading image:", error);
-      throw error;
-    }
-  };
-
-  const pickImage = async () => {
-    try {
-      // Request permissions (skip on web as it's handled by browser)
-      if (Platform.OS !== "web") {
-        const { status } =
-          await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== "granted") {
-          Alert.alert(
-            "Permission Required",
-            "Please grant permission to access your photos."
-          );
-          return;
-        }
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        quality: 0.8,
-        allowsMultipleSelection: true,
-      });
-
-      console.log("Image picker result:", result);
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        console.log(`Uploading ${result.assets.length} images...`);
-        setLoading(true);
-        try {
-          // Upload all selected images
-          const uploadPromises = result.assets.map((asset, index) => {
-            console.log(
-              `Uploading image ${index + 1}/${result.assets.length}:`,
-              asset.uri
-            );
-            return uploadImage(asset.uri);
-          });
-          const uploadedUrls = await Promise.all(uploadPromises);
-          console.log("📸 Uploaded URLs:", uploadedUrls);
-          console.log("📸 Current photos before adding:", photos);
-          const newPhotos = [...photos, ...uploadedUrls];
-          console.log("📸 New photos array:", newPhotos);
-          setPhotos(newPhotos);
-        } catch (uploadError) {
-          console.error("Error uploading images:", uploadError);
-          Alert.alert(
-            "Upload Error",
-            `Failed to upload images: ${
-              uploadError instanceof Error
-                ? uploadError.message
-                : "Unknown error"
-            }`
-          );
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        console.log("Image picker was canceled or no assets selected");
-      }
-    } catch (error) {
-      console.error("Error picking image:", error);
-      Alert.alert(
-        "Error",
-        `Failed to pick image: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-      setLoading(false);
-    }
-  };
-
-  const removePhoto = (index: number) => {
-    const newPhotos = photos.filter((_, i) => i !== index);
-    setPhotos(newPhotos);
-  };
-
-  // Use formatDateEU for display (European format: dd-mm-yyyy)
-  const formatDate = formatDateEU;
-
-  if (loading && dates.length === 0) {
-    return (
-      <View style={{ flex: 1, backgroundColor: DATE_SCREEN_BG }}>
-        <SkeletonList variant="date" count={3} />
-      </View>
+  const renderEmpty = () =>
+    loadError === "failed" ? (
+      <ErrorSlip what="your dates" onRetry={() => loadDates(true, true)} />
+    ) : (
+      <EmptySlip
+        message={EMPTY_COPY.dates.message}
+        actionLabel={EMPTY_COPY.dates.action}
+        onAction={() => openModal()}
+      />
     );
-  }
+
+  const listHeader = (
+    <View>
+      <Header title="Dates" section="dates" style={styles.header} />
+      {loadError === "stale" ? (
+        <ErrorSlip what="your dates" onRetry={() => loadDates(true, true)} showingSavedCopy style={styles.stale} />
+      ) : null}
+    </View>
+  );
+
+  const showSkeleton = loading && dates.length === 0;
 
   return (
-    <View style={{ flex: 1, backgroundColor: DATE_SCREEN_BG }}>
-      <FlatList
-        data={dates}
-        renderItem={renderDateItem}
-        keyExtractor={(item, index) => item.id || `date-${index}`}
-        ListEmptyComponent={renderEmpty}
-        ListHeaderComponent={
-          loadError === "stale" ? (
-            <SavedCopyNotice onRetry={() => loadDates(true, true)} />
-          ) : null
-        }
-        ListFooterComponent={renderFooter}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
-        contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-        refreshing={loading && dates.length === 0}
-        onRefresh={() => loadDates(true)}
-      />
+    <ScreenBackground>
+      {showSkeleton ? (
+        <View style={styles.column}>
+          <Header title="Dates" section="dates" style={styles.header} />
+          <Skeleton count={3} />
+        </View>
+      ) : (
+        <Thread
+          items={threadItems}
+          onPressItem={handleViewDate}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={renderEmpty}
+          ListFooterComponent={loadingMore ? <Skeleton count={1} withPhotos={false} /> : null}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          refreshing={showSkeleton}
+          onRefresh={() => loadDates(true)}
+          contentContainerStyle={styles.column}
+        />
+      )}
 
-      {/* Animated Floating Action Button */}
-      <AnimatedFAB
-        onPress={() => openModal()}
-        color={DATE_SCREEN_PURPLE}
-        style={{
-          ...getBoxShadow(DATE_SCREEN_PURPLE, { width: 0, height: 6 }, 0.5, 16),
-          borderWidth: 2,
-          borderColor: DATE_SCREEN_PURPLE_LIGHT,
-        }}
-      >
-        <Text style={{ fontSize: 32, color: "#e5d3ff", fontWeight: "600" }}>
-          📅
-        </Text>
-      </AnimatedFAB>
+      <AddButton accessibilityLabel="Add a date" onPress={() => openModal()} />
 
-      {/* Success Checkmark Animation */}
-      <SuccessCheckmark 
-        visible={showSuccess} 
-        onHide={() => setShowSuccess(false)} 
-        color={DATE_SCREEN_PURPLE} 
-      />
-
-      {/* Immersive Modal */}
-      <Modal
+      <FormSheet
         visible={isModalVisible}
-        animationType="slide"
-        presentationStyle="fullScreen"
+        title={form.editingDate ? "Edit date" : "New date"}
+        saveState={saveState}
+        error={formError}
+        onSave={handleSaveDate}
+        onRequestClose={requestCloseModal}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
-        >
-          <Animated.View
-            style={{
-              flex: 1,
-              backgroundColor: theme.bg,
-              opacity: fadeAnim,
-            }}
-          >
-            {/* Header with Photo Preview */}
-            <View
-              style={{
-                paddingTop: Platform.OS === "ios" ? 60 : 40,
-                paddingBottom: 20,
-                paddingHorizontal: 20,
-                backgroundColor:
-                  timeOfDay === "night" ? TIME_THEMES.night.gradient[1] : theme.gradient[0] + "40",
-                borderBottomWidth: 1,
-                borderBottomColor:
-                  timeOfDay === "night" ? DATE_SCREEN_GRAY_DARK : theme.gradient[0] + "60",
-              }}
-            >
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: photos.length > 0 ? 16 : 0,
-                }}
-              >
-                <TouchableOpacity
-                  onPress={closeModal}
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    backgroundColor:
-                      timeOfDay === "night"
-                        ? "rgba(0, 0, 0, 0.5)"
-                        : "rgba(255, 255, 255, 0.3)",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 20,
-                      color: theme.text,
-                      fontWeight: "600",
-                    }}
-                  >
-                    ✕
-                  </Text>
-                </TouchableOpacity>
-                <Text
-                  style={{
-                    fontSize: 22,
-                    fontWeight: "300",
-                    color: theme.text,
-                    letterSpacing: 1,
-                    fontFamily: Platform.select({
-                      ios: "Georgia",
-                      android: "serif",
-                    }),
-                  }}
-                >
-                  {editingDate ? "Edit Date" : "New Date"}
-                </Text>
-                <TouchableOpacity
-                  onPress={handleSaveDate}
-                  disabled={isSaving}
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: isSaving, busy: isSaving }}
-                  style={{
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
-                    borderRadius: 20,
-                    backgroundColor: moodColor,
-                    opacity: isSaving ? 0.6 : 1,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      color: timeOfDay === "night" ? "#fff" : "#1a1a2e",
-                      fontWeight: "600",
-                    }}
-                  >
-                    Save
-                  </Text>
-                </TouchableOpacity>
-              </View>
+        <Input
+          label="Title"
+          value={form.title}
+          onChangeText={form.setTitle}
+          placeholder="Give this date a memorable title"
+        />
 
-              {/* Photo Preview */}
-              {photos.length > 0 && (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={{ marginTop: 12 }}
-                  contentContainerStyle={{ paddingHorizontal: 10, gap: 12 }}
-                >
-                  {photos.map((photo, index) => (
-                    <View key={index} style={{ position: "relative" }}>
-                      <ThumbnailImage
-                        source={photo}
-                        style={{
-                          width: 120,
-                          height: 120,
-                          borderRadius: 12,
-                          borderWidth: 2,
-                          borderColor: moodColor + "60",
-                        }}
-                        contentFit="cover"
-                        cachePolicy="disk"
-                        transition={150}
-                      />
-                      <TouchableOpacity
-                        onPress={() => removePhoto(index)}
-                        style={{
-                          position: "absolute",
-                          top: -8,
-                          right: -8,
-                          width: 28,
-                          height: 28,
-                          borderRadius: 14,
-                          backgroundColor: "#ef4444",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          borderWidth: 2,
-                          borderColor: "#fff",
-                          zIndex: 10,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            color: "#fff",
-                            fontSize: 16,
-                            fontWeight: "600",
-                          }}
-                        >
-                          ×
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </ScrollView>
-              )}
+        {/* Date (required) */}
+        <View>
+          <Text variant="caption" tone="muted" uppercase style={styles.label}>
+            Date
+          </Text>
+          {Platform.OS === "web" ? (
+            <WebDatePicker
+              value={form.datePickerValue}
+              onChange={form.pickDate}
+              maxDate={new Date()}
+              accentColor={color.accent}
+              backgroundColor={color.surfaceRaised}
+              textColor={color.text}
+            />
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Date, ${form.date ? formatLongDate(form.date) : "not set"}`}
+              onPress={() => form.setShowDatePicker(!form.showDatePicker)}
+              style={styles.dateField}
+            >
+              <Text variant="body" tone={form.date ? "text" : "muted"}>
+                {form.date ? formatLongDate(form.date) : "Select a date"}
+              </Text>
+              <CalendarDays size={iconSize.md} color={color.textMuted} strokeWidth={ICON_STROKE} />
+            </Pressable>
+          )}
+          {form.showDatePicker && Platform.OS === "ios" ? (
+            <View style={styles.iosPicker}>
+              <DateTimePicker
+                value={form.datePickerValue}
+                mode="date"
+                display="spinner"
+                onChange={form.handleDateChange}
+                maximumDate={new Date()}
+                textColor={color.text}
+              />
+              <Button
+                variant="secondary"
+                label="Done"
+                onPress={() => {
+                  form.pickDate(form.datePickerValue);
+                  form.setShowDatePicker(false);
+                }}
+                style={styles.alignEnd}
+              />
             </View>
+          ) : null}
+        </View>
 
-            <ScrollView
-              style={{ flex: 1, padding: 20 }}
-              contentContainerStyle={{ paddingBottom: 40 }}
-              showsVerticalScrollIndicator={false}
-            >
-              {/* Mood Badge Preview */}
+        {/* Mood */}
+        <View>
+          <Text variant="caption" tone="muted" uppercase style={styles.label}>
+            Mood
+          </Text>
+          <View style={styles.wrapRow} accessibilityRole="radiogroup">
+            {MOODS.map((m) => (
+              <MoodTag key={m} mood={m} selected={form.mood === m} role="radio" onPress={() => form.setMood(m)} />
+            ))}
+          </View>
+        </View>
+
+        {/* Photos */}
+        <View>
+          <Text variant="caption" tone="muted" uppercase style={styles.label}>
+            {`Photos (${form.photos.length})`}
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
+            {form.photos.map((photo, index) => (
+              <View key={`${photo}-${index}`} style={styles.thumbWrap}>
+                <PhotoImage source={photo} style={styles.thumb} />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove photo ${index + 1}`}
+                  onPress={() => form.removePhoto(index)}
+                  hitSlop={space.sm}
+                  style={styles.removePhoto}
+                >
+                  <X size={iconSize.sm} color={color.text} strokeWidth={ICON_STROKE} />
+                </Pressable>
+              </View>
+            ))}
+            {Array.from({ length: form.uploadingCount }, (_, i) => (
               <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  alignSelf: "flex-start",
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                  borderRadius: 20,
-                  backgroundColor: moodColor + "40",
-                  marginBottom: 24,
-                }}
-              >
-                <Text style={{ fontSize: 20, marginRight: 8 }}>
-                  {MOOD_OPTIONS.find((m) => m.value === mood)?.icon}
-                </Text>
-                <Text
-                  style={{ fontSize: 16, fontWeight: "600", color: moodColor }}
-                >
-                  {MOOD_OPTIONS.find((m) => m.value === mood)?.label}
-                </Text>
-              </View>
+                key={`uploading-${i}`}
+                style={[styles.thumb, styles.uploading]}
+                accessibilityRole="progressbar"
+                accessibilityLabel="Uploading photo"
+                accessibilityState={{ busy: true }}
+              />
+            ))}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Add photos"
+              onPress={form.pickImage}
+              disabled={form.uploadingCount > 0}
+              style={[styles.thumb, styles.addPhoto]}
+            >
+              <ImagePlus size={iconSize.lg} color={color.textMuted} strokeWidth={ICON_STROKE} />
+              <Text variant="caption" tone="muted">
+                Add photos
+              </Text>
+            </Pressable>
+          </ScrollView>
+        </View>
 
-              {/* Title Input */}
-              <View style={{ marginBottom: 24 }}>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    color: theme.text,
-                    marginBottom: 12,
-                    fontWeight: "600",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  ✨ Title
-                </Text>
-                <TextInput
-                  style={{
-                    borderWidth: 2,
-                    borderColor: moodColor + "60",
-                    borderRadius: 16,
-                    padding: 18,
-                    fontSize: 17,
-                    backgroundColor:
-                      timeOfDay === "night"
-                        ? "#1e293b"
-                        : "rgba(255, 255, 255, 0.9)",
-                    color: theme.text,
-                    fontWeight: "500",
-                  }}
-                  value={title}
-                  onChangeText={setTitle}
-                  placeholder="Give this date a memorable title..."
-                  placeholderTextColor={
-                    timeOfDay === "night" ? "#6b7280" : theme.text + "60"
-                  }
-                />
-              </View>
+        <Input
+          label="Description"
+          value={form.description}
+          onChangeText={form.setDescription}
+          placeholder="Describe this special date"
+          multiline
+        />
 
-              {/* Date Picker */}
-              <View style={{ marginBottom: 24 }}>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    color: theme.text,
-                    marginBottom: 12,
-                    fontWeight: "600",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  📅 Date *
-                </Text>
+        {/* Location is required by validation, so it stays outside "More details" (see report). */}
+        <Input
+          label="Location"
+          value={form.location}
+          onChangeText={form.setLocation}
+          placeholder="Where did this date take place?"
+        />
 
-                {/* Web: Inline date input */}
-                {Platform.OS === "web" && (
-                  <WebDatePicker
-                    value={datePickerValue}
-                    onChange={(newDate) => {
-                      setDatePickerValue(newDate);
-                      setDate(formatDateForDatabase(newDate));
-                    }}
-                    maxDate={new Date()}
-                    accentColor={moodColor}
-                    backgroundColor={timeOfDay === "night" ? "#1e293b" : "rgba(255, 255, 255, 0.95)"}
-                    textColor={theme.text}
+        <Collapsible summary="Highlights, weather, favourite moment">
+          <View>
+            <View style={styles.highlights}>
+              {form.highlights.map((highlight, index) => (
+                <View key={index} style={styles.highlightRow}>
+                  <Input
+                    label={`Highlight ${index + 1}`}
+                    value={highlight}
+                    onChangeText={(value) => form.updateHighlight(index, value)}
+                    containerStyle={styles.flex}
                   />
-                )}
-
-                {/* Native: TouchableOpacity to open picker */}
-                {Platform.OS !== "web" && (
-                  <TouchableOpacity
-                    onPress={() => setShowDatePicker(!showDatePicker)}
-                    style={{
-                      borderWidth: 2,
-                      borderColor: moodColor + "60",
-                      borderRadius: 16,
-                      padding: 18,
-                      backgroundColor:
-                        timeOfDay === "night"
-                          ? "#1e293b"
-                          : "rgba(255, 255, 255, 0.9)",
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 17,
-                        color: date
-                          ? theme.text
-                          : timeOfDay === "night"
-                          ? "#6b7280"
-                          : theme.text + "60",
-                        fontWeight: "500",
-                      }}
-                    >
-                      {date && datePickerValue
-                        ? formatDateForDisplay(datePickerValue)
-                        : "Select a date"}
-                    </Text>
-                    <Text style={{ fontSize: 20, color: moodColor }}>📅</Text>
-                  </TouchableOpacity>
-                )}
-
-                {/* Date Picker - Inline for iOS */}
-                {showDatePicker && Platform.OS === "ios" && (
-                  <View
-                    style={{
-                      marginTop: 16,
-                      padding: 20,
-                      backgroundColor:
-                        timeOfDay === "night"
-                          ? "#1e293b"
-                          : "rgba(255, 255, 255, 0.9)",
-                      borderRadius: 16,
-                      borderWidth: 2,
-                      borderColor: moodColor + "60",
-                      zIndex: 1000,
-                    }}
-                  >
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginBottom: 16,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 18,
-                          fontWeight: "600",
-                          color: theme.text,
-                        }}
-                      >
-                        Select Date
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          const formattedDate =
-                            formatDateForDatabase(datePickerValue);
-                          setDate(formattedDate);
-                          setShowDatePicker(false);
-                        }}
-                        style={{
-                          paddingHorizontal: 16,
-                          paddingVertical: 8,
-                          borderRadius: 20,
-                          backgroundColor: moodColor,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            color: timeOfDay === "night" ? "#fff" : "#1a1a2e",
-                            fontWeight: "600",
-                          }}
-                        >
-                          Done
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                    <DateTimePicker
-                      value={datePickerValue}
-                      mode="date"
-                      display="spinner"
-                      onChange={handleDateChange}
-                      maximumDate={new Date()}
-                      textColor={theme.text}
+                  {form.highlights.length > 1 ? (
+                    <Button
+                      variant="icon"
+                      accessibilityLabel={`Remove highlight ${index + 1}`}
+                      icon={<X size={iconSize.md} color={color.textMuted} strokeWidth={ICON_STROKE} />}
+                      onPress={() => form.removeHighlight(index)}
+                      style={styles.removeHighlight}
                     />
-                  </View>
-                )}
-              </View>
-
-              {/* Location Input */}
-              <View style={{ marginBottom: 24 }}>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    color: theme.text,
-                    marginBottom: 12,
-                    fontWeight: "600",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  📍 Location *
-                </Text>
-                <TextInput
-                  style={{
-                    borderWidth: 2,
-                    borderColor: moodColor + "60",
-                    borderRadius: 16,
-                    padding: 18,
-                    fontSize: 17,
-                    backgroundColor:
-                      timeOfDay === "night"
-                        ? "#1e293b"
-                        : "rgba(255, 255, 255, 0.9)",
-                    color: theme.text,
-                    fontWeight: "500",
-                  }}
-                  value={location}
-                  onChangeText={setLocation}
-                  placeholder="Where did this beautiful date take place?"
-                  placeholderTextColor={
-                    timeOfDay === "night" ? "#6b7280" : theme.text + "60"
-                  }
-                />
-              </View>
-
-              {/* Mood Selection */}
-              <View style={{ marginBottom: 24 }}>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    color: theme.text,
-                    marginBottom: 12,
-                    fontWeight: "600",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  ✨ Mood
-                </Text>
-                <View
-                  style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}
-                >
-                  {MOOD_OPTIONS.map((option) => {
-                    const isSelected = mood === option.value;
-                    const optionColor = MOOD_COLORS[option.value];
-                    return (
-                      <TouchableOpacity
-                        key={option.value}
-                        style={{
-                          paddingHorizontal: 18,
-                          paddingVertical: 12,
-                          borderRadius: 24,
-                          backgroundColor: isSelected
-                            ? optionColor
-                            : timeOfDay === "night"
-                            ? "#374151"
-                            : "rgba(255, 255, 255, 0.6)",
-                          flexDirection: "row",
-                          alignItems: "center",
-                          borderWidth: isSelected ? 0 : 2,
-                          borderColor: isSelected
-                            ? "transparent"
-                            : optionColor + "40",
-                        }}
-                        onPress={() => setMood(option.value)}
-                      >
-                        <Text style={{ fontSize: 18, marginRight: 8 }}>
-                          {option.icon}
-                        </Text>
-                        <Text
-                          style={{
-                            color: isSelected
-                              ? timeOfDay === "night"
-                                ? "#fff"
-                                : "#1a1a2e"
-                              : theme.text,
-                            fontSize: 15,
-                            fontWeight: isSelected ? "600" : "500",
-                          }}
-                        >
-                          {option.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                  ) : null}
                 </View>
-              </View>
+              ))}
+              <Button
+                variant="text"
+                label="Add highlight"
+                icon={<Plus size={iconSize.sm} color={color.text} strokeWidth={ICON_STROKE} />}
+                onPress={form.addHighlight}
+              />
+            </View>
+          </View>
+          <Input
+            label="Weather"
+            value={form.weather}
+            onChangeText={form.setWeather}
+            placeholder="How was the weather that day?"
+          />
+          <Input
+            label="Favourite moment"
+            value={form.favoriteMoment}
+            onChangeText={form.setFavoriteMoment}
+            placeholder="What was your favourite moment?"
+            multiline
+          />
+        </Collapsible>
+      </FormSheet>
 
-              {/* Description */}
-              <View style={{ marginBottom: 24 }}>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    color: theme.text,
-                    marginBottom: 12,
-                    fontWeight: "600",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  💭 Description *
-                </Text>
-                <TextInput
-                  style={{
-                    borderWidth: 2,
-                    borderColor: moodColor + "60",
-                    borderRadius: 16,
-                    padding: 18,
-                    fontSize: 17,
-                    backgroundColor:
-                      timeOfDay === "night"
-                        ? "#1e293b"
-                        : "rgba(255, 255, 255, 0.9)",
-                    color: theme.text,
-                    minHeight: 120,
-                    textAlignVertical: "top",
-                    lineHeight: 24,
-                  }}
-                  value={description}
-                  onChangeText={setDescription}
-                  placeholder="Describe this special date..."
-                  placeholderTextColor={
-                    timeOfDay === "night" ? "#6b7280" : theme.text + "60"
-                  }
-                  multiline
-                />
-              </View>
+      <ConfirmDialog
+        visible={confirmDiscard}
+        title="Discard this date?"
+        message="Your changes won't be saved."
+        onCancel={() => setConfirmDiscard(false)}
+        onConfirm={() => {
+          haptics.warning();
+          closeModal();
+        }}
+      />
 
-              {/* Highlights */}
-              <View style={{ marginBottom: 24 }}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 12,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      color: theme.text,
-                      fontWeight: "600",
-                      letterSpacing: 0.5,
-                    }}
-                  >
-                    ✨ Highlights
-                  </Text>
-                  <TouchableOpacity
-                    onPress={addHighlight}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 16,
-                      backgroundColor: moodColor,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 20,
-                        color: timeOfDay === "night" ? "#fff" : "#1a1a2e",
-                        fontWeight: "600",
-                      }}
-                    >
-                      +
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                {highlights.map((highlight, index) => (
-                  <View
-                    key={index}
-                    style={{
-                      flexDirection: "row",
-                      marginBottom: 10,
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 18,
-                        color: moodColor,
-                        marginRight: 12,
-                        fontWeight: "600",
-                      }}
-                    >
-                      •
-                    </Text>
-                    <TextInput
-                      style={{
-                        flex: 1,
-                        borderWidth: 2,
-                        borderColor: moodColor + "40",
-                        borderRadius: 12,
-                        padding: 14,
-                        fontSize: 16,
-                        backgroundColor:
-                          timeOfDay === "night"
-                            ? "#1e293b"
-                            : "rgba(255, 255, 255, 0.9)",
-                        color: theme.text,
-                      }}
-                      value={highlight}
-                      onChangeText={(value) => updateHighlight(index, value)}
-                      placeholder={`Highlight ${index + 1}`}
-                      placeholderTextColor={
-                        timeOfDay === "night" ? "#6b7280" : theme.text + "60"
-                      }
-                    />
-                    {highlights.length > 1 && (
-                      <TouchableOpacity
-                        style={{
-                          marginLeft: 10,
-                          width: 32,
-                          height: 32,
-                          borderRadius: 16,
-                          backgroundColor: "#ef444440",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                        onPress={() => removeHighlight(index)}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 18,
-                            color: "#ef4444",
-                            fontWeight: "600",
-                          }}
-                        >
-                          ×
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                ))}
-              </View>
-
-              {/* Weather */}
-              <View style={{ marginBottom: 24 }}>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    color: theme.text,
-                    marginBottom: 12,
-                    fontWeight: "600",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  🌤️ Weather
-                </Text>
-                <TextInput
-                  style={{
-                    borderWidth: 2,
-                    borderColor: moodColor + "60",
-                    borderRadius: 16,
-                    padding: 18,
-                    fontSize: 17,
-                    backgroundColor:
-                      timeOfDay === "night"
-                        ? "#1e293b"
-                        : "rgba(255, 255, 255, 0.9)",
-                    color: theme.text,
-                    fontWeight: "500",
-                  }}
-                  value={weather}
-                  onChangeText={setWeather}
-                  placeholder="How was the weather that day?"
-                  placeholderTextColor={
-                    timeOfDay === "night" ? "#6b7280" : theme.text + "60"
-                  }
-                />
-              </View>
-
-              {/* Favorite Moment */}
-              <View style={{ marginBottom: 24 }}>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    color: theme.text,
-                    marginBottom: 12,
-                    fontWeight: "600",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  💫 Favorite Moment
-                </Text>
-                <TextInput
-                  style={{
-                    borderWidth: 2,
-                    borderColor: moodColor + "60",
-                    borderRadius: 16,
-                    padding: 18,
-                    fontSize: 17,
-                    backgroundColor:
-                      timeOfDay === "night"
-                        ? "#1e293b"
-                        : "rgba(255, 255, 255, 0.9)",
-                    color: theme.text,
-                    minHeight: 100,
-                    textAlignVertical: "top",
-                    lineHeight: 24,
-                    fontStyle: "italic",
-                  }}
-                  value={favoriteMoment}
-                  onChangeText={setFavoriteMoment}
-                  placeholder="What was your favorite moment from this date?"
-                  placeholderTextColor={
-                    timeOfDay === "night" ? "#6b7280" : theme.text + "60"
-                  }
-                  multiline
-                />
-              </View>
-
-              {/* Photos */}
-              <View style={{ marginBottom: 30 }}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 12,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      color: theme.text,
-                      fontWeight: "600",
-                      letterSpacing: 0.5,
-                    }}
-                  >
-                    📷 Photos ({photos.length})
-                  </Text>
-                  <TouchableOpacity
-                    onPress={pickImage}
-                    style={{
-                      paddingHorizontal: 16,
-                      paddingVertical: 8,
-                      borderRadius: 20,
-                      backgroundColor: moodColor,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: timeOfDay === "night" ? "#fff" : "#1a1a2e",
-                        fontSize: 15,
-                        fontWeight: "600",
-                      }}
-                    >
-                      + Add Photo
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {photos.length > 0 ? (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 12, paddingVertical: 8 }}
-                  >
-                    {photos.map((photo, index) => (
-                      <View key={index} style={{ position: "relative" }}>
-                        <ThumbnailImage
-                          source={photo}
-                          style={{
-                            width: 120,
-                            height: 120,
-                            borderRadius: 12,
-                            borderWidth: 2,
-                            borderColor: moodColor,
-                          }}
-                          contentFit="cover"
-                          cachePolicy="disk"
-                          transition={150}
-                        />
-                        <TouchableOpacity
-                          onPress={() => removePhoto(index)}
-                          style={{
-                            position: "absolute",
-                            top: -8,
-                            right: -8,
-                            width: 28,
-                            height: 28,
-                            borderRadius: 14,
-                            backgroundColor: "#ef4444",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            borderWidth: 2,
-                            borderColor: "#fff",
-                            zIndex: 10,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: "#fff",
-                              fontSize: 16,
-                              fontWeight: "600",
-                            }}
-                          >
-                            ×
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </ScrollView>
-                ) : (
-                  <TouchableOpacity
-                    style={{
-                      borderWidth: 2,
-                      borderColor: moodColor + "60",
-                      borderStyle: "dashed",
-                      borderRadius: 16,
-                      padding: 24,
-                      backgroundColor:
-                        timeOfDay === "night"
-                          ? "#1e293b"
-                          : "rgba(255, 255, 255, 0.9)",
-                      alignItems: "center",
-                      minHeight: 120,
-                      justifyContent: "center",
-                    }}
-                    onPress={pickImage}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 32,
-                        color: moodColor + "80",
-                        marginBottom: 12,
-                      }}
-                    >
-                      📷
-                    </Text>
-                    <Text
-                      style={{
-                        color: theme.text,
-                        fontSize: 17,
-                        fontWeight: "500",
-                      }}
-                    >
-                      Tap to add photos
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Delete Button for Editing */}
-              {editingDate && (
-                <TouchableOpacity
-                  onPress={() =>
-                    editingDate.id &&
-                    handleDeleteDate(editingDate.id, editingDate.title || editingDate.location)
-                  }
-                  style={{
-                    backgroundColor: "#ef4444",
-                    padding: 16,
-                    borderRadius: 20,
-                    alignItems: "center",
-                    marginTop: 20,
-                    marginBottom: 20,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: "#fff",
-                      fontSize: 18,
-                      fontWeight: "600",
-                    }}
-                  >
-                    Delete Date
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </ScrollView>
-          </Animated.View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Immersive Detail View */}
-      <AnimatedModal
+      {/* Detail view */}
+      <Sheet
         visible={isDetailVisible}
-        onClose={() => setIsDetailVisible(false)}
+        onRequestClose={() => setIsDetailVisible(false)}
+        accessibilityLabel={selectedDate?.title || "Date"}
+        style={styles.detailSheet}
       >
-        {selectedDate && (
+        {selectedDate ? (
           <DateDetailView
             dateEntry={selectedDate}
             onClose={() => setIsDetailVisible(false)}
             onEdit={() => {
               setIsDetailVisible(false);
-              setTimeout(() => openModal(selectedDate), 300);
+              setTimeout(() => openModal(selectedDate), RESET_DELAY_MS);
             }}
+            onDelete={() =>
+              selectedDate.id && handleDeleteDate(selectedDate.id, selectedDate.title || selectedDate.location)
+            }
           />
-        )}
-      </AnimatedModal>
+        ) : null}
+      </Sheet>
 
       {/* Android Date Picker - Must be at root level for native dialog */}
-      {showDatePicker && Platform.OS === "android" && (
+      {form.showDatePicker && Platform.OS === "android" ? (
         <DateTimePicker
-          value={datePickerValue}
+          value={form.datePickerValue}
           mode="date"
           display="default"
-          onChange={handleDateChange}
+          onChange={form.handleDateChange}
           maximumDate={new Date()}
         />
-      )}
-    </View>
+      ) : null}
+    </ScreenBackground>
   );
 }
+
+const styles = StyleSheet.create({
+  column: { paddingHorizontal: gutter, paddingBottom: space.xxxl * 2 },
+  header: { paddingHorizontal: 0 },
+  stale: { marginBottom: space.xl },
+  label: { marginBottom: space.sm },
+  dateField: {
+    minHeight: field.height,
+    backgroundColor: color.surfaceRaised,
+    borderRadius: radius.field,
+    paddingHorizontal: space.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  iosPicker: {
+    marginTop: space.md,
+    padding: space.md,
+    backgroundColor: color.surfaceRaised,
+    borderRadius: radius.field,
+  },
+  alignEnd: { alignSelf: "flex-end" },
+  wrapRow: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
+  photoRow: { gap: space.md, paddingTop: space.sm, paddingRight: space.sm },
+  thumbWrap: { position: "relative" },
+  thumb: { width: THUMB, height: THUMB, borderRadius: radius.print, overflow: "hidden" },
+  removePhoto: {
+    position: "absolute",
+    top: space.xs,
+    right: space.xs,
+    width: hitTarget - space.md,
+    height: hitTarget - space.md,
+    borderRadius: radius.pill,
+    backgroundColor: color.scrim,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  uploading: { backgroundColor: color.outline },
+  addPhoto: {
+    backgroundColor: color.surfaceRaised,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.xs,
+  },
+  highlights: { gap: space.md },
+  highlightRow: { flexDirection: "row", alignItems: "flex-end", gap: space.xs },
+  removeHighlight: { marginBottom: (field.height - hitTarget) / 2 },
+  flex: { flex: 1 },
+  detailSheet: { height: "92%" },
+});
