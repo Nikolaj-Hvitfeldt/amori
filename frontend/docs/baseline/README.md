@@ -6,6 +6,7 @@ Fixture screenshots of every in-scope surface before the Candlelit Scrapbook red
 - All data is synthetic mock-mode fixtures (`src/fixtures`). No production data or requests are involved.
 
 ## Recapture (for "after" shots in a PR)
+Run from `frontend/`; the out-dir is relative to it. The script exits non-zero if any surface was missed.
 ```bash
 npm run web:mock -- --port 8082           # in one terminal
 bash scripts/capture-screens.sh docs/after  # in another; needs gstack's $B browser
