@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./api";
+import { apiFetch, withPagination } from "./api";
 import { Moment, CreateMomentDto, UpdateMomentDto } from "../types/moments";
 import { getCachedData, setCachedData, invalidateResourceCache } from "../utils/cache";
 
@@ -9,7 +9,7 @@ const CACHE_KEY_ALL = "moments_all";
 const CACHE_KEY_PREFIX = "moments_";
 
 class MomentsService {
-  private baseUrl = `${API_BASE_URL}/moments`;
+  private basePath = "/moments";
 
   async getAllMoments(limit?: number, offset?: number, bypassCache: boolean = false): Promise<{ data: Moment[]; total: number }> {
     try {
@@ -25,13 +25,8 @@ class MomentsService {
         }
       }
 
-      // Build URL with query parameters
-      const url = new URL(this.baseUrl);
-      if (limit !== undefined) url.searchParams.set("limit", limit.toString());
-      if (offset !== undefined) url.searchParams.set("offset", offset.toString());
-
-      // Fetch from API
-      const response = await fetch(url.toString());
+      // Fetch from API (with ?limit=&offset= when given)
+      const response = await apiFetch(withPagination(this.basePath, limit, offset));
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -59,7 +54,7 @@ class MomentsService {
       }
 
       // Fetch from API
-      const response = await fetch(`${this.baseUrl}/${id}`);
+      const response = await apiFetch(`${this.basePath}/${id}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -78,7 +73,7 @@ class MomentsService {
 
   async createMoment(data: CreateMomentDto): Promise<Moment> {
     try {
-      const response = await fetch(this.baseUrl, {
+      const response = await apiFetch(this.basePath, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -103,7 +98,7 @@ class MomentsService {
 
   async updateMoment(id: string, data: UpdateMomentDto): Promise<Moment> {
     try {
-      const response = await fetch(`${this.baseUrl}/${id}`, {
+      const response = await apiFetch(`${this.basePath}/${id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -128,7 +123,7 @@ class MomentsService {
 
   async deleteMoment(id: string): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/${id}`, {
+      const response = await apiFetch(`${this.basePath}/${id}`, {
         method: "DELETE",
       });
       if (!response.ok) {
@@ -141,6 +136,31 @@ class MomentsService {
       console.error("Error deleting moment:", error);
       throw error;
     }
+  }
+
+  /**
+   * Upload an image given as a data URL ("data:<mime>;base64,<data>").
+   * Returns the stored image URL.
+   */
+  async uploadImage(image: string): Promise<string> {
+    const response = await apiFetch(`${this.basePath}/upload-image`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        image,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Upload failed:", response.status, errorText);
+      throw new Error(`Upload failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.url;
   }
 }
 

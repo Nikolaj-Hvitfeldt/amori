@@ -41,7 +41,7 @@ export function useAutoRefresh({
   checkOnForeground = true,
 }: UseAutoRefreshOptions) {
   const appState = useRef(AppState.currentState);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastCheckRef = useRef<number>(0);
   const isCheckingRef = useRef<boolean>(false);
   const lastKnownTimestampsRef = useRef<LastUpdatedTimestamps | null>(null);

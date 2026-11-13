@@ -107,6 +107,43 @@ npm run android  # Android emulator
 4. Start the frontend: `npm start`
 5. Scan the QR code with Expo Go app (iOS/Android)
 
+### Mock mode
+
+Mock mode runs the app with no backend and no network: every API call is
+answered by an in-memory fake backend seeded with synthetic fixtures.
+
+```bash
+npm run web:mock                  # same as `npm run web`, with EXPO_PUBLIC_MOCK=1
+npm run web:mock -- --port 8082   # extra arguments go to `expo start`
+```
+
+- **Switch:** mock mode is on only when `__DEV__ && process.env.EXPO_PUBLIC_MOCK === "1"`
+  (`isMockMode()` in `src/mock/mode.ts`). A production `expo export` can never enable it,
+  and the fixtures and fake backend are loaded through `__DEV__`-guarded `require`s.
+- **Scenarios:** `EXPO_PUBLIC_MOCK_SCENARIO=default|empty|error` picks the data set:
+  the fixtures, no entries (empty states), or HTTP 500 for every request (error states).
+  On web, `?mockScenario=empty` (or `error`, `default`) in the page URL overrides it
+  without restarting.
+- **Fails closed:** `globalThis.fetch` is wrapped (`src/mock/guardFetch.ts`). Only
+  `blob:`, `data:`, `file:` and `localhost` / `127.0.0.1` / `[::1]` are allowed; any other
+  URL throws an error naming it.
+- **Data:** create, edit, delete and upload work but live in memory only; a reload
+  resets to the fixtures. Uploads return a bundled placeholder image.
+- **Cache:** cache keys are namespaced as `amori:<mock|real>:<api origin>:`, so mock data
+  never appears in real mode.
+- **Fixtures:** `src/fixtures/` (typed against `src/types/*`) with generated placeholder
+  photos in `assets/fixtures/`. They must not contain `http(s)` URLs; `npm test` checks this.
+  Fixture photos are resolved to dev-server URLs (`http://localhost:<port>/assets/...`) by
+  `src/mock/index.ts`, because the screens only display `http(s)` photo URLs.
+
+If you switch between `web` and `web:mock` and see stale data, restart with `--clear`.
+
+### Tests
+
+```bash
+npm test   # jest with the jest-expo preset; tests live in src/__tests__/
+```
+
 ## Screens
 
 ### Home (Timeline)

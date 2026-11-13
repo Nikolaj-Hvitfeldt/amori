@@ -1,8 +1,51 @@
-import React, { useEffect } from "react";
-import { Platform } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Platform, StatusBar } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import AppNavigator from "./src/navigation/AppNavigator";
+import { isMockMode } from "./src/mock/mode";
+import { useFonts } from "expo-font";
+import { InstrumentSerif_400Regular } from "@expo-google-fonts/instrument-serif/400Regular";
+import { InstrumentSerif_400Regular_Italic } from "@expo-google-fonts/instrument-serif/400Regular_Italic";
+import { Figtree_400Regular } from "@expo-google-fonts/figtree/400Regular";
+import { Figtree_500Medium } from "@expo-google-fonts/figtree/500Medium";
+import { Figtree_600SemiBold } from "@expo-google-fonts/figtree/600SemiBold";
+import { color, fontFamily } from "./src/theme";
+import { installWebSurfaces } from "./src/ui/webSurfaces";
+
+// Browser surfaces [6B] (web only): amber caret, selection and focus ring, themed scrollbars.
+installWebSurfaces();
+
+// Mock mode only (EXPO_PUBLIC_MOCK=1 in a dev build): make fetch fail closed so
+// nothing can reach a non-local host. The __DEV__ guard keeps it out of production.
+if (__DEV__ && isMockMode()) {
+  require("./src/mock/guardFetch").installGuardFetch();
+}
+
+// Dev-only primitives gallery: web dev server with ?gallery=1. The __DEV__ guard
+// lets Metro drop this require (and the gallery behind it) from production builds.
+let Gallery: React.ComponentType | null = null;
+if (__DEV__ && Platform.OS === "web" && /[?&]gallery=1(&|#|$)/.test(String((globalThis as any).window?.location?.search ?? ""))) {
+  Gallery = require("./src/ui/Gallery").default;
+}
+
+// The legacy screens don't use the redesign fonts, so never wait on them for long.
+const FONT_TIMEOUT_MS = 2500;
 
 export default function App() {
+  const [fontsLoaded, fontError] = useFonts({
+    [fontFamily.serif]: InstrumentSerif_400Regular,
+    [fontFamily.serifItalic]: InstrumentSerif_400Regular_Italic,
+    [fontFamily.sans]: Figtree_400Regular,
+    [fontFamily.sansMedium]: Figtree_500Medium,
+    [fontFamily.sansSemiBold]: Figtree_600SemiBold,
+  });
+  const [fontWaitOver, setFontWaitOver] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setFontWaitOver(true), FONT_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     // Add Apple Touch Icon for iOS PWA home screen
     if (Platform.OS === "web" && typeof document !== "undefined") {
@@ -42,5 +85,11 @@ export default function App() {
     }
   }, []);
 
-  return <AppNavigator />;
+  if (!fontsLoaded && !fontError && !fontWaitOver) return null;
+  return (
+    <SafeAreaProvider style={{ backgroundColor: color.surface }}>
+      <StatusBar barStyle="light-content" backgroundColor={color.surface} />
+      {Gallery ? <Gallery /> : <AppNavigator />}
+    </SafeAreaProvider>
+  );
 }
