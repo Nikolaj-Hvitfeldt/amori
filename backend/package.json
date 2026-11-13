@@ -8,11 +8,13 @@
     "start:dev": "ts-node src/main.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:image": "ts-node tests/test-image-optimization.ts",
+    "test:orientation": "ts-node tests/test-image-orientation.ts",
     "test:db-images": "ts-node tests/test-db-image-optimization.ts",
     "test:connection": "ts-node tests/test-connection.ts",
     "regenerate:thumbnails": "ts-node scripts/regenerate-thumbnails.ts",
     "compress:images": "ts-node scripts/compress-existing-images.ts",
     "fix:date-photos": "ts-node scripts/fix-date-photos.ts",
+    "fix:photo-orientation": "ts-node scripts/fix-photo-orientation.ts",
     "check:env": "ts-node tests/check-env.ts",
     "get:ip": "ts-node scripts/get-ip.ts"
   },

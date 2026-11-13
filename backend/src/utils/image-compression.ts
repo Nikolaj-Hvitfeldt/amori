@@ -76,24 +76,13 @@ export async function compressImage(
       }
     }
 
-    // Calculate new dimensions while maintaining aspect ratio
-    let width = metadata.width || maxWidth;
-    let height = metadata.height || maxHeight;
-
-    if (width > maxWidth || height > maxHeight) {
-      const aspectRatio = width / height;
-      if (width > height) {
-        width = maxWidth;
-        height = Math.round(maxWidth / aspectRatio);
-      } else {
-        height = maxHeight;
-        width = Math.round(maxHeight * aspectRatio);
-      }
-    }
-
-    // Resize and compress
+    // Apply EXIF orientation before resizing. sharp strips metadata on output,
+    // so without this phone photos are saved sideways with no tag to fix them.
+    // `fit: "inside"` keeps the aspect ratio within the max box, using the
+    // post-rotation dimensions.
     const compressed = await image
-      .resize(width, height, {
+      .rotate()
+      .resize(maxWidth, maxHeight, {
         fit: "inside",
         withoutEnlargement: true,
       })
@@ -109,6 +98,7 @@ export async function compressImage(
         failOn: "none",
         limitInputPixels: false,
       })
+        .rotate()
         .resize(maxWidth, maxHeight, {
           fit: "inside",
           withoutEnlargement: true,
@@ -199,8 +189,9 @@ export async function generateThumbnail(
       }
     }
 
-    // Generate thumbnail
+    // Generate thumbnail (auto-orient first; see compressImage)
     const thumbnail = await image
+      .rotate()
       .resize(size, size, {
         fit: "cover",
         position: "center",
@@ -222,6 +213,7 @@ export async function generateThumbnail(
         failOn: "none",
         limitInputPixels: false,
       })
+        .rotate()
         .resize(size, size, {
           fit: "cover",
           position: "center",

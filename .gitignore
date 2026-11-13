@@ -17,6 +17,9 @@ dist/
 .env.test.local
 .env.production.local
 
+# Photo orientation migration (photo URLs, backups of personal photos, run logs)
+backend/orientation/
+
 # Logs
 npm-debug.log*
 yarn-debug.log*
