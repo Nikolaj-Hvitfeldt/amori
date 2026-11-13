@@ -40,6 +40,9 @@ export type { SkeletonProps, EmptySlipProps, ErrorSlipProps, UploadRingProps } f
 export { Thread, groupByMonth } from "./Thread";
 export type { ThreadItem, ThreadChip, ThreadSection, ThreadProps } from "./Thread";
 export { ScreenBackground } from "./ScreenBackground";
+export { ScreenColumn, useWebFrame } from "./ScreenColumn";
+export type { ScreenColumnProps, FrameKind } from "./ScreenColumn";
+export { installWebSurfaces } from "./webSurfaces";
 export { Header } from "./Header";
 export type { HeaderProps } from "./Header";
 export { AddButton } from "./AddButton";
