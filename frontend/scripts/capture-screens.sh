@@ -83,17 +83,19 @@ for VP in 375x812 1280x800; do
   edit_from_detail && shot milestone-form-edit
   fresh ""; click_text "Milestones" && click_label "Add a milestone" && shot milestone-form-new
 
-  fresh ""; click_text "Memories" && shot wall
+  fresh ""; click_text "Wall" && shot wall
   R=$("$B" js "(() => { const img = document.querySelector('img'); if (!img) return 'missing'; let n = img; while (n && !(n.getAttribute && (n.getAttribute('role') === 'button' || n.hasAttribute('tabindex')))) n = n.parentElement; (n || img).click(); return 'clicked'; })()" 2>&1)
   sleep "$SETTLE"
   case "$R" in *clicked*) shot wall-lightbox ;; *) echo "  ! no photo to open on the wall" >&2; FAILED=1 ;; esac
 
   # [2A] states that the current UI has: empty and error, per tab
   for SC in empty error; do
-    for TAB in Timeline Moments Dates Milestones Memories; do
+    # Tab label:file name. File names stay as in the 0c baseline so diffs line up.
+    for PAIR in Story:timeline Moments:moments Dates:dates Milestones:milestones Wall:memories; do
+      TAB="${PAIR%%:*}"; NAME="${PAIR#*:}"
       fresh "?mockScenario=$SC"
-      if [ "$TAB" != "Timeline" ]; then click_text "$TAB"; fi
-      shot "state-$SC-$(echo "$TAB" | tr 'A-Z' 'a-z')"
+      if [ "$TAB" != "Story" ]; then click_text "$TAB"; fi
+      shot "state-$SC-$NAME"
     done
   done
 done
