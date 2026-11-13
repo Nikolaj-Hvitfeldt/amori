@@ -52,6 +52,8 @@ interface TimelineItem {
 const CACHE_KEY_TIMELINE_ITEMS = "timeline_items";
 const CACHE_KEY_TIMELINE_STATE = "timeline_state";
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+/** After a failed load-more, ignore end-of-list triggers for this long (no tight retry loop). */
+const LOAD_MORE_RETRY_PAUSE_MS = 10 * 1000;
 
 const STORY_TITLE = "Our story";
 const STORY_TAGLINE = "A little more of us, every day";
@@ -134,8 +136,8 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
       const all = result && Array.isArray(result.data) ? result.data : [];
       setHeroMilestones(all);
     } catch (error) {
+      // Keep whatever hero we already had; a failed refresh must not hide a known count.
       console.warn("Error loading days-together milestones:", error);
-      setHeroMilestones([]);
     }
   };
 
@@ -341,6 +343,10 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
         } else {
           setLoadError("failed");
         }
+      } else {
+        // A failed load-more must not retry by itself: onEndReached refires when the footer
+        // disappears. The old ScrollView only retried on the next scroll.
+        loadMoreFailedAtRef.current = Date.now();
       }
     } finally {
       setLoading(false);
@@ -356,7 +362,9 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
 
   // Was a ScrollView onScroll check: load more within SCROLL_LOAD_MORE_THRESHOLD px of the
   // bottom. The Thread's onEndReachedThreshold is in visible lengths, so convert the pixels.
+  const loadMoreFailedAtRef = useRef(0);
   const handleEndReached = () => {
+    if (Date.now() - loadMoreFailedAtRef.current < LOAD_MORE_RETRY_PAUSE_MS) return;
     if (hasMore && !loadingMore) {
       loadMore();
     }
