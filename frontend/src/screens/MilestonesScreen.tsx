@@ -196,6 +196,7 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
         const lastGood = lastGoodMilestonesRef.current;
         setMilestones(lastGood);
         setLoadError(lastGood.length > 0 ? "stale" : "failed");
+        if (lastGood.length === 0) setHasMore(false); // no pagination from an empty failed list
       } else {
         Alert.alert("Error", "Failed to load milestones");
       }

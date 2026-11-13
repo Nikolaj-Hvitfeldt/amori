@@ -189,6 +189,7 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
         const lastGood = lastGoodDatesRef.current;
         setDates(lastGood);
         setLoadError(lastGood.length > 0 ? "stale" : "failed");
+        if (lastGood.length === 0) setHasMore(false); // no pagination from an empty failed list
       } else {
         Alert.alert("Error", "Failed to load dates");
       }

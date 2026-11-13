@@ -135,6 +135,7 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
         const lastGood = lastGoodMomentsRef.current;
         setMoments(lastGood);
         setLoadError(lastGood.length > 0 ? "stale" : "failed");
+        if (lastGood.length === 0) setHasMore(false); // no pagination from an empty failed list
       } else {
         Alert.alert("Error", "Failed to load your moments");
       }
