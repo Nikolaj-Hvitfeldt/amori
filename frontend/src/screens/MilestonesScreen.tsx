@@ -1,97 +1,94 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  FlatList,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  Animated,
-} from "react-native";
-import { Image } from "expo-image";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { View, ScrollView, Pressable, Platform, Alert, StyleSheet } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import {
-  Milestone,
-  CreateMilestoneDto,
-  MilestoneType,
-} from "../types/milestones";
+import { CalendarDays, ImagePlus, X } from "lucide-react-native";
+import { Milestone, CreateMilestoneDto } from "../types/milestones";
 import { milestonesService } from "../services/milestones";
-import {
-  MILESTONE_CONFIG,
-  getMilestoneConfig,
-} from "../constants/milestoneConfig";
 import MilestoneDetailView from "../components/MilestoneDetailView";
-import MilestoneCard from "../components/MilestoneCard";
-import AnimatedCard from "../components/AnimatedCard";
-import AnimatedFAB from "../components/AnimatedFAB";
-import { SkeletonList } from "../components/SkeletonLoader";
 import AnimatedModal from "../components/AnimatedModal";
-import SuccessCheckmark from "../components/SuccessCheckmark";
-import EmptyState from "../components/common/EmptyState";
-import ErrorState, { SavedCopyNotice } from "../components/common/ErrorState";
-import LoadingMore from "../components/common/LoadingMore";
-import ThumbnailImage from "../components/ThumbnailImage";
 import WebDatePicker from "../components/WebDatePicker";
 import { filterValidPhotos } from "../utils/imageUtils";
-import { getBoxShadow } from "../utils/shadows";
-import { formatDateEU } from "../utils/dateUtils";
 import { ITEMS_PER_PAGE } from "../constants/spacing";
-import {
-  MILESTONE_BG,
-  MILESTONE_COLOR,
-  MILESTONE_SCREEN_BG,
-  MILESTONE_BROWN_TEXT,
-  MILESTONE_LIGHT_BROWN,
-  MILESTONE_LIGHT_GOLD,
-  MILESTONE_BORDER_LIGHT,
-  MILESTONE_BORDER_OPACITY_30,
-  MILESTONE_BORDER_OPACITY_40,
-} from "../constants/theme";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
+import { formatDateForDb, useMilestoneForm } from "../hooks/useMilestoneForm";
+import {
+  AddButton,
+  Button,
+  ConfirmDialog,
+  EMPTY_COPY,
+  EmptySlip,
+  ErrorSlip,
+  FormSheet,
+  Header,
+  Input,
+  MILESTONE_TYPES,
+  MilestoneTypeTag,
+  PhotoImage,
+  SaveState,
+  ScreenBackground,
+  Skeleton,
+  Text,
+  Thread,
+  ThreadItem,
+  formatLongDate,
+  haptics,
+  ICON_STROKE,
+  iconSize,
+  useNavLock,
+} from "../ui";
+import { color, field, gutter, hitTarget, motion, radius, space } from "../theme";
 
 interface MilestonesScreenProps {
   isFocused?: boolean;
 }
 
+/** Inline message above the fields when a save fails [2A]. */
+const SAVE_ERROR = "Couldn't save this milestone. Check your connection and try again.";
+/** Form thumbnail edge. */
+const THUMB = space.xxxl * 2;
+
 export default function MilestonesScreen({ isFocused = true }: MilestonesScreenProps) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isDetailVisible, setIsDetailVisible] = useState(false);
-  const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(
-    null
-  );
-  const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(
-    null
-  );
+  const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [total, setTotal] = useState(0);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
-  // Form state
-  const [milestoneType, setMilestoneType] = useState<MilestoneType>("met");
-  const [title, setTitle] = useState("");
-  const [date, setDate] = useState("");
-  const [datePickerValue, setDatePickerValue] = useState<Date>(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [webDateInput, setWebDateInput] = useState("");
-  const [description, setDescription] = useState("");
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [showSuccess, setShowSuccess] = useState(false);
+  // Form state lives in useMilestoneForm (no behaviour change).
+  const form = useMilestoneForm();
+  const {
+    editingMilestone,
+    milestoneType,
+    title,
+    setTitle,
+    date,
+    datePickerValue,
+    setDatePickerValue,
+    showDatePicker,
+    setShowDatePicker,
+    description,
+    setDescription,
+    photos,
+    setPhotos,
+    resetForm,
+  } = form;
+
   // Save double-tap guard: the ref blocks re-entry synchronously, the state drives the button.
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
+  const [saveSucceeded, setSaveSucceeded] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   // Error vs empty [2A]: "failed" = nothing to show, "stale" = showing the last good copy.
   const [loadError, setLoadError] = useState<null | "failed" | "stale">(null);
   const lastGoodMilestonesRef = useRef<Milestone[]>([]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const navGuard = useNavLock();
 
   useEffect(() => {
     loadMilestones();
@@ -117,13 +114,13 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
 
       const offset = reset ? 0 : milestones.length;
       const result = await milestonesService.getAll(ITEMS_PER_PAGE, offset, bypassCache);
-      
+
       // Safety check: ensure result and result.data exist
       if (!result || !result.data || !Array.isArray(result.data)) {
         console.error("Invalid API response:", result);
         throw new Error("Invalid response from server");
       }
-      
+
       const fetchedMilestones = result.data;
       // Filter out invalid photos from all milestones and clean up database
       const cleanedMilestones = fetchedMilestones.map((milestone) => {
@@ -163,7 +160,7 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
           photos: validPhotos,
         };
       });
-      
+
       const sortedMilestones = cleanedMilestones.sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
       );
@@ -212,12 +209,14 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
   };
 
   const handleViewMilestone = useCallback((milestone: Milestone) => {
+    haptics.navigate();
     setSelectedMilestone(milestone);
     setIsDetailVisible(true);
   }, []);
 
-  const handleDeleteMilestone = useCallback(async (id: string, title?: string) => {
-    const displayTitle = title || 'this milestone';
+  /** Returns true when the milestone was deleted. The confirmation is unchanged. */
+  const handleDeleteMilestone = async (id: string, title?: string): Promise<boolean> => {
+    const displayTitle = title || "this milestone";
     const confirmDelete = Platform.OS === "web"
       ? (globalThis as any).confirm(`Are you sure you want to delete "${displayTitle}"?`)
       : await new Promise<boolean>((resolve) => {
@@ -234,8 +233,10 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
     if (confirmDelete) {
       try {
         await milestonesService.delete(id);
+        haptics.warning();
         setIsModalVisible(false);
         loadMilestones();
+        return true;
       } catch (error) {
         console.error("Error deleting milestone:", error);
         if (Platform.OS === "web") {
@@ -245,63 +246,7 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
         }
       }
     }
-  }, [loadMilestones]);
-
-  const renderMilestoneItem = useCallback(
-    ({ item: milestone, index }: { item: Milestone; index: number }) => {
-      return (
-        <AnimatedCard index={index} animationType="spring">
-          <MilestoneCard
-            key={milestone.id}
-            milestone={milestone}
-            onPress={() => handleViewMilestone(milestone)}
-            variant="screen"
-          />
-        </AnimatedCard>
-      );
-    },
-    [handleViewMilestone, handleDeleteMilestone]
-  );
-
-  const renderEmpty = () =>
-    loadError === "failed" ? (
-      <ErrorState
-        subject="your milestones"
-        onRetry={() => loadMilestones(true, false, true)}
-        backgroundColor={MILESTONE_SCREEN_BG}
-      />
-    ) : (
-    <EmptyState
-      icon="⭐"
-      title="No milestones recorded yet"
-      message="Start documenting your journey together!"
-      backgroundColor={MILESTONE_SCREEN_BG}
-    />
-  );
-
-  const renderFooter = () => {
-    if (!loadingMore) return null;
-    return <LoadingMore color={MILESTONE_COLOR} />;
-  };
-
-  const formatDateForDb = (dateObj: Date): string => {
-    const year = dateObj.getFullYear();
-    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-    const day = String(dateObj.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
-  const resetForm = () => {
-    const today = new Date();
-    setMilestoneType("met");
-    setTitle("");
-    setDate(formatDateForDb(today)); // Default to today
-    setDatePickerValue(today);
-    setDescription("");
-    setPhotos([]);
-    setEditingMilestone(null);
-    setShowDatePicker(false);
-    setWebDateInput("");
+    return false;
   };
 
   const closeDetailView = () => {
@@ -316,68 +261,38 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
     setTimeout(() => openModal(milestoneToEdit), 250);
   };
 
+  const handleDeleteFromDetail = async () => {
+    if (!selectedMilestone?.id) return;
+    const deleted = await handleDeleteMilestone(selectedMilestone.id, selectedMilestone.title);
+    if (deleted) closeDetailView();
+  };
+
   const openModal = (milestone?: Milestone) => {
     if (milestone) {
       setSelectedMilestone(milestone);
-      setEditingMilestone(milestone);
-      setMilestoneType(milestone.milestone_type);
-      setTitle(milestone.title);
-      setDate(milestone.date);
-      // Parse date manually to avoid timezone issues
-      const [year, month, day] = milestone.date.split("-").map(Number);
-      const parsedDate = new Date(year, month - 1, day);
-      setDatePickerValue(isNaN(parsedDate.getTime()) ? new Date() : parsedDate);
-      setDescription(milestone.description || "");
-      // Don't filter photos when opening modal - use photos as-is from database
-      // Filtering will happen on save and on load, not when editing
-      setPhotos(milestone.photos || []);
+      form.loadMilestone(milestone);
     } else {
       resetForm();
     }
+    setSaveError(null);
+    setSaveSucceeded(false);
     setIsModalVisible(true);
-    fadeAnim.setValue(0);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: Platform.OS !== "web",
-    }).start();
-  };
-
-  const formatDateForDisplay = (dateString: string | Date): string => {
-    const dateObj =
-      typeof dateString === "string" ? new Date(dateString) : dateString;
-    if (isNaN(dateObj.getTime())) return "";
-
-    const day = String(dateObj.getDate()).padStart(2, "0");
-    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-    const year = dateObj.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
-
-  const formatDateForDatabase = (dateObj: Date): string => {
-    const year = dateObj.getFullYear();
-    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-    const day = String(dateObj.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
-  const handleDateChange = (event: any, pickedDate?: Date) => {
-    if (Platform.OS === "android") {
-      setShowDatePicker(false);
-    }
-
-    if (event.type === "set" && pickedDate) {
-      setDatePickerValue(pickedDate);
-      const formattedDate = formatDateForDatabase(pickedDate);
-      setDate(formattedDate);
-    } else if (event.type === "dismissed") {
-      setShowDatePicker(false);
-    }
   };
 
   const closeModal = () => {
     setIsModalVisible(false);
+    setConfirmDiscard(false);
     setTimeout(resetForm, 300);
+  };
+
+  /** ✕, backdrop, Android back and Esc: ask before throwing away unsaved edits [7A]. */
+  const requestCloseModal = () => {
+    if (form.isDirty && !saveSucceeded) {
+      haptics.warning();
+      setConfirmDiscard(true);
+    } else {
+      closeModal();
+    }
   };
 
   const handleSaveMilestone = async () => {
@@ -389,6 +304,7 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
 
     isSavingRef.current = true;
     setIsSaving(true);
+    setSaveError(null);
     try {
       const validPhotos = filterValidPhotos(photos);
 
@@ -407,18 +323,29 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
         await milestonesService.create(milestoneData);
       }
 
+      // Saved for motion.savedHold, then the sheet closes [2A].
+      setSaveSucceeded(true);
+      haptics.success();
+      await new Promise((resolve) => setTimeout(resolve, motion.savedHold));
       closeModal();
       // Skip cleanup when loading after save to prevent removing just-saved photos
       await loadMilestones(true);
-      setShowSuccess(true); // Show success animation
     } catch (error) {
       console.error("Error saving milestone:", error);
-      Alert.alert("Error", "Failed to save milestone");
+      setSaveError(SAVE_ERROR);
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
     }
   };
+
+  const saveState: SaveState = saveSucceeded
+    ? "saved"
+    : isSaving
+      ? "saving"
+      : saveError
+        ? "error"
+        : "idle";
 
   const uploadImage = async (uri: string): Promise<string> => {
     try {
@@ -543,594 +470,230 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
     }
   };
 
-  const removePhoto = (index: number) => {
-    const newPhotos = photos.filter((_, i) => i !== index);
-    setPhotos(newPhotos);
+  // Thread items [1A]: cover photo above the text [4A], the type as a chip [5B].
+  const { threadItems, byKey } = useMemo(() => {
+    const map = new Map<string, Milestone>();
+    const items: ThreadItem[] = milestones.map((m, index) => {
+      const id = m.id || `milestone-${index}`;
+      map.set(id, m);
+      return {
+        id,
+        type: "milestone",
+        date: m.date,
+        title: m.title,
+        coverPhoto: m.photos && m.photos.length > 0 ? m.photos[0] : null,
+        chip: { kind: "milestone", value: m.milestone_type },
+        body: m.description || undefined,
+      };
+    });
+    return { threadItems: items, byKey: map };
+  }, [milestones]);
+
+  const onPressItem = useMemo(
+    () =>
+      navGuard((item: ThreadItem) => {
+        const m = byKey.get(item.id);
+        if (m) handleViewMilestone(m);
+      }),
+    [navGuard, byKey, handleViewMilestone]
+  );
+
+  const retry = () => loadMilestones(true, false, true);
+
+  const renderEmpty = () =>
+    loadError === "failed" ? (
+      <ErrorSlip what="your milestones" onRetry={retry} />
+    ) : (
+      <EmptySlip
+        message={EMPTY_COPY.milestones.message}
+        actionLabel={EMPTY_COPY.milestones.action}
+        onAction={() => openModal()}
+      />
+    );
+
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return <Skeleton count={1} withPhotos={false} style={styles.footer} />;
   };
 
-  // Use formatDateEU for display (European format: dd-mm-yyyy)
-  const formatDate = formatDateEU;
-
-  const milestoneConfig = getMilestoneConfig(milestoneType);
-  const milestoneColor = milestoneConfig.color;
-
-  if (loading && milestones.length === 0) {
-    return (
-      <View style={{ flex: 1, backgroundColor: MILESTONE_SCREEN_BG }}>
-        <SkeletonList variant="milestone" count={3} />
-      </View>
-    );
-  }
+  const showSkeleton = loading && milestones.length === 0;
 
   return (
-    <View style={{ flex: 1, backgroundColor: MILESTONE_SCREEN_BG }}>
-      <FlatList
-        data={milestones}
-        renderItem={renderMilestoneItem}
-        keyExtractor={(item, index) => item.id || `milestone-${index}`}
-        ListEmptyComponent={renderEmpty}
-        ListHeaderComponent={
-          loadError === "stale" ? (
-            <SavedCopyNotice onRetry={() => loadMilestones(true, false, true)} />
-          ) : null
-        }
-        ListFooterComponent={renderFooter}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
-        contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-        refreshing={loading && milestones.length === 0}
-        onRefresh={() => loadMilestones(true, false)}
-      />
+    <ScreenBackground>
+      <Header title="Milestones" section="milestones" />
 
-      <AnimatedModal
-        visible={isDetailVisible}
-        onClose={closeDetailView}
-      >
+      {showSkeleton ? (
+        <View style={styles.listPad}>
+          <Skeleton count={3} />
+        </View>
+      ) : (
+        <Thread
+          items={threadItems}
+          onPressItem={onPressItem}
+          ListEmptyComponent={renderEmpty}
+          ListHeaderComponent={
+            loadError === "stale" ? (
+              <ErrorSlip what="your milestones" onRetry={retry} showingSavedCopy style={styles.staleSlip} />
+            ) : null
+          }
+          ListFooterComponent={renderFooter}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          contentContainerStyle={styles.listPad}
+          refreshing={showSkeleton}
+          onRefresh={() => loadMilestones(true, false)}
+        />
+      )}
+
+      <AddButton onPress={() => openModal()} accessibilityLabel={EMPTY_COPY.milestones.action} />
+
+      <AnimatedModal visible={isDetailVisible} onClose={closeDetailView}>
         {selectedMilestone && (
           <MilestoneDetailView
             milestone={selectedMilestone}
             onClose={closeDetailView}
             onEdit={handleEditFromDetail}
+            onDelete={handleDeleteFromDetail}
           />
         )}
       </AnimatedModal>
 
-      {/* Animated Floating Action Button */}
-      <AnimatedFAB
-        onPress={() => openModal()}
-        color="#ffd700"
-        style={{
-          ...getBoxShadow("#ffd700", { width: 0, height: 6 }, 0.5, 16),
-          borderWidth: 2,
-          borderColor: MILESTONE_BORDER_LIGHT,
-        }}
-      >
-        <Text style={{ fontSize: 32, color: MILESTONE_SCREEN_BG, fontWeight: "600" }}>
-          ⭐
-        </Text>
-      </AnimatedFAB>
-
-      {/* Success Checkmark Animation */}
-      <SuccessCheckmark 
-        visible={showSuccess} 
-        onHide={() => setShowSuccess(false)} 
-        color={MILESTONE_COLOR} 
-      />
-
-      {/* Modal */}
-      <Modal
+      {/* Create / edit form [7A]: required fields first, then Photos and Description. */}
+      <FormSheet
         visible={isModalVisible}
-        animationType="slide"
-        presentationStyle="fullScreen"
+        title={editingMilestone ? "Edit milestone" : "New milestone"}
+        onRequestClose={requestCloseModal}
+        onSave={handleSaveMilestone}
+        saveState={saveState}
+        error={saveError}
+        testID="milestone-form"
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
-        >
-          <Animated.View
-            style={{
-              flex: 1,
-              backgroundColor: "#1a0f00",
-              opacity: fadeAnim,
-            }}
-          >
-            {/* Header */}
-            <View
-              style={{
-                paddingTop: Platform.OS === "ios" ? 60 : 40,
-                paddingBottom: 20,
-                paddingHorizontal: 20,
-                backgroundColor: MILESTONE_BG,
-                borderBottomWidth: 1,
-                borderBottomColor: MILESTONE_BORDER_OPACITY_30,
-              }}
+        <View>
+          <Text variant="caption" tone="muted" uppercase style={styles.label}>
+            Milestone type
+          </Text>
+          <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Milestone type">
+            {MILESTONE_TYPES.map((type) => (
+              <MilestoneTypeTag
+                key={type}
+                type={type}
+                role="radio"
+                selected={milestoneType === type}
+                onPress={() => form.selectType(type)}
+              />
+            ))}
+          </View>
+        </View>
+
+        <Input
+          label="Title"
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Enter milestone title..."
+        />
+
+        <View>
+          <Text variant="caption" tone="muted" uppercase style={styles.label}>
+            Date
+          </Text>
+
+          {/* Web: inline date input */}
+          {Platform.OS === "web" && (
+            <WebDatePicker
+              value={datePickerValue}
+              onChange={form.setPickedDate}
+              maxDate={new Date()}
+              accentColor={color.accent}
+              backgroundColor={color.surfaceRaised}
+              textColor={color.text}
+            />
+          )}
+
+          {/* Native: a field that opens the picker */}
+          {Platform.OS !== "web" && (
+            <Pressable
+              onPress={() => setShowDatePicker(!showDatePicker)}
+              accessibilityRole="button"
+              accessibilityLabel={date ? `Date, ${formatLongDate(date)}` : "Select a date"}
+              style={styles.dateField}
             >
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <TouchableOpacity
-                  onPress={closeModal}
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    backgroundColor: "rgba(255, 215, 0, 0.2)",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    borderWidth: 1,
-                    borderColor: MILESTONE_BORDER_OPACITY_40,
+              <Text variant="body" tone={date ? "text" : "muted"}>
+                {date ? formatLongDate(date) : "Select a date"}
+              </Text>
+              <CalendarDays size={iconSize.md} color={color.textMuted} strokeWidth={ICON_STROKE} />
+            </Pressable>
+          )}
+
+          {showDatePicker && Platform.OS === "ios" && (
+            <View style={styles.iosPicker}>
+              <View style={styles.iosPickerBar}>
+                <Text variant="heading">Select date</Text>
+                <Button
+                  variant="primary"
+                  label="Done"
+                  onPress={() => {
+                    form.setDate(formatDateForDb(datePickerValue));
+                    setShowDatePicker(false);
                   }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 20,
-                      color: MILESTONE_COLOR,
-                      fontWeight: "600",
-                    }}
-                  >
-                    ✕
-                  </Text>
-                </TouchableOpacity>
-                <Text
-                  style={{
-                    fontSize: 22,
-                    fontWeight: "300",
-                    color: MILESTONE_COLOR,
-                    letterSpacing: 1,
-                    fontFamily: Platform.select({
-                      ios: "Georgia",
-                      android: "serif",
-                    }),
-                  }}
-                >
-                  {editingMilestone ? "Edit Milestone" : "New Milestone"}
-                </Text>
-                <TouchableOpacity
-                  onPress={handleSaveMilestone}
-                  disabled={isSaving}
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: isSaving, busy: isSaving }}
-                  style={{
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
-                    borderRadius: 20,
-                    backgroundColor: "#ffd700",
-                    opacity: isSaving ? 0.6 : 1,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      color: "#1a0f00",
-                      fontWeight: "600",
-                    }}
-                  >
-                    Save
-                  </Text>
-                </TouchableOpacity>
+                />
               </View>
+              <DateTimePicker
+                value={datePickerValue}
+                mode="date"
+                display="spinner"
+                onChange={form.handleDateChange}
+                maximumDate={new Date()}
+                themeVariant="dark"
+              />
             </View>
+          )}
+        </View>
 
-            <ScrollView
-              style={{ flex: 1, padding: 20, backgroundColor: "#1a0f00" }}
-              contentContainerStyle={{ paddingBottom: 40 }}
-            >
-              {/* Milestone Type Selection */}
-              <View style={{ marginBottom: 24 }}>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    color: MILESTONE_COLOR,
-                    marginBottom: 12,
-                    fontWeight: "600",
-                  }}
-                >
-                  ⭐ Milestone Type
-                </Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ gap: 10 }}
-                >
-                  {(Object.keys(MILESTONE_CONFIG) as MilestoneType[]).map(
-                    (type) => {
-                      const config = MILESTONE_CONFIG[type];
-                      const isSelected = milestoneType === type;
-                      return (
-                        <TouchableOpacity
-                          key={type}
-                          onPress={() => {
-                            setMilestoneType(type);
-                            if (
-                              !title ||
-                              title === MILESTONE_CONFIG[milestoneType].label
-                            ) {
-                              setTitle(config.label);
-                            }
-                          }}
-                          style={{
-                            paddingHorizontal: 20,
-                            paddingVertical: 12,
-                            borderRadius: 24,
-                            backgroundColor: isSelected
-                              ? config.color
-                              : "#2d1810",
-                            borderWidth: 2,
-                            borderColor: isSelected
-                              ? "transparent"
-                              : config.color + "40",
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: 8,
-                          }}
-                        >
-                          <Text style={{ fontSize: 20 }}>{config.icon}</Text>
-                          <Text
-                            style={{
-                              color: isSelected ? MILESTONE_SCREEN_BG : config.color,
-                              fontSize: 15,
-                              fontWeight: isSelected ? "600" : "500",
-                            }}
-                          >
-                            {config.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    }
-                  )}
-                </ScrollView>
-              </View>
-
-              {/* Title Input */}
-              <View style={{ marginBottom: 24 }}>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    color: MILESTONE_COLOR,
-                    marginBottom: 12,
-                    fontWeight: "600",
-                  }}
-                >
-                  ✨ Title *
-                </Text>
-                <TextInput
-                  style={{
-                    borderWidth: 2,
-                    borderColor: milestoneColor + "60",
-                    borderRadius: 16,
-                    padding: 18,
-                    fontSize: 17,
-                    backgroundColor: MILESTONE_BG,
-                    color: MILESTONE_COLOR,
-                    fontWeight: "500",
-                  }}
-                  value={title}
-                  onChangeText={setTitle}
-                  placeholder="Enter milestone title..."
-                  placeholderTextColor={MILESTONE_BROWN_TEXT}
-                />
-              </View>
-
-              {/* Date Picker */}
-              <View style={{ marginBottom: 24 }}>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    color: MILESTONE_COLOR,
-                    marginBottom: 12,
-                    fontWeight: "600",
-                  }}
-                >
-                  📅 Date *
-                </Text>
-
-                {/* Web: Inline date input */}
-                {Platform.OS === "web" && (
-                  <WebDatePicker
-                    value={datePickerValue}
-                    onChange={(newDate) => {
-                      setDatePickerValue(newDate);
-                      setDate(formatDateForDatabase(newDate));
-                    }}
-                    maxDate={new Date()}
-                    accentColor={MILESTONE_COLOR}
-                    backgroundColor={MILESTONE_BG}
-                    textColor={MILESTONE_COLOR}
+        <View>
+          <View style={styles.photosBar}>
+            <Text variant="caption" tone="muted" uppercase>
+              {`Photos (${photos.length})`}
+            </Text>
+            <Button
+              variant="secondary"
+              label="Add photo"
+              icon={<ImagePlus size={iconSize.md} color={color.text} strokeWidth={ICON_STROKE} />}
+              onPress={pickImage}
+            />
+          </View>
+          {photos.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbs}>
+              {photos.map((photo, index) => (
+                <View key={index} style={styles.thumb}>
+                  <PhotoImage source={photo} tint={false} style={StyleSheet.absoluteFill} />
+                  <Button
+                    variant="icon"
+                    accessibilityLabel={`Remove photo ${index + 1}`}
+                    icon={<X size={iconSize.md} color={color.text} strokeWidth={ICON_STROKE} />}
+                    onPress={() => form.removePhoto(index)}
+                    style={styles.removePhoto}
                   />
-                )}
-
-                {/* Native: TouchableOpacity to open picker */}
-                {Platform.OS !== "web" && (
-                  <TouchableOpacity
-                    onPress={() => setShowDatePicker(!showDatePicker)}
-                    style={{
-                      borderWidth: 2,
-                      borderColor: milestoneColor + "60",
-                      borderRadius: 16,
-                      padding: 18,
-                      backgroundColor: MILESTONE_BG,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 17,
-                        color: date ? "#ffd700" : "#8b7355",
-                        fontWeight: "500",
-                      }}
-                    >
-                      {date && datePickerValue
-                        ? formatDateForDisplay(datePickerValue)
-                        : "Select a date"}
-                    </Text>
-                    <Text style={{ fontSize: 20, color: milestoneColor }}>
-                      📅
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
-                {showDatePicker && Platform.OS === "ios" && (
-                  <View
-                    style={{
-                      marginTop: 16,
-                      padding: 20,
-                      backgroundColor: MILESTONE_BG,
-                      borderRadius: 16,
-                      borderWidth: 2,
-                      borderColor: milestoneColor + "60",
-                    }}
-                  >
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginBottom: 16,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 18,
-                          fontWeight: "600",
-                          color: MILESTONE_COLOR,
-                        }}
-                      >
-                        Select Date
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          const formattedDate =
-                            formatDateForDatabase(datePickerValue);
-                          setDate(formattedDate);
-                          setShowDatePicker(false);
-                        }}
-                        style={{
-                          paddingHorizontal: 16,
-                          paddingVertical: 8,
-                          borderRadius: 20,
-                          backgroundColor: milestoneColor,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            color: "#1a0f00",
-                            fontWeight: "600",
-                          }}
-                        >
-                          Done
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                    <DateTimePicker
-                      value={datePickerValue}
-                      mode="date"
-                      display="spinner"
-                      onChange={handleDateChange}
-                      maximumDate={new Date()}
-                    />
-                  </View>
-                )}
-              </View>
-
-              {/* Description */}
-              <View style={{ marginBottom: 24 }}>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    color: MILESTONE_COLOR,
-                    marginBottom: 12,
-                    fontWeight: "600",
-                  }}
-                >
-                  💭 Description
-                </Text>
-                <TextInput
-                  style={{
-                    borderWidth: 2,
-                    borderColor: milestoneColor + "60",
-                    borderRadius: 16,
-                    padding: 18,
-                    fontSize: 17,
-                    backgroundColor: MILESTONE_BG,
-                    color: MILESTONE_LIGHT_BROWN,
-                    minHeight: 120,
-                    textAlignVertical: "top",
-                    lineHeight: 24,
-                  }}
-                  value={description}
-                  onChangeText={setDescription}
-                  placeholder="Describe this milestone..."
-                  placeholderTextColor={MILESTONE_BROWN_TEXT}
-                  multiline
-                />
-              </View>
-
-              {/* Photos */}
-              <View style={{ marginBottom: 30 }}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 12,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      color: MILESTONE_COLOR,
-                      fontWeight: "600",
-                    }}
-                  >
-                    📷 Photos ({photos.length})
-                  </Text>
-                  <TouchableOpacity
-                    onPress={pickImage}
-                    style={{
-                      paddingHorizontal: 16,
-                      paddingVertical: 8,
-                      borderRadius: 20,
-                      backgroundColor: milestoneColor,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: "#1a0f00",
-                        fontSize: 15,
-                        fontWeight: "600",
-                      }}
-                    >
-                      + Add Photo
-                    </Text>
-                  </TouchableOpacity>
                 </View>
-
-                {photos.length > 0 ? (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 12, paddingVertical: 8 }}
-                  >
-                    {photos.map((photo, index) => (
-                      <View key={index} style={{ position: "relative" }}>
-                        <ThumbnailImage
-                          source={photo}
-                          style={{
-                            width: 120,
-                            height: 120,
-                            borderRadius: 12,
-                            borderWidth: 2,
-                            borderColor: milestoneColor,
-                          }}
-                          contentFit="cover"
-                          cachePolicy="disk"
-                          transition={150}
-                        />
-                        <TouchableOpacity
-                          onPress={() => removePhoto(index)}
-                          style={{
-                            position: "absolute",
-                            top: -8,
-                            right: -8,
-                            width: 28,
-                            height: 28,
-                            borderRadius: 14,
-                            backgroundColor: "#ef4444",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            borderWidth: 2,
-                            borderColor: "#fff",
-                            zIndex: 10,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: "#fff",
-                              fontSize: 16,
-                              fontWeight: "600",
-                            }}
-                          >
-                            ×
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </ScrollView>
-                ) : (
-                  <TouchableOpacity
-                    style={{
-                      borderWidth: 2,
-                      borderColor: milestoneColor + "60",
-                      borderStyle: "dashed",
-                      borderRadius: 16,
-                      padding: 24,
-                      backgroundColor: MILESTONE_BG,
-                      alignItems: "center",
-                      minHeight: 120,
-                      justifyContent: "center",
-                    }}
-                    onPress={pickImage}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 32,
-                        color: milestoneColor + "80",
-                        marginBottom: 12,
-                      }}
-                    >
-                      📷
-                    </Text>
-                    <Text
-                      style={{
-                        color: MILESTONE_BROWN_TEXT,
-                        fontSize: 17,
-                        fontWeight: "500",
-                      }}
-                    >
-                      Tap to add photos
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Delete Button for Editing */}
-              {editingMilestone && (
-                <TouchableOpacity
-                  onPress={() =>
-                    editingMilestone.id &&
-                    handleDeleteMilestone(editingMilestone.id, editingMilestone.title)
-                  }
-                  style={{
-                    backgroundColor: "#ef4444",
-                    padding: 16,
-                    borderRadius: 20,
-                    alignItems: "center",
-                    marginTop: 20,
-                    marginBottom: 20,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: "#fff",
-                      fontSize: 18,
-                      fontWeight: "600",
-                    }}
-                  >
-                    Delete Milestone
-                  </Text>
-                </TouchableOpacity>
-              )}
+              ))}
             </ScrollView>
-          </Animated.View>
-        </KeyboardAvoidingView>
-      </Modal>
+          ) : null}
+        </View>
+
+        <Input
+          label="Description"
+          value={description}
+          onChangeText={setDescription}
+          placeholder="Describe this milestone..."
+          multiline
+        />
+      </FormSheet>
+
+      <ConfirmDialog
+        visible={confirmDiscard}
+        title="Discard this milestone?"
+        onCancel={() => setConfirmDiscard(false)}
+        onConfirm={closeModal}
+      />
 
       {/* Android Date Picker */}
       {showDatePicker && Platform.OS === "android" && (
@@ -1138,10 +701,64 @@ export default function MilestonesScreen({ isFocused = true }: MilestonesScreenP
           value={datePickerValue}
           mode="date"
           display="default"
-          onChange={handleDateChange}
+          onChange={form.handleDateChange}
           maximumDate={new Date()}
         />
       )}
-    </View>
+    </ScreenBackground>
   );
 }
+
+const styles = StyleSheet.create({
+  listPad: {
+    paddingHorizontal: gutter,
+    // Clear the "+" button.
+    paddingBottom: space.xxxl * 2,
+  },
+  staleSlip: { marginBottom: space.xl },
+  footer: { paddingBottom: space.xl },
+  label: { marginBottom: space.sm },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
+  dateField: {
+    minHeight: field.height,
+    backgroundColor: color.surfaceRaised,
+    borderRadius: radius.field,
+    paddingHorizontal: space.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  iosPicker: {
+    marginTop: space.lg,
+    padding: space.lg,
+    backgroundColor: color.surfaceRaised,
+    borderRadius: radius.field,
+  },
+  iosPickerBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: space.lg,
+  },
+  photosBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: space.md,
+  },
+  thumbs: { gap: space.md },
+  thumb: {
+    width: THUMB,
+    height: THUMB,
+    borderRadius: radius.print,
+    overflow: "hidden",
+  },
+  removePhoto: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    width: hitTarget,
+    height: hitTarget,
+    backgroundColor: color.scrim,
+  },
+});
