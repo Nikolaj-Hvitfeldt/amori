@@ -28,22 +28,15 @@ const LEGACY = [
   "components/AnimatedPolaroid.tsx", // Phase 3/4: shrinks to empty by the end of Phase 4
   "components/AnimatedTabBar.tsx", // Phase 4 (chrome): shrinks to empty by the end of Phase 4
   "components/DateCard.tsx", // Phase 3: shrinks to empty by the end of Phase 4
-  "components/DateDetailView.tsx", // Phase 3: shrinks to empty by the end of Phase 4
   "components/MilestoneCard.tsx", // Phase 3: shrinks to empty by the end of Phase 4
-  "components/MilestoneDetailView.tsx", // Phase 3: shrinks to empty by the end of Phase 4
   "components/MomentCard.tsx", // Phase 3: shrinks to empty by the end of Phase 4
-  "components/MomentDetailView.tsx", // Phase 3: shrinks to empty by the end of Phase 4
   "components/RotatingPhotoBackground.tsx", // retired in Phase 3: shrinks to empty by the end of Phase 4
   "components/SkeletonLoader.tsx", // Phase 3: shrinks to empty by the end of Phase 4
   "components/SuccessCheckmark.tsx", // retired in Phase 3: shrinks to empty by the end of Phase 4
   "components/TimelineRope.tsx", // Phase 3: shrinks to empty by the end of Phase 4
-  "components/WebDatePicker.tsx", // Phase 3: shrinks to empty by the end of Phase 4
   "constants/milestoneConfig.ts", // Phase 3: shrinks to empty by the end of Phase 4
   "constants/theme.ts", // legacy theme, retired by the end of Phase 4
   "navigation/AppNavigator.tsx", // Phase 4 (chrome): shrinks to empty by the end of Phase 4
-  "screens/DatesScreen.tsx", // Phase 3: shrinks to empty by the end of Phase 4
-  "screens/MilestonesScreen.tsx", // Phase 3: shrinks to empty by the end of Phase 4
-  "screens/MomentsScreen.tsx", // Phase 3: shrinks to empty by the end of Phase 4
   "screens/PicturesScreen.tsx", // Phase 3: shrinks to empty by the end of Phase 4
   "utils/moodUtils.ts", // Phase 3: shrinks to empty by the end of Phase 4
 ];
