@@ -1,10 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import {
-  View,
-  ScrollView,
-  Modal,
-  StyleSheet,
-} from "react-native";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { View, Modal, StyleSheet, LayoutChangeEvent } from "react-native";
 import { momentsService } from "../services/moments";
 import { datesService } from "../services/dates";
 import { milestonesService } from "../services/milestones";
@@ -14,25 +9,28 @@ import { Milestone } from "../types/milestones";
 import MomentDetailView from "../components/MomentDetailView";
 import DateDetailView from "../components/DateDetailView";
 import MilestoneDetailView from "../components/MilestoneDetailView";
-import MomentCard from "../components/MomentCard";
-import DateCard from "../components/DateCard";
-import MilestoneCard from "../components/MilestoneCard";
-import AnimatedCard from "../components/AnimatedCard";
-import TimelineRope from "../components/TimelineRope";
-import { TimelineSkeleton } from "../components/SkeletonLoader";
-import AnimatedModal from "../components/AnimatedModal";
-import EmptyState from "../components/common/EmptyState";
-import ErrorState, { SavedCopyNotice } from "../components/common/ErrorState";
-import LoadingMore from "../components/common/LoadingMore";
 import { getCachedData, setCachedData } from "../utils/cache";
-import { TIMELINE_BG, PRIMARY_PINK } from "../constants/theme";
 import {
-  TIMELINE_TOP_PADDING,
   TIMELINE_BOTTOM_PADDING,
   SCROLL_LOAD_MORE_THRESHOLD,
   ITEMS_PER_TYPE,
 } from "../constants/spacing";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
+import {
+  DaysTogetherHero,
+  EMPTY_COPY,
+  EmptySlip,
+  ErrorSlip,
+  Header,
+  ScreenBackground,
+  Skeleton,
+  Thread,
+  ThreadItem,
+  haptics,
+  useNavLock,
+  useReducedEffects,
+} from "../ui";
+import { gutter, space } from "../theme";
 
 // Unified timeline item type
 type TimelineItemType = "moment" | "date" | "milestone";
@@ -55,6 +53,31 @@ const CACHE_KEY_TIMELINE_ITEMS = "timeline_items";
 const CACHE_KEY_TIMELINE_STATE = "timeline_state";
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
+const STORY_TITLE = "Our story";
+const STORY_TAGLINE = "A little more of us, every day";
+
+/** Same key shape the Thread uses for its items. */
+const itemKey = (type: TimelineItemType, id: string) => `${type}-${id}`;
+
+/** Maps a timeline item onto the shared thread item [1A, 4A]: cover photo only, type chip. */
+function toThreadItem(item: TimelineItem): ThreadItem {
+  const coverPhoto = item.photos && item.photos.length > 0 ? item.photos[0] : null;
+  const threadItem: ThreadItem = {
+    id: item.id,
+    type: item.type,
+    date: item.date,
+    title: item.title,
+    coverPhoto,
+    body: item.description,
+  };
+  if (item.type === "date" && item.dateEntry?.mood) {
+    threadItem.chip = { kind: "mood", value: item.dateEntry.mood };
+  } else if (item.type === "milestone" && item.milestone?.milestone_type) {
+    threadItem.chip = { kind: "milestone", value: item.milestone.milestone_type };
+  }
+  return threadItem;
+}
+
 interface TimelineScreenProps {
   isFocused?: boolean;
 }
@@ -66,6 +89,8 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
   const [hasMore, setHasMore] = useState(true);
   const [selectedItem, setSelectedItem] = useState<TimelineItem | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const reduced = useReducedEffects();
+  const guard = useNavLock();
 
   // Track pagination state for each type
   const [momentsOffset, setMomentsOffset] = useState(0);
@@ -75,6 +100,10 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
   const [datesTotal, setDatesTotal] = useState(0);
   const [milestonesTotal, setMilestonesTotal] = useState(0);
 
+  // Days-together hero [3A] (allowed addition #1): every milestone, unpaginated, so the
+  // earliest "met" is found even when it is not on the current page. A failure hides it.
+  const [heroMilestones, setHeroMilestones] = useState<Milestone[]>([]);
+
   // Error vs empty [2A]: "failed" = nothing to show, "stale" = showing the last good copy.
   const [loadError, setLoadError] = useState<null | "failed" | "stale">(null);
   const lastGoodRef = useRef<{
@@ -83,6 +112,9 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
     datesOffset: number;
     milestonesOffset: number;
   } | null>(null);
+
+  // Thread height, to turn the pixel load-more threshold into onEndReachedThreshold.
+  const [listHeight, setListHeight] = useState(0);
 
   useEffect(() => {
     loadTimelineFromCacheOrAPI(true);
@@ -94,6 +126,18 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
     resourceType: "all", // Timeline shows all resource types
     isFocused,
   });
+
+  // One unpaginated read, the same call the Wall makes. Never touches the thread's state.
+  const loadHero = async (bypassCache: boolean) => {
+    try {
+      const result = await milestonesService.getAll(undefined, undefined, bypassCache);
+      const all = result && Array.isArray(result.data) ? result.data : [];
+      setHeroMilestones(all);
+    } catch (error) {
+      console.warn("Error loading days-together milestones:", error);
+      setHeroMilestones([]);
+    }
+  };
 
   // Load timeline from cache first, then API if needed
   const loadTimelineFromCacheOrAPI = async (reset: boolean = true) => {
@@ -148,6 +192,8 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
     reset: boolean = true,
     skipCache: boolean = false
   ) => {
+    // The hero's own read runs alongside; it never blocks or breaks the thread.
+    if (reset) loadHero(skipCache);
     try {
       if (reset) {
         setLoading(true);
@@ -308,137 +354,107 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
     }
   };
 
-  const handleScroll = (event: any) => {
-    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    const isCloseToBottom =
-      layoutMeasurement.height + contentOffset.y >=
-      contentSize.height - SCROLL_LOAD_MORE_THRESHOLD;
-
-    if (isCloseToBottom && hasMore && !loadingMore) {
+  // Was a ScrollView onScroll check: load more within SCROLL_LOAD_MORE_THRESHOLD px of the
+  // bottom. The Thread's onEndReachedThreshold is in visible lengths, so convert the pixels.
+  const handleEndReached = () => {
+    if (hasMore && !loadingMore) {
       loadMore();
     }
   };
+  const endReachedThreshold =
+    listHeight > 0 ? SCROLL_LOAD_MORE_THRESHOLD / listHeight : 0.2;
 
-  const handleItemPress = useCallback((item: TimelineItem) => {
-    setSelectedItem(item);
-    setDetailModalVisible(true);
-  }, []);
+  const retry = () => loadTimeline(true, true);
+
+  const itemsByKey = useMemo(() => {
+    const map = new Map<string, TimelineItem>();
+    for (const item of timelineItems) map.set(itemKey(item.type, item.id), item);
+    return map;
+  }, [timelineItems]);
+
+  const threadItems = useMemo(() => timelineItems.map(toThreadItem), [timelineItems]);
+
+  const handleItemPress = useCallback(
+    (threadItem: ThreadItem) => {
+      const item = itemsByKey.get(itemKey(threadItem.type, threadItem.id));
+      if (!item) return;
+      haptics.navigate();
+      setSelectedItem(item);
+      setDetailModalVisible(true);
+    },
+    [itemsByKey]
+  );
+  // Double-tap lock on opening a detail view (allowed addition #3).
+  const openItem = useMemo(() => guard(handleItemPress), [guard, handleItemPress]);
 
   const closeDetailModal = useCallback(() => {
     setDetailModalVisible(false);
     setTimeout(() => setSelectedItem(null), 300);
   }, []);
 
-  const renderMomentCard = useCallback(
-    (item: TimelineItem, index: number) => {
-      if (!item.moment) return null;
-      return (
-        <AnimatedCard key={item.id} index={index} animationType="fade-slide">
-          <MomentCard
-            moment={item.moment}
-            onPress={() => handleItemPress(item)}
-          />
-        </AnimatedCard>
-      );
-    },
-    [handleItemPress]
+  const header = (
+    <View style={styles.bleed}>
+      <Header title={STORY_TITLE} tagline={STORY_TAGLINE} section="story" />
+      <DaysTogetherHero milestones={heroMilestones} />
+    </View>
   );
 
-  const renderDateCard = useCallback(
-    (item: TimelineItem, index: number) => {
-      if (!item.dateEntry) return null;
-      return (
-        <AnimatedCard key={item.id} index={index} animationType="fade-slide">
-          <DateCard
-            dateEntry={item.dateEntry}
-            onPress={() => handleItemPress(item)}
-          />
-        </AnimatedCard>
-      );
-    },
-    [handleItemPress]
-  );
+  const onListLayout = (e: LayoutChangeEvent) => setListHeight(e.nativeEvent.layout.height);
 
-  const renderMilestoneCard = useCallback(
-    (item: TimelineItem, index: number) => {
-      if (!item.milestone) return null;
-      return (
-        <AnimatedCard key={item.id} index={index} animationType="fade-slide">
-          <MilestoneCard
-            milestone={item.milestone}
-            onPress={() => handleItemPress(item)}
-          />
-        </AnimatedCard>
-      );
-    },
-    [handleItemPress]
-  );
-
+  let body: React.ReactNode;
   if (loading && timelineItems.length === 0) {
-    return (
-      <View style={{ flex: 1, backgroundColor: TIMELINE_BG }}>
-        <TimelineSkeleton count={4} />
+    body = (
+      <View style={styles.column}>
+        {header}
+        <Skeleton count={4} />
+      </View>
+    );
+  } else if (timelineItems.length === 0) {
+    body = (
+      <View style={styles.column}>
+        {header}
+        {loadError === "failed" ? (
+          <ErrorSlip what="your story" onRetry={retry} style={styles.slip} />
+        ) : (
+          // Story has no add flow of its own, so the slip shows no Add button.
+          <EmptySlip message={EMPTY_COPY.story.message} style={styles.slip} />
+        )}
+      </View>
+    );
+  } else {
+    body = (
+      <View style={styles.fill} onLayout={onListLayout}>
+        <Thread
+          items={threadItems}
+          onPressItem={openItem}
+          ListHeaderComponent={
+            <View>
+              {header}
+              {loadError === "stale" ? (
+                <ErrorSlip what="your story" onRetry={retry} showingSavedCopy style={styles.staleSlip} />
+              ) : null}
+            </View>
+          }
+          ListFooterComponent={loadingMore ? <Skeleton count={1} withPhotos={false} /> : null}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={endReachedThreshold}
+          contentContainerStyle={styles.column}
+          testID="story-thread"
+        />
       </View>
     );
   }
 
-  if (timelineItems.length === 0) {
-    if (loadError === "failed") {
-      return (
-        <ErrorState
-          subject="your story"
-          onRetry={() => loadTimeline(true, true)}
-          backgroundColor={TIMELINE_BG}
-        />
-      );
-    }
-    return (
-      <EmptyState
-        icon="📅"
-        title="Your Timeline is Empty"
-        message="Start adding moments, dates, and milestones to see your journey together!"
-        backgroundColor={TIMELINE_BG}
-      />
-    );
-  }
-
   return (
-    <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={400}
-      >
-        {loadError === "stale" && (
-          <SavedCopyNotice onRetry={() => loadTimeline(true, true)} />
-        )}
+    <ScreenBackground testID="story-screen">
+      {body}
 
-        {/* Golden Rope Timeline - represents the bond between moments */}
-        <TimelineRope />
-
-        {timelineItems.map((item, index) => {
-          switch (item.type) {
-            case "moment":
-              return renderMomentCard(item, index);
-            case "date":
-              return renderDateCard(item, index);
-            case "milestone":
-              return renderMilestoneCard(item, index);
-            default:
-              return null;
-          }
-        })}
-
-        {/* Loading more indicator */}
-        {loadingMore && <LoadingMore message="Loading more memories..." />}
-      </ScrollView>
-
-      {/* Detail Modal */}
-      <AnimatedModal
+      {/* Detail view, read-only from Story. A plain timed slide, no spring [5C]. */}
+      <Modal
         visible={detailModalVisible}
-        onClose={closeDetailModal}
+        onRequestClose={closeDetailModal}
+        animationType={reduced ? "none" : "slide"}
+        statusBarTranslucent
       >
         {selectedItem && (
           <>
@@ -468,21 +484,19 @@ export default function TimelineScreen({ isFocused = true }: TimelineScreenProps
             )}
           </>
         )}
-      </AnimatedModal>
-    </View>
+      </Modal>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: TIMELINE_BG,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: TIMELINE_TOP_PADDING,
+  fill: { flex: 1 },
+  column: {
+    paddingHorizontal: gutter,
     paddingBottom: TIMELINE_BOTTOM_PADDING,
   },
+  // Header and hero carry their own gutter; undo the column's.
+  bleed: { marginHorizontal: -gutter },
+  slip: { marginTop: space.xl },
+  staleSlip: { marginBottom: space.xl },
 });
