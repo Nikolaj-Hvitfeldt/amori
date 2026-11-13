@@ -1,8 +1,19 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
+import { getApiOrigin } from "../services/api";
+import { isMockMode } from "../mock/mode";
 
 // Cache configuration
-const CACHE_PREFIX = "amori_cache_";
+// Keys are namespaced by mode and API origin [E3], so mock data never shows up
+// in real mode and two backends never share entries: "amori:<mode>:<origin>:".
+// Keys written before this change used LEGACY_CACHE_PREFIX; they are no longer
+// read, and clearAllCache removes them.
+const LEGACY_CACHE_PREFIX = "amori_cache_";
+
+export function getCachePrefix(): string {
+  const mode = isMockMode() ? "mock" : "real";
+  return `amori:${mode}:${getApiOrigin()}:`;
+}
 const DEFAULT_TTL = 30 * 60 * 1000; // 30 minutes in milliseconds (default for dates/moments)
 
 interface CacheEntry<T> {
@@ -50,7 +61,7 @@ const storage = {
  */
 export async function getCachedData<T>(key: string): Promise<T | null> {
   try {
-    const cacheKey = `${CACHE_PREFIX}${key}`;
+    const cacheKey = `${getCachePrefix()}${key}`;
     const cached = await storage.getItem(cacheKey);
 
     if (!cached) {
@@ -84,7 +95,7 @@ export async function setCachedData<T>(
   ttl: number = DEFAULT_TTL
 ): Promise<void> {
   try {
-    const cacheKey = `${CACHE_PREFIX}${key}`;
+    const cacheKey = `${getCachePrefix()}${key}`;
     const entry: CacheEntry<T> = {
       data,
       timestamp: Date.now(),
@@ -103,7 +114,7 @@ export async function setCachedData<T>(
  */
 export async function invalidateCache(key: string): Promise<void> {
   try {
-    const cacheKey = `${CACHE_PREFIX}${key}`;
+    const cacheKey = `${getCachePrefix()}${key}`;
     await storage.removeItem(cacheKey);
   } catch (error) {
     console.warn(`Error invalidating cache for key ${key}:`, error);
@@ -120,7 +131,7 @@ export async function invalidateResourceCache(resourceType: string): Promise<voi
       const keys: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith(`${CACHE_PREFIX}${resourceType}_`)) {
+        if (key && key.startsWith(`${getCachePrefix()}${resourceType}_`)) {
           keys.push(key);
         }
       }
@@ -129,7 +140,7 @@ export async function invalidateResourceCache(resourceType: string): Promise<voi
       // On native, get all keys and filter
       const allKeys = await AsyncStorage.getAllKeys();
       const keysToRemove = allKeys.filter((key) =>
-        key.startsWith(`${CACHE_PREFIX}${resourceType}_`)
+        key.startsWith(`${getCachePrefix()}${resourceType}_`)
       );
       if (keysToRemove.length > 0) {
         await AsyncStorage.multiRemove(keysToRemove);
@@ -145,18 +156,21 @@ export async function invalidateResourceCache(resourceType: string): Promise<voi
  */
 export async function clearAllCache(): Promise<void> {
   try {
+    const prefix = getCachePrefix();
+    const isOwnKey = (key: string) =>
+      key.startsWith(prefix) || key.startsWith(LEGACY_CACHE_PREFIX);
     if (Platform.OS === "web") {
       const keys: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith(CACHE_PREFIX)) {
+        if (key && isOwnKey(key)) {
           keys.push(key);
         }
       }
       keys.forEach((key) => localStorage.removeItem(key));
     } else {
       const allKeys = await AsyncStorage.getAllKeys();
-      const keysToRemove = allKeys.filter((key) => key.startsWith(CACHE_PREFIX));
+      const keysToRemove = allKeys.filter(isOwnKey);
       if (keysToRemove.length > 0) {
         await AsyncStorage.multiRemove(keysToRemove);
       }
