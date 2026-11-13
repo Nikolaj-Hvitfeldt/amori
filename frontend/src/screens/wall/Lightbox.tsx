@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { X } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { color, easing, gutter, hitTarget, motion, space } from "../../theme";
 import { Button, ICON_STROKE, iconSize, PhotoImage, Text, formatLongDate } from "../../ui";
 import type { PhotoSource } from "../../ui";
@@ -52,6 +53,7 @@ const useNative = Platform.OS !== "web";
  */
 export function Lightbox({ photo, onClose, onOpenEntry }: LightboxProps) {
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const dragY = useRef(new Animated.Value(0)).current;
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -143,7 +145,7 @@ export function Lightbox({ photo, onClose, onOpenEntry }: LightboxProps) {
           accessibilityLabel="Close photo"
           icon={<X size={iconSize.lg} color={color.text} strokeWidth={ICON_STROKE} />}
           onPress={onClose}
-          style={styles.close}
+          style={[styles.close, { top: insets.top + space.lg, left: insets.left + space.sm }]}
           testID="lightbox-close"
         />
       </View>

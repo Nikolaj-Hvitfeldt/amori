@@ -26,7 +26,6 @@ const LEGACY = [
   "components/AnimatedFAB.tsx", // Phase 3/4: shrinks to empty by the end of Phase 4
   "components/AnimatedModal.tsx", // Phase 3/4: shrinks to empty by the end of Phase 4
   "components/AnimatedPolaroid.tsx", // Phase 3/4: shrinks to empty by the end of Phase 4
-  "components/AnimatedTabBar.tsx", // Phase 4 (chrome): shrinks to empty by the end of Phase 4
   "components/DateCard.tsx", // Phase 3: shrinks to empty by the end of Phase 4
   "components/MilestoneCard.tsx", // Phase 3: shrinks to empty by the end of Phase 4
   "components/MomentCard.tsx", // Phase 3: shrinks to empty by the end of Phase 4
@@ -36,7 +35,6 @@ const LEGACY = [
   "components/TimelineRope.tsx", // Phase 3: shrinks to empty by the end of Phase 4
   "constants/milestoneConfig.ts", // Phase 3: shrinks to empty by the end of Phase 4
   "constants/theme.ts", // legacy theme, retired by the end of Phase 4
-  "navigation/AppNavigator.tsx", // Phase 4 (chrome): shrinks to empty by the end of Phase 4
   "utils/moodUtils.ts", // Phase 3: shrinks to empty by the end of Phase 4
 ];
 

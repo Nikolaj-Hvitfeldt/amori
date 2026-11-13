@@ -27,7 +27,7 @@ import {
   MoodTag,
   PhotoImage,
   SaveState,
-  ScreenBackground,
+  ScreenColumn,
   Sheet,
   Skeleton,
   Text,
@@ -326,7 +326,7 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
   const showSkeleton = loading && dates.length === 0;
 
   return (
-    <ScreenBackground>
+    <ScreenColumn>
       {showSkeleton ? (
         <View style={styles.column}>
           <Header title="Dates" section="dates" style={styles.header} />
@@ -575,7 +575,7 @@ export default function DatesScreen({ isFocused = true }: DatesScreenProps) {
           maximumDate={new Date()}
         />
       ) : null}
-    </ScreenBackground>
+    </ScreenColumn>
   );
 }
 
