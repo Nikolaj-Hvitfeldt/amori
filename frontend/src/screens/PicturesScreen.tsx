@@ -10,7 +10,7 @@ import MomentDetailView from "../components/MomentDetailView";
 import DateDetailView from "../components/DateDetailView";
 import MilestoneDetailView from "../components/MilestoneDetailView";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
-import { color, gutter, polaroid, radius, space } from "../theme";
+import { color, gutter, motion, polaroid, radius, space } from "../theme";
 import {
   EMPTY_COPY,
   ErrorSlip,
@@ -73,7 +73,9 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
   const [loadError, setLoadError] = useState<null | "failed" | "stale">(null);
   const lastGoodPhotoCountRef = useRef(0);
 
-  const guard = useNavLock();
+  // Separate locks: opening the lightbox must not swallow a quick "Open …" tap.
+  const guardLightbox = useNavLock();
+  const guardDetail = useNavLock();
 
   const loadAllPhotos = useCallback(async (bypassCache: boolean = false) => {
     setLoading(true);
@@ -143,12 +145,12 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
     isFocused,
   });
 
-  const handlePhotoPress = guard((photo: PhotoItem) => {
+  const handlePhotoPress = guardLightbox((photo: PhotoItem) => {
     haptics.select();
     setSelectedPhoto(photo);
   });
 
-  const handleViewEntry = guard(() => {
+  const handleViewEntry = guardDetail(() => {
     if (!selectedPhoto) return;
 
     let data: Moment | DateEntry | Milestone | undefined;
@@ -165,7 +167,9 @@ export default function PicturesScreen({ isFocused = true }: PicturesScreenProps
       haptics.navigate();
       setDetailData({ type: selectedPhoto.sourceType, data });
       setSelectedPhoto(null);
-      setShowDetailModal(true);
+      // Present the detail only after the lightbox Modal has dismissed: iOS can drop a
+      // Modal presented while another is still closing.
+      setTimeout(() => setShowDetailModal(true), motion.sheetClose);
     }
   });
 
