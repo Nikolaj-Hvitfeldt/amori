@@ -12,7 +12,8 @@
     "web:tunnel": "expo start --web --tunnel",
     "build:web": "expo export",
     "build:pwa": "expo export",
-    "test": "jest"
+    "test": "jest",
+    "check:tokens": "node scripts/check-tokens.js"
   },
   "keywords": [],
   "author": "",

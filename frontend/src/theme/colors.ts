@@ -45,6 +45,8 @@ export const color = {
   thread: "rgba(231,166,96,0.5)",
   /** Hairline borders on dark surfaces. */
   hairline: "rgba(241,228,209,0.08)",
+  /** Fully transparent cream, for gradient ends that fade out of `hairline` without greying. */
+  transparent: "rgba(241,228,209,0)",
   /** Outline for unselected chips and secondary controls. */
   outline: "rgba(241,228,209,0.12)",
   /** Tape strips on polaroids (static layout, always on). */
