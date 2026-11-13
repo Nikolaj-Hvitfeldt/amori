@@ -129,7 +129,8 @@ function MilestoneCard({
                 if (Platform.OS === "web") {
                   return false; // Let browser handle it on web
                 }
-                const { dx, dy } = evt.nativeEvent;
+                // Type-only cast: NativeTouchEvent's typings omit dx/dy.
+                const { dx, dy } = evt.nativeEvent as unknown as { dx: number; dy: number };
                 return Math.abs(dx) > Math.abs(dy); // Horizontal scroll
               }}
             >
