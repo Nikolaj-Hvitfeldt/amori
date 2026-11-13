@@ -1,49 +1,49 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  FlatList,
-  TouchableOpacity,
-  TextInput,
-  Modal,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Animated,
-} from "react-native";
-import { Image } from "expo-image";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { View, ScrollView, Alert, Platform, Pressable, StyleSheet } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { Calendar, ImagePlus, X } from "lucide-react-native";
 import { momentsService } from "../services/moments";
-import { Moment, CreateMomentDto } from "../types/moments";
+import { Moment } from "../types/moments";
 import MomentDetailView from "../components/MomentDetailView";
-import MomentCard from "../components/MomentCard";
-import AnimatedCard from "../components/AnimatedCard";
-import AnimatedFAB from "../components/AnimatedFAB";
-import { SkeletonList } from "../components/SkeletonLoader";
-import AnimatedModal from "../components/AnimatedModal";
-import SuccessCheckmark from "../components/SuccessCheckmark";
-import { PulsingHeart } from "../components/HeartPulse";
-import EmptyState from "../components/common/EmptyState";
-import ErrorState, { SavedCopyNotice } from "../components/common/ErrorState";
-import LoadingMore from "../components/common/LoadingMore";
-import ThumbnailImage from "../components/ThumbnailImage";
 import WebDatePicker from "../components/WebDatePicker";
-import { getBoxShadow } from "../utils/shadows";
-import {
-  MOMENT_COLOR,
-  MOMENT_BG,
-  MOMENT_TEXT,
-  MOMENT_GRADIENT,
-} from "../constants/theme";
 import { ITEMS_PER_PAGE } from "../constants/spacing";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
+import { filterValidPhotos, useMomentForm } from "../hooks/useMomentForm";
+import { color, field, gutter, hitTarget, motion, radius, space } from "../theme";
+import {
+  AddButton,
+  Button,
+  ConfirmDialog,
+  EMPTY_COPY,
+  EmptySlip,
+  ErrorSlip,
+  FormSheet,
+  Header,
+  ICON_STROKE,
+  Input,
+  PhotoImage,
+  SaveState,
+  ScreenBackground,
+  Sheet,
+  Skeleton,
+  Text,
+  Thread,
+  ThreadItem,
+  formatLongDate,
+  haptics,
+  iconSize,
+  useNavLock,
+} from "../ui";
 
 interface MomentsScreenProps {
   isFocused?: boolean;
 }
+
+const SCREEN_TITLE = "Moments";
+const SAVE_FAILED = "Couldn't save this moment. Check your connection and try again.";
+const REQUIRED_MISSING = "Please fill in all required fields.";
 
 export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) {
   const [moments, setMoments] = useState<Moment[]>([]);
@@ -54,24 +54,20 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isDetailVisible, setIsDetailVisible] = useState(false);
   const [selectedMoment, setSelectedMoment] = useState<Moment | null>(null);
-  const [editingMoment, setEditingMoment] = useState<Moment | null>(null);
 
-  // Form state
-  const [title, setTitle] = useState("");
-  const [storyDate, setStoryDate] = useState("");
-  const [datePickerValue, setDatePickerValue] = useState<Date>(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [webDateInput, setWebDateInput] = useState("");
-  const [description, setDescription] = useState("");
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [showSuccess, setShowSuccess] = useState(false);
+  // Form state lives in useMomentForm.
+  const form = useMomentForm();
+  const { resetForm, loadMoment } = form;
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   // Save double-tap guard: the ref blocks re-entry synchronously, the state drives the button.
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
   // Error vs empty [2A]: "failed" = nothing to show, "stale" = showing the last good copy.
   const [loadError, setLoadError] = useState<null | "failed" | "stale">(null);
   const lastGoodMomentsRef = useRef<Moment[]>([]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const guard = useNavLock();
 
   useEffect(() => {
     loadMoments();
@@ -103,8 +99,7 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
       }
 
       const sortedMoments = result.data.sort(
-        (a, b) =>
-          new Date(b.story_date).getTime() - new Date(a.story_date).getTime()
+        (a, b) => new Date(b.story_date).getTime() - new Date(a.story_date).getTime()
       );
 
       if (reset) {
@@ -116,9 +111,7 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
         setMoments((prev) => {
           // Deduplicate by ID to prevent duplicate keys
           const existingIds = new Set(prev.map((m) => m.id));
-          const uniqueNewMoments = sortedMoments.filter(
-            (m) => m.id && !existingIds.has(m.id)
-          );
+          const uniqueNewMoments = sortedMoments.filter((m) => m.id && !existingIds.has(m.id));
           const newMoments = [...prev, ...uniqueNewMoments];
           lastGoodMomentsRef.current = newMoments;
           setHasMore(newMoments.length < (result.total || 0));
@@ -150,64 +143,46 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
     }
   };
 
-  const formatDateForDatabase = (dateObj: Date): string => {
-    const year = dateObj.getFullYear();
-    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-    const day = String(dateObj.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
-  const resetForm = useCallback(() => {
-    const today = new Date();
-    setTitle("");
-    setStoryDate(formatDateForDatabase(today)); // Default to today
-    setDatePickerValue(today);
-    setDescription("");
-    setPhotos([]);
-    setEditingMoment(null);
-    setShowDatePicker(false);
-    setWebDateInput("");
-  }, []);
-
-  const filterValidPhotos = (photoUrls: string[]): string[] => {
-    return photoUrls.filter(
-      (url) =>
-        url &&
-        typeof url === "string" &&
-        (url.startsWith("http://") || url.startsWith("https://"))
-    );
+  const closeModal = () => {
+    setIsModalVisible(false);
+    setConfirmDiscard(false);
+    setTimeout(() => {
+      resetForm();
+      setSaveState("idle");
+      setFormError(null);
+    }, motion.sheetClose);
   };
 
   const handleSaveMoment = async () => {
     if (isSavingRef.current) return;
-    if (!storyDate || !description || !title.trim()) {
-      Alert.alert("Error", "Please fill in all required fields");
+    if (!form.isValid) {
+      setFormError(REQUIRED_MISSING);
       return;
     }
 
     isSavingRef.current = true;
     setIsSaving(true);
+    setSaveState("saving");
+    setFormError(null);
     try {
-      const validPhotos = filterValidPhotos(photos);
-      const momentData: CreateMomentDto = {
-        title: title.trim(),
-        story_date: storyDate,
-        description,
-        photos: validPhotos.length > 0 ? validPhotos : [],
-      };
+      const momentData = form.buildDto();
 
-      if (editingMoment) {
-        await momentsService.updateMoment(editingMoment.id!, momentData);
+      if (form.editingMoment) {
+        await momentsService.updateMoment(form.editingMoment.id!, momentData);
       } else {
         await momentsService.createMoment(momentData);
       }
 
+      // Saved [2A]: hold the confirmation briefly, then close and reload.
+      setSaveState("saved");
+      haptics.success();
+      await new Promise((resolve) => setTimeout(resolve, motion.savedHold));
       closeModal();
       await loadMoments();
-      setShowSuccess(true); // Show success animation
     } catch (error) {
       console.error("Error saving moment:", error);
-      Alert.alert("Error", "Failed to save moment");
+      setSaveState("error");
+      setFormError(SAVE_FAILED);
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
@@ -217,37 +192,28 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
   const openModal = useCallback(
     (moment?: Moment) => {
       if (moment) {
-        setEditingMoment(moment);
-        setTitle(moment.title);
-        setStoryDate(moment.story_date);
-        // Parse date manually to avoid timezone issues
-        const [year, month, day] = moment.story_date.split("-").map(Number);
-        const parsedDate = new Date(year, month - 1, day);
-        setDatePickerValue(
-          isNaN(parsedDate.getTime()) ? new Date() : parsedDate
-        );
-        setDescription(moment.description || "");
-        setPhotos(filterValidPhotos(moment.photos || []));
+        loadMoment(moment);
       } else {
         resetForm();
       }
+      setSaveState("idle");
+      setFormError(null);
       setIsModalVisible(true);
-      fadeAnim.setValue(0);
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: Platform.OS !== "web",
-      }).start();
     },
-    [fadeAnim]
+    [loadMoment, resetForm]
   );
 
-  const closeModal = () => {
-    setIsModalVisible(false);
-    setTimeout(resetForm, 300);
+  /** ✕, backdrop, Android back, Esc: ask first when there are unsaved edits [7A]. */
+  const requestCloseModal = () => {
+    if (form.isDirty && saveState !== "saved" && !isSaving) {
+      setConfirmDiscard(true);
+    } else {
+      closeModal();
+    }
   };
 
   const handleViewMoment = useCallback((moment: Moment) => {
+    haptics.navigate();
     setSelectedMoment(moment);
     setIsDetailVisible(true);
   }, []);
@@ -275,9 +241,7 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
               reader.onloadend = async () => {
                 try {
                   const dataUrl = reader.result as string;
-                  const matches = dataUrl.match(
-                    /^data:([A-Za-z-+\/]+);base64,(.+)$/
-                  );
+                  const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
                   if (matches && matches.length === 3) {
                     mimeType = matches[1];
                     base64 = matches[2];
@@ -302,9 +266,7 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
             reader.onloadend = async () => {
               try {
                 const dataUrl = reader.result as string;
-                const matches = dataUrl.match(
-                  /^data:([A-Za-z-+\/]+);base64,(.+)$/
-                );
+                const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
                 if (matches && matches.length === 3) {
                   mimeType = matches[1];
                   base64 = matches[2];
@@ -343,13 +305,9 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
   const pickImage = async () => {
     try {
       if (Platform.OS !== "web") {
-        const permissionResult =
-          await ImagePicker.requestMediaLibraryPermissionsAsync();
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (permissionResult.granted === false) {
-          Alert.alert(
-            "Permission Required",
-            "Permission to access camera roll is required!"
-          );
+          Alert.alert("Permission Required", "Permission to access camera roll is required!");
           return;
         }
       }
@@ -362,13 +320,9 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
 
       if (!result.canceled && result.assets) {
         try {
-          const uploadPromises = result.assets.map((asset) =>
-            uploadImage(asset.uri)
-          );
+          const uploadPromises = result.assets.map((asset) => uploadImage(asset.uri));
           const uploadedUrls = await Promise.all(uploadPromises);
-
-          // Use functional update to avoid stale closure
-          setPhotos((prevPhotos) => [...prevPhotos, ...uploadedUrls]);
+          form.addPhotos(uploadedUrls);
         } catch (uploadError) {
           console.error("Error uploading images:", uploadError);
           Alert.alert("Upload Error", "Failed to upload images");
@@ -380,53 +334,22 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
     }
   };
 
-  const removePhoto = (indexToRemove: number) => {
-    const newPhotos = photos.filter((_, index) => index !== indexToRemove);
-    setPhotos(newPhotos);
-  };
-
-  const formatDateForDisplay = (dateString: string | Date): string => {
-    const dateObj =
-      typeof dateString === "string" ? new Date(dateString) : dateString;
-    if (isNaN(dateObj.getTime())) return "";
-
-    const day = String(dateObj.getDate()).padStart(2, "0");
-    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-    const year = dateObj.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
-
-  const handleDateChange = (event: any, pickedDate?: Date) => {
-    if (Platform.OS === "android") {
-      setShowDatePicker(false);
-    }
-
-    if (event.type === "set" && pickedDate) {
-      setDatePickerValue(pickedDate);
-      const formattedDate = formatDateForDatabase(pickedDate);
-      setStoryDate(formattedDate);
-    } else if (event.type === "dismissed") {
-      setShowDatePicker(false);
-    }
-  };
-
   const handleDeleteMoment = async (id: string, title: string) => {
-    const confirmDelete = Platform.OS === "web"
-      ? (globalThis as any).confirm(`Are you sure you want to delete "${title}"?`)
-      : await new Promise<boolean>((resolve) => {
-          Alert.alert(
-            "Delete Moment",
-            `Are you sure you want to delete "${title}"?`,
-            [
+    const confirmDelete =
+      Platform.OS === "web"
+        ? (globalThis as any).confirm(`Are you sure you want to delete "${title}"?`)
+        : await new Promise<boolean>((resolve) => {
+            Alert.alert("Delete Moment", `Are you sure you want to delete "${title}"?`, [
               { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
               { text: "Delete", style: "destructive", onPress: () => resolve(true) },
-            ]
-          );
-        });
+            ]);
+          });
 
     if (confirmDelete) {
       try {
+        haptics.warning();
         await momentsService.deleteMoment(id);
+        setIsDetailVisible(false);
         closeModal();
         loadMoments();
       } catch (error) {
@@ -440,632 +363,233 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
     }
   };
 
-  const renderMoment = useCallback(
-    ({ item: moment, index }: { item: Moment; index: number }) => {
-      return (
-        <AnimatedCard index={index} animationType="spring">
-          <MomentCard
-            key={moment.id}
-            moment={moment}
-            onPress={() => handleViewMoment(moment)}
-            variant="screen"
-          />
-        </AnimatedCard>
-      );
-    },
-    [handleViewMoment]
+  const threadItems = useMemo<ThreadItem[]>(
+    () =>
+      moments.map((m, index) => ({
+        id: m.id || `moment-${index}`,
+        type: "moment",
+        date: m.story_date,
+        title: m.title,
+        coverPhoto: filterValidPhotos(m.photos || [])[0] ?? null,
+        body: m.description,
+      })),
+    [moments]
   );
+
+  const onPressItem = useMemo(
+    () =>
+      guard((item: ThreadItem) => {
+        const index = threadItems.indexOf(item);
+        const moment = index >= 0 ? moments[index] : undefined;
+        if (moment) handleViewMoment(moment);
+      }),
+    [guard, threadItems, moments, handleViewMoment]
+  );
+
+  const header = <Header title={SCREEN_TITLE} section="moments" style={styles.header} />;
 
   if (loading && moments.length === 0) {
     return (
-      <View style={{ flex: 1, backgroundColor: MOMENT_BG }}>
-        <SkeletonList variant="moment" count={3} />
-      </View>
+      <ScreenBackground>
+        <View style={styles.column}>
+          {header}
+          <Skeleton count={3} />
+        </View>
+      </ScreenBackground>
     );
   }
 
   const renderEmpty = () =>
     loadError === "failed" ? (
-      <ErrorState
-        subject="your moments"
-        onRetry={() => loadMoments(true, true)}
-        backgroundColor={MOMENT_BG}
-      />
+      <ErrorSlip what="your moments" onRetry={() => loadMoments(true, true)} style={styles.slip} />
     ) : (
-    <EmptyState
-      icon="💕"
-      title="No special moments yet"
-      message="Capture your first moment to begin!"
-      backgroundColor={MOMENT_BG}
-    />
+      <EmptySlip
+        message={EMPTY_COPY.moments.message}
+        actionLabel={EMPTY_COPY.moments.action}
+        onAction={() => openModal()}
+        style={styles.slip}
+      />
+    );
+
+  const listHeader = (
+    <View>
+      {header}
+      {loadError === "stale" ? (
+        <ErrorSlip what="your moments" onRetry={() => loadMoments(true, true)} showingSavedCopy style={styles.slip} />
+      ) : null}
+    </View>
   );
 
   const renderFooter = () => {
     if (!loadingMore) return null;
-    return <LoadingMore color={MOMENT_COLOR} />;
+    return <Skeleton count={1} withPhotos={false} style={styles.footer} />;
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: MOMENT_BG }}>
-      <FlatList
-        data={moments}
-        renderItem={renderMoment}
-        keyExtractor={(item, index) => item.id || `moment-${index}`}
+    <ScreenBackground>
+      <Thread
+        items={threadItems}
+        onPressItem={onPressItem}
         ListEmptyComponent={renderEmpty}
-        ListHeaderComponent={
-          loadError === "stale" ? (
-            <SavedCopyNotice onRetry={() => loadMoments(true, true)} />
-          ) : null
-        }
+        ListHeaderComponent={listHeader}
         ListFooterComponent={renderFooter}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
-        contentContainerStyle={{ paddingVertical: 20 }}
-        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.column, styles.listContent]}
         refreshing={loading && moments.length === 0}
         onRefresh={() => loadMoments(true)}
       />
 
-      {/* Animated Floating Action Button with Pulsing Heart */}
-      <AnimatedFAB
-        onPress={() => openModal()}
-        color={MOMENT_COLOR}
-        style={{
-          ...getBoxShadow(MOMENT_COLOR, { width: 0, height: 6 }, 0.5, 16),
-          borderWidth: 2,
-          borderColor: "#FF8E9D",
-        }}
-      >
-        <PulsingHeart size={32} />
-      </AnimatedFAB>
+      <AddButton accessibilityLabel="Add a moment" onPress={() => openModal()} />
 
-      {/* Immersive Modal */}
-      <Modal
+      {/* Create / edit form [7A] */}
+      <FormSheet
         visible={isModalVisible}
-        animationType="slide"
-        presentationStyle="fullScreen"
+        title={form.editingMoment ? "Edit moment" : "New moment"}
+        saveState={saveState}
+        error={formError}
+        onSave={handleSaveMoment}
+        onRequestClose={requestCloseModal}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
-        >
-          <Animated.View
-            style={{
-              flex: 1,
-              backgroundColor: MOMENT_BG,
-              opacity: fadeAnim,
-            }}
-          >
-            {/* Header */}
-            <View
-              style={{
-                paddingTop: Platform.OS === "ios" ? 60 : 40,
-                paddingBottom: 20,
-                paddingHorizontal: 20,
-                backgroundColor: MOMENT_GRADIENT[0] + "40",
-                borderBottomWidth: 1,
-                borderBottomColor: MOMENT_GRADIENT[0] + "60",
+        <Input
+          label="Title"
+          placeholder="Give this moment a memorable title"
+          value={form.title}
+          onChangeText={form.setTitle}
+        />
+
+        <View>
+          <Text variant="caption" tone="muted" uppercase style={styles.label}>
+            Date
+          </Text>
+
+          {/* Web: inline date input */}
+          {Platform.OS === "web" && (
+            <WebDatePicker
+              value={form.datePickerValue}
+              onChange={(newDate) => {
+                haptics.select();
+                form.pickDate(newDate);
               }}
-            >
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: photos.length > 0 ? 16 : 0,
-                }}
-              >
-                <TouchableOpacity
-                  onPress={closeModal}
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    backgroundColor: "rgba(0, 0, 0, 0.5)",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 20,
-                      color: MOMENT_TEXT,
-                      fontWeight: "600",
-                    }}
-                  >
-                    ✕
-                  </Text>
-                </TouchableOpacity>
-                <Text
-                  style={{
-                    fontSize: 22,
-                    fontWeight: "300",
-                    color: MOMENT_TEXT,
-                    letterSpacing: 1,
-                    fontFamily: Platform.select({
-                      ios: "Georgia",
-                      android: "serif",
-                    }),
-                  }}
-                >
-                  {editingMoment ? "Edit Moment" : "New Moment"}
-                </Text>
-                <TouchableOpacity
-                  onPress={handleSaveMoment}
-                  disabled={isSaving}
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: isSaving, busy: isSaving }}
-                  style={{
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
-                    borderRadius: 20,
-                    backgroundColor: MOMENT_COLOR,
-                    opacity: isSaving ? 0.6 : 1,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      color: "#fff",
-                      fontWeight: "600",
-                    }}
-                  >
-                    Save
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              maxDate={new Date()}
+              accentColor={color.accent}
+              backgroundColor={color.surfaceRaised}
+              textColor={color.text}
+            />
+          )}
 
-              {/* Photo Preview */}
-              {photos.length > 0 && (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={{ marginTop: 12 }}
-                  contentContainerStyle={{ paddingHorizontal: 10, gap: 12 }}
-                >
-                  {photos.map((photo, index) => (
-                    <View key={index} style={{ position: "relative" }}>
-                      <ThumbnailImage
-                        source={photo}
-                        style={{
-                          width: 120,
-                          height: 120,
-                          borderRadius: 12,
-                          borderWidth: 2,
-                          borderColor: MOMENT_COLOR + "60",
-                        }}
-                        contentFit="cover"
-                        cachePolicy="disk"
-                        transition={150}
-                      />
-                      <TouchableOpacity
-                        onPress={() => removePhoto(index)}
-                        style={{
-                          position: "absolute",
-                          top: -8,
-                          right: -8,
-                          width: 28,
-                          height: 28,
-                          borderRadius: 14,
-                          backgroundColor: "#ef4444",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          borderWidth: 2,
-                          borderColor: "#fff",
-                          zIndex: 10,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            color: "#fff",
-                            fontSize: 16,
-                            fontWeight: "600",
-                          }}
-                        >
-                          ×
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </ScrollView>
-              )}
+          {/* Native: a field that opens the picker */}
+          {Platform.OS !== "web" && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Date, ${form.storyDate ? formatLongDate(form.storyDate) : "not set"}`}
+              accessibilityHint="Opens the date picker"
+              onPress={() => form.setShowDatePicker(!form.showDatePicker)}
+              style={styles.dateField}
+            >
+              <Text variant="body" tone={form.storyDate ? "text" : "muted"}>
+                {form.storyDate ? formatLongDate(form.storyDate) : "Select a date"}
+              </Text>
+              <Calendar size={iconSize.md} color={color.textMuted} strokeWidth={ICON_STROKE} />
+            </Pressable>
+          )}
+
+          {/* iOS: inline spinner with Done */}
+          {form.showDatePicker && Platform.OS === "ios" && (
+            <View style={styles.iosPicker}>
+              <View style={styles.iosPickerBar}>
+                <Text variant="heading">Select date</Text>
+                <Button
+                  variant="primary"
+                  label="Done"
+                  onPress={() => {
+                    haptics.select();
+                    form.pickDate(form.datePickerValue);
+                    form.setShowDatePicker(false);
+                  }}
+                />
+              </View>
+              <DateTimePicker
+                value={form.datePickerValue}
+                mode="date"
+                display="spinner"
+                onChange={form.handleDateChange}
+                maximumDate={new Date()}
+                textColor={color.text}
+              />
             </View>
+          )}
 
-            <ScrollView
-              style={{ flex: 1, padding: 20, backgroundColor: MOMENT_BG }}
-              contentContainerStyle={{ paddingBottom: 40 }}
-              showsVerticalScrollIndicator={false}
-            >
-              {/* Heart Badge Preview */}
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  alignSelf: "flex-start",
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                  borderRadius: 20,
-                  backgroundColor: MOMENT_COLOR + "40",
-                  marginBottom: 24,
-                }}
-              >
-                <Text style={{ fontSize: 20, marginRight: 8 }}>💕</Text>
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: "600",
-                    color: MOMENT_COLOR,
-                  }}
-                >
-                  Special Moment
-                </Text>
-              </View>
+          {/* Android: system dialog */}
+          {form.showDatePicker && Platform.OS === "android" && (
+            <DateTimePicker
+              value={form.datePickerValue}
+              mode="date"
+              display="default"
+              onChange={(event: any, picked?: Date) => {
+                if (event.type === "set") haptics.select();
+                form.handleDateChange(event, picked);
+              }}
+              maximumDate={new Date()}
+            />
+          )}
+        </View>
 
-              {/* Title Input */}
-              <View style={{ marginBottom: 24 }}>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    color: MOMENT_TEXT,
-                    marginBottom: 12,
-                    fontWeight: "600",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  ✨ Title
-                </Text>
-                <TextInput
-                  style={{
-                    borderWidth: 2,
-                    borderColor: MOMENT_COLOR + "60",
-                    borderRadius: 16,
-                    padding: 18,
-                    fontSize: 17,
-                    backgroundColor: "#1e293b",
-                    color: MOMENT_TEXT,
-                    fontWeight: "500",
-                  }}
-                  placeholder="Give this moment a memorable title..."
-                  placeholderTextColor={MOMENT_TEXT + "60"}
-                  value={title}
-                  onChangeText={setTitle}
-                />
-              </View>
+        <Input
+          label="Description"
+          placeholder="Describe this moment"
+          value={form.description}
+          onChangeText={form.setDescription}
+          multiline
+        />
 
-              {/* Date Picker */}
-              <View style={{ marginBottom: 24 }}>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    color: MOMENT_TEXT,
-                    marginBottom: 12,
-                    fontWeight: "600",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  📅 Date *
-                </Text>
-
-                {/* Web: Inline date input */}
-                {Platform.OS === "web" && (
-                  <WebDatePicker
-                    value={datePickerValue}
-                    onChange={(newDate) => {
-                      setDatePickerValue(newDate);
-                      setStoryDate(formatDateForDatabase(newDate));
-                    }}
-                    maxDate={new Date()}
-                    accentColor={MOMENT_COLOR}
-                    backgroundColor="#1e293b"
-                    textColor={MOMENT_TEXT}
+        {/* Photos */}
+        <View>
+          <Text variant="caption" tone="muted" uppercase style={styles.label}>
+            {`Photos (${form.photos.length})`}
+          </Text>
+          {form.photos.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbRow}>
+              {form.photos.map((photo, index) => (
+                <View key={`${photo}-${index}`} style={styles.thumb}>
+                  <PhotoImage source={photo} tint={false} style={StyleSheet.absoluteFill} />
+                  <Button
+                    variant="icon"
+                    accessibilityLabel={`Remove photo ${index + 1}`}
+                    icon={<X size={iconSize.sm} color={color.text} strokeWidth={ICON_STROKE} />}
+                    onPress={() => form.removePhoto(index)}
+                    style={styles.thumbRemove}
                   />
-                )}
-
-                {/* Native: TouchableOpacity to open picker */}
-                {Platform.OS !== "web" && (
-                  <TouchableOpacity
-                    onPress={() => setShowDatePicker(!showDatePicker)}
-                    style={{
-                      borderWidth: 2,
-                      borderColor: MOMENT_COLOR + "60",
-                      borderRadius: 16,
-                      padding: 18,
-                      backgroundColor: "#1e293b",
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 17,
-                        color: storyDate ? MOMENT_TEXT : MOMENT_TEXT + "60",
-                        fontWeight: "500",
-                      }}
-                    >
-                      {storyDate && datePickerValue
-                        ? formatDateForDisplay(datePickerValue)
-                        : "Select a date"}
-                    </Text>
-                    <Text style={{ fontSize: 20, color: MOMENT_COLOR }}>📅</Text>
-                  </TouchableOpacity>
-                )}
-
-                {/* Date Picker - Inline for iOS */}
-                {showDatePicker && Platform.OS === "ios" && (
-                  <View
-                    style={{
-                      marginTop: 16,
-                      padding: 20,
-                      backgroundColor: "#1e293b",
-                      borderRadius: 16,
-                      borderWidth: 2,
-                      borderColor: MOMENT_COLOR + "60",
-                      zIndex: 1000,
-                    }}
-                  >
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginBottom: 16,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 18,
-                          fontWeight: "600",
-                          color: MOMENT_TEXT,
-                        }}
-                      >
-                        Select Date
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          const formattedDate =
-                            formatDateForDatabase(datePickerValue);
-                          setStoryDate(formattedDate);
-                          setShowDatePicker(false);
-                        }}
-                        style={{
-                          paddingHorizontal: 16,
-                          paddingVertical: 8,
-                          borderRadius: 20,
-                          backgroundColor: MOMENT_COLOR,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            color: "#fff",
-                            fontWeight: "600",
-                          }}
-                        >
-                          Done
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                    <DateTimePicker
-                      value={datePickerValue}
-                      mode="date"
-                      display="spinner"
-                      onChange={handleDateChange}
-                      maximumDate={new Date()}
-                      textColor={MOMENT_TEXT}
-                    />
-                  </View>
-                )}
-
-                {/* Android Date Picker */}
-                {showDatePicker && Platform.OS === "android" && (
-                  <DateTimePicker
-                    value={datePickerValue}
-                    mode="date"
-                    display="default"
-                    onChange={handleDateChange}
-                    maximumDate={new Date()}
-                  />
-                )}
-              </View>
-
-              {/* Description */}
-              <View style={{ marginBottom: 24 }}>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    color: MOMENT_TEXT,
-                    marginBottom: 12,
-                    fontWeight: "600",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  💕 Description *
-                </Text>
-                <TextInput
-                  style={{
-                    borderWidth: 2,
-                    borderColor: MOMENT_COLOR + "60",
-                    borderRadius: 16,
-                    padding: 18,
-                    fontSize: 17,
-                    backgroundColor: "#1e293b",
-                    color: MOMENT_TEXT,
-                    minHeight: 120,
-                    textAlignVertical: "top",
-                    lineHeight: 24,
-                  }}
-                  placeholder="Describe this special moment..."
-                  placeholderTextColor={MOMENT_TEXT + "60"}
-                  value={description}
-                  onChangeText={setDescription}
-                  multiline
-                />
-              </View>
-
-              {/* Photos */}
-              <View style={{ marginBottom: 30 }}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 12,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      color: MOMENT_TEXT,
-                      fontWeight: "600",
-                    }}
-                  >
-                    📷 Photos ({photos.length})
-                  </Text>
-                  <TouchableOpacity
-                    onPress={pickImage}
-                    style={{
-                      paddingHorizontal: 16,
-                      paddingVertical: 8,
-                      borderRadius: 20,
-                      backgroundColor: MOMENT_COLOR,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: "#FFF",
-                        fontSize: 15,
-                        fontWeight: "600",
-                      }}
-                    >
-                      + Add Photo
-                    </Text>
-                  </TouchableOpacity>
                 </View>
-
-                {photos.length > 0 ? (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 12, paddingVertical: 8 }}
-                  >
-                    {photos.map((photo, index) => (
-                      <View key={index} style={{ position: "relative" }}>
-                        <ThumbnailImage
-                          source={photo}
-                          style={{
-                            width: 120,
-                            height: 120,
-                            borderRadius: 12,
-                            borderWidth: 2,
-                            borderColor: MOMENT_COLOR,
-                          }}
-                          contentFit="cover"
-                          cachePolicy="disk"
-                          transition={150}
-                        />
-                        <TouchableOpacity
-                          onPress={() => removePhoto(index)}
-                          style={{
-                            position: "absolute",
-                            top: -8,
-                            right: -8,
-                            width: 28,
-                            height: 28,
-                            borderRadius: 14,
-                            backgroundColor: "#ef4444",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            borderWidth: 2,
-                            borderColor: "#fff",
-                            zIndex: 10,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: "#fff",
-                              fontSize: 16,
-                              fontWeight: "600",
-                            }}
-                          >
-                            ×
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </ScrollView>
-                ) : (
-                  <TouchableOpacity
-                    style={{
-                      borderWidth: 2,
-                      borderColor: MOMENT_COLOR + "60",
-                      borderStyle: "dashed",
-                      borderRadius: 16,
-                      padding: 24,
-                      backgroundColor: "#1e293b",
-                      alignItems: "center",
-                      minHeight: 120,
-                      justifyContent: "center",
-                    }}
-                    onPress={pickImage}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 32,
-                        color: MOMENT_COLOR + "80",
-                        marginBottom: 12,
-                      }}
-                    >
-                      📷
-                    </Text>
-                    <Text
-                      style={{
-                        color: MOMENT_TEXT + "80",
-                        fontSize: 17,
-                        fontWeight: "500",
-                      }}
-                    >
-                      Tap to add photos
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Delete Button for Editing */}
-              {editingMoment && (
-                <TouchableOpacity
-                  onPress={() =>
-                    editingMoment.id &&
-                    handleDeleteMoment(editingMoment.id, editingMoment.title)
-                  }
-                  style={{
-                    backgroundColor: "#ef4444",
-                    padding: 16,
-                    borderRadius: 20,
-                    alignItems: "center",
-                    marginTop: 20,
-                    marginBottom: 20,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: "#FFF",
-                      fontSize: 16,
-                      fontWeight: "600",
-                    }}
-                  >
-                    Delete Moment
-                  </Text>
-                </TouchableOpacity>
-              )}
+              ))}
             </ScrollView>
-          </Animated.View>
-        </KeyboardAvoidingView>
-      </Modal>
+          ) : null}
+          <Button
+            variant="secondary"
+            label={form.photos.length > 0 ? "Add more photos" : "Add photos"}
+            icon={<ImagePlus size={iconSize.md} color={color.text} strokeWidth={ICON_STROKE} />}
+            onPress={pickImage}
+          />
+        </View>
+      </FormSheet>
 
-      {/* Detail View Modal */}
-      <AnimatedModal
+      <ConfirmDialog
+        visible={confirmDiscard}
+        title="Discard this moment?"
+        message="Your changes won't be saved."
+        onCancel={() => setConfirmDiscard(false)}
+        onConfirm={() => {
+          haptics.warning();
+          closeModal();
+        }}
+      />
+
+      {/* Detail view */}
+      <Sheet
         visible={isDetailVisible}
-        onClose={() => setIsDetailVisible(false)}
+        onRequestClose={() => setIsDetailVisible(false)}
+        accessibilityLabel={selectedMoment?.title}
+        style={styles.detailSheet}
       >
         {selectedMoment && (
           <MomentDetailView
@@ -1073,18 +597,51 @@ export default function MomentsScreen({ isFocused = true }: MomentsScreenProps) 
             onClose={() => setIsDetailVisible(false)}
             onEdit={() => {
               setIsDetailVisible(false);
-              setTimeout(() => openModal(selectedMoment), 300);
+              setTimeout(() => openModal(selectedMoment), motion.sheetClose);
             }}
+            onDelete={() =>
+              selectedMoment.id ? handleDeleteMoment(selectedMoment.id, selectedMoment.title) : undefined
+            }
           />
         )}
-      </AnimatedModal>
-
-      {/* Success Checkmark Animation - must be last for z-index */}
-      <SuccessCheckmark 
-        visible={showSuccess} 
-        onHide={() => setShowSuccess(false)} 
-        color={MOMENT_COLOR} 
-      />
-    </View>
+      </Sheet>
+    </ScreenBackground>
   );
 }
+
+/** Thumbnail edge in the form's photo row. */
+const THUMB = hitTarget * 2;
+
+const styles = StyleSheet.create({
+  column: { width: "100%", paddingHorizontal: gutter },
+  header: { paddingHorizontal: 0 },
+  listContent: { paddingBottom: space.xxxl * 2 },
+  slip: { marginTop: space.xl },
+  footer: { marginLeft: space.xl + space.md },
+  label: { marginBottom: space.sm },
+  dateField: {
+    minHeight: field.height,
+    backgroundColor: color.surfaceRaised,
+    borderRadius: radius.field,
+    paddingHorizontal: space.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  iosPicker: {
+    marginTop: space.md,
+    padding: space.lg,
+    backgroundColor: color.surfaceRaised,
+    borderRadius: radius.field,
+  },
+  iosPickerBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: space.md,
+  },
+  thumbRow: { gap: space.md, paddingBottom: space.md },
+  thumb: { width: THUMB, height: THUMB, borderRadius: radius.print, overflow: "hidden" },
+  thumbRemove: { position: "absolute", top: 0, right: 0, backgroundColor: color.scrim },
+  detailSheet: { height: "92%" },
+});
